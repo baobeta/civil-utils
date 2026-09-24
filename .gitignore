@@ -3,3 +3,10 @@
 
 # macOS
 .DS_Store
+
+# .NET
+bin/
+obj/
+.vs/
+*.user
+TestResults/

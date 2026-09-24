@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <Version>0.1.0</Version>
+    <Company>C3DTools</Company>
+    <Product>C3DTools</Product>
+  </PropertyGroup>
+</Project>

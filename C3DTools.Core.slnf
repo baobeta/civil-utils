@@ -1,0 +1,9 @@
+{
+  "solution": {
+    "path": "C3DTools.sln",
+    "projects": [
+      "src\\C3DTools.Core\\C3DTools.Core.csproj",
+      "tests\\C3DTools.Core.Tests\\C3DTools.Core.Tests.csproj"
+    ]
+  }
+}
