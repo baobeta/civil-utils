@@ -1,0 +1,49 @@
+name: build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # needed only to create releases on tags
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
+          else { $v = "0.1.0.$env:GITHUB_RUN_NUMBER" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Test Core
+        run: dotnet test C3DTools.Core.slnf
+
+      - name: Package bundle
+        shell: pwsh
+        run: ./scripts/package-bundle.ps1 -Version ${{ steps.ver.outputs.version }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: C3DTools-${{ steps.ver.outputs.version }}
+          path: artifacts/C3DTools-${{ steps.ver.outputs.version }}/
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create ${{ github.ref_name }}
+          artifacts/C3DTools-${{ steps.ver.outputs.version }}.zip
+          --title "C3DTools ${{ github.ref_name }}"
+          --generate-notes
