@@ -13,4 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\C3DTools.Core\C3DTools.Core.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="Curves/Golden/*.csv" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
