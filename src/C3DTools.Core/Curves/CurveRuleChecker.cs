@@ -5,7 +5,11 @@ using System.Linq;
 
 namespace C3DTools.Core.Curves;
 
-public enum CurveIssueCode { NoRuleForSpeed, RadiusTooSmall, RadiusBelowNormal, SpiralTooShort }
+public enum CurveIssueCode
+{
+    NoRuleForSpeed, RadiusTooSmall, RadiusBelowNormal, SpiralTooShort,
+    InvalidInput, SpiralTooLong, Overlap,
+}
 
 public sealed class CurveIssue
 {
@@ -17,6 +21,10 @@ public sealed class CurveIssue
 
     public CurveIssueCode Code { get; }
     public string Message { get; }
+
+    /// <summary>Errors block Áp dụng; warnings (TCVN checks) only inform, as in YTC.lsp.</summary>
+    public bool IsError =>
+        Code == CurveIssueCode.InvalidInput || Code == CurveIssueCode.SpiralTooLong || Code == CurveIssueCode.Overlap;
 }
 
 public sealed class CurveCheckResult
