@@ -39,6 +39,12 @@
     <Reference Include="System.Xaml" />
   </ItemGroup>
 
+  <!-- Ribbon icons (Ui/RibbonSetup.cs loads them by these names) -->
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\ytc16.png" LogicalName="C3DTools.Civil2021.Resources.ytc16.png" />
+    <EmbeddedResource Include="Resources\ytc32.png" LogicalName="C3DTools.Civil2021.Resources.ytc32.png" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\C3DTools.Core\C3DTools.Core.csproj" />
   </ItemGroup>
