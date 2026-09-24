@@ -46,6 +46,21 @@ public class PiExtractorTests
     }
 
     [Fact]
+    public void FromTangents_keeps_a_straight_through_vertex()
+    {
+        var pis = PiExtractor.FromTangents(new[] { (P(0, 0), P(50, 0)), (P(50, 0), P(120, 0)) });
+        Assert.Equal(3, pis.Count);
+        Assert.Equal(50, pis[1].X, 9);
+        Assert.Equal(0, pis[1].Y, 9);
+    }
+
+    [Fact]
+    public void FromTangents_with_parallel_offset_lines_throws()
+    {
+        Assert.Throws<ArgumentException>(() => PiExtractor.FromTangents(new[] { (P(0, 0), P(50, 0)), (P(60, 5), P(120, 5)) }));
+    }
+
+    [Fact]
     public void FromTangents_with_one_line_gives_its_ends()
     {
         var pis = PiExtractor.FromTangents(new[] { (P(1, 2), P(3, 4)) });

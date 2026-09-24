@@ -31,6 +31,14 @@
     </Reference>
   </ItemGroup>
 
+  <!-- WPF for the CTYTC dialog, built in code (no .xaml), so it compiles on macOS too -->
+  <ItemGroup>
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\C3DTools.Core\C3DTools.Core.csproj" />
   </ItemGroup>

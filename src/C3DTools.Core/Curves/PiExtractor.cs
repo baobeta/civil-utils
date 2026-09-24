@@ -15,7 +15,10 @@ public sealed class MeasuredCurve
 /// <summary>PIs of an existing alignment, rebuilt from its tangent lines.</summary>
 public static class PiExtractor
 {
-    /// <summary>First line's start, the intersection of each consecutive pair of lines, last line's end.</summary>
+    /// <summary>
+    /// First line's start, the intersection of each consecutive pair of lines, last line's end.
+    /// Two consecutive collinear lines (a straight-through vertex) give the point where they meet.
+    /// </summary>
     public static List<PlanPoint> FromTangents(IReadOnlyList<(PlanPoint start, PlanPoint end)> lines)
     {
         if (lines == null) throw new ArgumentNullException(nameof(lines));
@@ -23,7 +26,14 @@ public static class PiExtractor
 
         var pis = new List<PlanPoint> { lines[0].start };
         for (var i = 0; i + 1 < lines.Count; i++)
-            pis.Add(Intersect(lines[i].start, lines[i].end, lines[i + 1].start, lines[i + 1].end));
+        {
+            var a = lines[i];
+            var b = lines[i + 1];
+            pis.Add(Collinear(a.start, a.end, b.start) && Collinear(a.start, a.end, b.end)
+                ? new PlanPoint((a.end.X + b.start.X) / 2, (a.end.Y + b.start.Y) / 2)
+                : Intersect(a.start, a.end, b.start, b.end));
+        }
+
         pis.Add(lines[lines.Count - 1].end);
         return pis;
     }
@@ -59,6 +69,13 @@ public static class PiExtractor
             T2 = Distance(pi, end),
             P = Distance(pi, arcMid),
         };
+    }
+
+    private static bool Collinear(PlanPoint a1, PlanPoint a2, PlanPoint p)
+    {
+        double dx = a2.X - a1.X, dy = a2.Y - a1.Y;
+        var l = Math.Sqrt(dx * dx + dy * dy);
+        return l > 1e-12 && Math.Abs(dx * (p.Y - a1.Y) - dy * (p.X - a1.X)) / l < 1e-6;
     }
 
     private static double Distance(PlanPoint a, PlanPoint b)

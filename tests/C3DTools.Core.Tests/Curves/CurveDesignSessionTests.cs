@@ -133,6 +133,26 @@ public class CurveDesignSessionTests
     }
 
     [Fact]
+    public void Typed_text_is_shown_back_while_it_means_the_stored_value()
+    {
+        var s = Session(Rules());
+        s.Load(Zigzag, null);
+        var row = s.Rows[0];
+
+        row.RadiusText = "12,";
+        Assert.Equal("12,", row.RadiusText);   // typing continues with "12,5"
+        row.RadiusText = "12,5";
+        Assert.Equal("12,5", row.RadiusText);
+        Assert.Equal(12.5, s.Inputs[0].Radius);
+
+        s.CopyDown(0);
+        Assert.Equal("12.5", s.Rows[1].RadiusText);
+
+        s.Inputs[0].Radius = 300;   // changed elsewhere (suggest, reload): the formatted value wins
+        Assert.Equal("300", row.RadiusText);
+    }
+
+    [Fact]
     public void Invalid_text_keeps_value_and_flags_error_until_fixed()
     {
         var s = Session(Rules());

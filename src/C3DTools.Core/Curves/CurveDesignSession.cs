@@ -224,6 +224,8 @@ public sealed class CurveRow : INotifyPropertyChanged
     private readonly CurveDesignSession _session;
     /// <summary>Rejected text per field, shown back to the user until a valid value replaces it.</summary>
     private readonly Dictionary<string, string> _badText = new Dictionary<string, string>();
+    /// <summary>Accepted text per field ("12," or "12."), shown back while it still means the stored value.</summary>
+    private readonly Dictionary<string, string> _typedText = new Dictionary<string, string>();
 
     internal CurveRow(CurveDesignSession session, int index, int piIndex)
     {
@@ -280,7 +282,11 @@ public sealed class CurveRow : INotifyPropertyChanged
         : CurveRowSeverity.None;
 
     /// <summary>Called when the session overwrites every input value (copy down, suggest).</summary>
-    internal void ClearInputErrors() => _badText.Clear();
+    internal void ClearInputErrors()
+    {
+        _badText.Clear();
+        _typedText.Clear();
+    }
 
     internal void Refresh()
     {
@@ -292,6 +298,7 @@ public sealed class CurveRow : INotifyPropertyChanged
         if (NumberInput.TryParse(text, out var value))
         {
             _badText.Remove(field);
+            _typedText[field] = text.Trim();
             apply(value);
         }
         else
@@ -307,6 +314,11 @@ public sealed class CurveRow : INotifyPropertyChanged
 
     private string Station(double station) => StationFormatter.Format(station, _session.StationDecimals, withKmPrefix: false);
 
-    private string Text(string field, double value) =>
-        _badText.TryGetValue(field, out var bad) ? bad : NumberFormat.Trimmed(value, 3);
+    private string Text(string field, double value)
+    {
+        if (_badText.TryGetValue(field, out var bad)) return bad;
+        // A grid bound on every keystroke reads the text back at once; "12," must not turn into "12".
+        if (_typedText.TryGetValue(field, out var typed) && NumberInput.TryParse(typed, out var v) && v == value) return typed;
+        return NumberFormat.Trimmed(value, 3);
+    }
 }
