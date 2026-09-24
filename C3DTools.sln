@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C3DTools.Core.Tests", "tests\C3DTools.Core.Tests\C3DTools.Core.Tests.csproj", "{7ECA71D9-600B-44B3-A83B-D5744BB7C62D}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "C3DTools.Civil2021", "src\C3DTools.Civil2021\C3DTools.Civil2021.csproj", "{65B21097-621D-4616-970A-F743602B0CAB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +47,18 @@ Global
 		{7ECA71D9-600B-44B3-A83B-D5744BB7C62D}.Release|x64.Build.0 = Release|Any CPU
 		{7ECA71D9-600B-44B3-A83B-D5744BB7C62D}.Release|x86.ActiveCfg = Release|Any CPU
 		{7ECA71D9-600B-44B3-A83B-D5744BB7C62D}.Release|x86.Build.0 = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|x64.Build.0 = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Debug|x86.Build.0 = Debug|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|x64.ActiveCfg = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|x64.Build.0 = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|x86.ActiveCfg = Release|Any CPU
+		{65B21097-621D-4616-970A-F743602B0CAB}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -52,5 +66,6 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{10DFE3DD-9D9B-4EF8-A9B9-B779E2056D59} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{7ECA71D9-600B-44B3-A83B-D5744BB7C62D} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{65B21097-621D-4616-970A-F743602B0CAB} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 	EndGlobalSection
 EndGlobal
