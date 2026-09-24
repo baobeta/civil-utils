@@ -1,0 +1,27 @@
+{
+  "SchemaVersion": 1,
+  "Name": "TCVN 4054:2005",
+  "Version": "1.0",
+  "DesignSpeed": 60,
+  "CurveRules": {
+    "Source": "TCVN 4054:2005 — Rmin giới hạn / thông thường theo YTC.lsp; Lct min và mở rộng chưa nhập",
+    "MinRadius": [
+      { "DesignSpeed": 120, "MinRadius": 650, "NormalRadius": 1000 },
+      { "DesignSpeed": 100, "MinRadius": 400, "NormalRadius": 700 },
+      { "DesignSpeed": 80, "MinRadius": 250, "NormalRadius": 400 },
+      { "DesignSpeed": 60, "MinRadius": 125, "NormalRadius": 250 },
+      { "DesignSpeed": 40, "MinRadius": 60, "NormalRadius": 125 },
+      { "DesignSpeed": 30, "MinRadius": 30, "NormalRadius": 60 },
+      { "DesignSpeed": 20, "MinRadius": 15, "NormalRadius": 50 }
+    ],
+    "MinSpiral": [],
+    "Widening": []
+  },
+  "CurveBox": {
+    "TextHeight": 2.5,
+    "OffsetFromAlignment": 10,
+    "LengthDecimals": 2,
+    "AngleSecondDecimals": 0,
+    "ShowZeroValues": false
+  }
+}

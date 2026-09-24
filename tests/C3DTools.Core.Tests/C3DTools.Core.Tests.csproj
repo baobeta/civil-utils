@@ -15,5 +15,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Curves/Golden/*.csv" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../bundle/Resources/*.json" Link="Resources/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>
