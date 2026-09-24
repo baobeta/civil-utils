@@ -10,3 +10,6 @@ obj/
 .vs/
 *.user
 TestResults/
+
+# Packaging output
+artifacts/
