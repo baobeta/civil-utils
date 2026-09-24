@@ -10,7 +10,8 @@ C3DTools: a .NET add-in for **Civil 3D 2021** (PRD 1.0). Implementation plans li
 | Host project | `net48`, `<PlatformTarget>x64</PlatformTarget>` |
 | Core project | `netstandard2.0`, no Autodesk references, unit-tested on any OS |
 | AutoCAD refs | NuGet `AutoCAD.NET`, `AutoCAD.NET.Core`, `AutoCAD.NET.Model` **24.0.0**, all `ExcludeAssets="runtime"` |
-| Civil 3D refs | `AeccDbMgd.dll` (`<install>\C3D\`), `AecBaseMgd.dll` (`<install>\ACA\`) via HintPath, `Private=false` |
+| Civil 3D refs | Community NuGet `Civil3D2021.Base` 1.0.0, `ExcludeAssets="runtime"`. It's a compile-only reference and must never be shipped. `-p:UseLocalCivil3D=true` uses the local install instead: `<install>\C3D\AeccDbMgd.dll` and `<install>\ACA\AecBaseMgd.dll` |
+| Build and release | GitHub Actions on `windows-latest` produces `C3DTools-<version>.zip`; a `v*` tag publishes a GitHub Release. The zip must never contain Autodesk DLLs |
 | API docs | [Civil 3D 2021 API Developer's Guide](https://help.autodesk.com/view/CIV3D/2021/ENU/?contextId=developer-guide) |
 
 ## AutoCAD / Civil 3D skills

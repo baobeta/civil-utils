@@ -6,7 +6,7 @@
 
 **Architecture:** Three layers per PRD §7.3. `C3DTools.Core` (netstandard2.0) holds pure calculation — station formatting, point-file validation, average-end-area volumes, pipe rules, station planning, presets, table export — and is tested on any OS. `C3DTools.Civil2021` (net48, x64) holds commands, shared services and the Civil 3D/AutoCAD adapters, and is built and run only on Windows with Civil 3D 2021 installed. Host code never contains business rules; it reads/writes drawing objects and calls Core.
 
-**Tech Stack:** .NET SDK 8+ (builds both), netstandard2.0 + net48, xUnit, Newtonsoft.Json, official `AutoCAD.NET` 24.0.0 NuGet (compile-only), `AeccDbMgd.dll`/`AecBaseMgd.dll` from the Civil 3D 2021 install, Autodesk bundle format (`PackageContents.xml`).
+**Tech Stack:** .NET SDK 8+ (builds both), netstandard2.0 + net48, xUnit, Newtonsoft.Json, official `AutoCAD.NET` 24.0.0 NuGet (compile-only), community `Civil3D2021.Base` 1.0.0 NuGet for `AeccDbMgd`/`AecBaseMgd` (compile-only, never shipped), Autodesk bundle format (`PackageContents.xml`), GitHub Actions (Windows runner) producing a downloadable bundle zip.
 
 ---
 
@@ -23,8 +23,9 @@ PRD §10 schedules 15 weeks. This plan covers **week 0 (setup) through the Core 
 
 ## Machines
 
-- **macOS (current):** Tasks 0–9. Core + tests only (`C3DTools.Core.slnf`).
-- **Windows with Civil 3D 2021 (update 2021.3 or later):** Tasks 10–12. Needs .NET SDK 8+ and Visual Studio 2022 (optional, for debugging).
+- **macOS (current):** writes and builds everything, including the net48 add-in (all Autodesk references come from NuGet). Runs Core tests.
+- **GitHub Actions (`windows-latest`):** builds, tests and packages `C3DTools-<version>.zip` on every push; publishes a GitHub Release on a `v*` tag (Task 13).
+- **Windows with Civil 3D 2021 (update 2021.3 or later):** only for *running* the add-in — the manual checks in Task 11 and the spike in Task 12. Testers download the zip, run `install.cmd`, open Civil 3D. Visual Studio 2022 is optional, for debugging.
 
 ## Conventions (apply to every task)
 
@@ -1741,26 +1742,19 @@ Then run `gh run list --repo baobeta/civil-utils --limit 1` (with `gh` switched 
 
 ---
 
-### Task 10 (Windows): Civil 3D 2021 add-in skeleton
+### Task 10: Civil 3D 2021 add-in skeleton (build anywhere)
 
-Everything from here runs on the Windows machine with Civil 3D 2021.
+This project builds on macOS, Windows and CI: the SDK pulls .NET Framework 4.8 reference assemblies from NuGet automatically, and every Autodesk reference is a compile-only package. Running it still needs Civil 3D 2021 (Task 11).
+
+Civil 3D references come from the community package `Civil3D2021.Base` 1.0.0 (Autodesk's own `Civil3D.NET` starts at Civil 3D 2024). It is an unofficial repackage of `AeccDbMgd.dll`/`AecBaseMgd.dll` with no stated license, so it is used **compile-only** — `ExcludeAssets="runtime"` keeps it out of the build output and the bundle, and Civil 3D supplies the real DLLs at runtime. Passing `-p:UseLocalCivil3D=true` switches to the DLLs of a local Civil 3D install instead.
 
 **Files:**
 - Create: `src/C3DTools.Civil2021/C3DTools.Civil2021.csproj`
 - Create: `src/C3DTools.Civil2021/Commands/HelloCommand.cs`
 - Modify: `C3DTools.sln`
+- Modify: `THIRD_PARTY.md`
 
-**Step 1: Confirm the Civil 3D DLL locations**
-
-Run (PowerShell):
-
-```powershell
-Get-ChildItem "C:\Program Files\Autodesk\AutoCAD 2021" -Recurse -Include AeccDbMgd.dll,AecBaseMgd.dll | Select-Object FullName
-```
-
-Expected: two paths, normally `...\AutoCAD 2021\C3D\AeccDbMgd.dll` and `...\AutoCAD 2021\ACA\AecBaseMgd.dll`. If they differ, use the actual paths in the HintPaths below.
-
-**Step 2: Project file** — `src/C3DTools.Civil2021/C3DTools.Civil2021.csproj`
+**Step 1: Project file** — `src/C3DTools.Civil2021/C3DTools.Civil2021.csproj`
 
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
@@ -1768,6 +1762,7 @@ Expected: two paths, normally `...\AutoCAD 2021\C3D\AeccDbMgd.dll` and `...\Auto
     <TargetFramework>net48</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <RootNamespace>C3DTools.Civil2021</RootNamespace>
+    <UseLocalCivil3D Condition="'$(UseLocalCivil3D)' == ''">false</UseLocalCivil3D>
     <Civil3DDir Condition="'$(Civil3DDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2021</Civil3DDir>
   </PropertyGroup>
 
@@ -1778,8 +1773,13 @@ Expected: two paths, normally `...\AutoCAD 2021\C3D\AeccDbMgd.dll` and `...\Auto
     <PackageReference Include="AutoCAD.NET.Model" Version="24.0.0" ExcludeAssets="runtime" />
   </ItemGroup>
 
-  <ItemGroup>
-    <!-- No official Civil 3D 2021 NuGet exists (Civil3D.NET starts at 2024), so reference the install -->
+  <!-- Default (CI, macOS): community package, compile-only, never shipped -->
+  <ItemGroup Condition="'$(UseLocalCivil3D)' != 'true'">
+    <PackageReference Include="Civil3D2021.Base" Version="1.0.0" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- -p:UseLocalCivil3D=true: DLLs from a local Civil 3D 2021 install -->
+  <ItemGroup Condition="'$(UseLocalCivil3D)' == 'true'">
     <Reference Include="AeccDbMgd">
       <HintPath>$(Civil3DDir)\C3D\AeccDbMgd.dll</HintPath>
       <Private>false</Private>
@@ -1796,7 +1796,7 @@ Expected: two paths, normally `...\AutoCAD 2021\C3D\AeccDbMgd.dll` and `...\Auto
 </Project>
 ```
 
-**Step 3: First command** — `src/C3DTools.Civil2021/Commands/HelloCommand.cs`
+**Step 2: First command** — `src/C3DTools.Civil2021/Commands/HelloCommand.cs`
 
 Proves three things at once: the bundle loads, the Civil 3D API is reachable, and Core is referenced.
 
@@ -1823,33 +1823,59 @@ public class HelloCommand
 }
 ```
 
-**Step 4: Add to solution and build**
+**Step 3: Add to solution and build**
 
-```powershell
+```bash
 dotnet sln C3DTools.sln add src/C3DTools.Civil2021/C3DTools.Civil2021.csproj
 dotnet build src/C3DTools.Civil2021/C3DTools.Civil2021.csproj -c Release
+ls src/C3DTools.Civil2021/bin/Release/net48/
 ```
 
-Expected: `Build succeeded.` Output folder `src\C3DTools.Civil2021\bin\Release\net48\` contains `C3DTools.Civil2021.dll`, `C3DTools.Core.dll`, `Newtonsoft.Json.dll` and **no** `acmgd.dll`/`AeccDbMgd.dll` (if they appear, the compile-only settings are wrong — fix before continuing).
+Expected: `Build succeeded.` The output folder contains `C3DTools.Civil2021.dll`, `C3DTools.Core.dll` and `Newtonsoft.Json.dll`, and **no** `AcMgd.dll`, `AcDbMgd.dll`, `AeccDbMgd.dll` or `AecBaseMgd.dll`. If any Autodesk DLL appears, the compile-only settings are wrong — fix before continuing, because shipping Autodesk DLLs breaks loading and violates their license.
+
+**Step 4: Record the compile-only dependencies** — add to the table in `THIRD_PARTY.md`:
+
+```markdown
+| AutoCAD.NET / .Core / .Model (Autodesk) | 24.0.0 | Autodesk SDK terms | No (compile-only) | — |
+| Civil3D2021.Base (community repackage of Autodesk AeccDbMgd/AecBaseMgd) | 1.0.0 | None stated | No (compile-only) | — |
+```
 
 **Step 5: Commit**
 
 ```bash
-git add src/C3DTools.Civil2021 C3DTools.sln
+git add src/C3DTools.Civil2021 C3DTools.sln THIRD_PARTY.md
 git commit -m "feat(civil2021): add-in skeleton with CTHELLO command"
 ```
 
 ---
 
-### Task 11 (Windows): Bundle and deploy script
+### Task 11: Bundle, packaging and tester install
+
+A tester gets one zip:
+
+```
+C3DTools-<version>.zip
+  C3DTools.bundle/
+    PackageContents.xml
+    Contents/*.dll
+  install.cmd        ← double-click to install
+  uninstall.cmd
+  install.ps1
+  THIRD_PARTY.md
+```
+
+Files downloaded from the internet carry Windows' "Mark of the Web"; .NET Framework refuses to load blocked DLLs, so AutoCAD fails with a load error. `install.ps1` therefore runs `Unblock-File` on everything it copies.
 
 **Files:**
 - Create: `bundle/PackageContents.xml`
-- Create: `scripts/deploy-bundle.ps1`
+- Create: `bundle/install.ps1`
+- Create: `bundle/install.cmd`
+- Create: `bundle/uninstall.cmd`
+- Create: `scripts/package-bundle.ps1`
 
-**Step 1: Generate two GUIDs** — run `[guid]::NewGuid()` twice in PowerShell; use them as `ProductCode` and `UpgradeCode`. Never change `UpgradeCode` afterwards.
+**Step 1: Generate two GUIDs** — `uuidgen` (macOS) or `[guid]::NewGuid()` (PowerShell), twice. Use them as `ProductCode` and `UpgradeCode`. Never change `UpgradeCode` afterwards.
 
-**Step 2: `bundle/PackageContents.xml`** (PRD §7.5: RuntimeRequirements inside the ComponentEntry, SeriesMax pinned, no `*`)
+**Step 2: `bundle/PackageContents.xml`** (PRD §7.5: RuntimeRequirements inside the ComponentEntry, SeriesMax pinned, no `*`). `AppVersion` is overwritten by the packaging script.
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
@@ -1877,42 +1903,115 @@ git commit -m "feat(civil2021): add-in skeleton with CTHELLO command"
 </ApplicationPackage>
 ```
 
-**Step 3: `scripts/deploy-bundle.ps1`** — builds and copies the bundle into the per-user plugin folder. Close Civil 3D first; it locks loaded DLLs.
+**Step 3: `bundle/install.ps1`** — installs (or with `-Uninstall`, removes) the per-user bundle. Messages are ASCII-only so Windows PowerShell 5.1 shows them correctly without a BOM.
 
 ```powershell
-param([string]$Configuration = "Release")
+param([switch]$Uninstall)
+$ErrorActionPreference = "Stop"
+
+$target = Join-Path $env:APPDATA "Autodesk\ApplicationPlugins\C3DTools.bundle"
+
+if (Get-Process acad -ErrorAction SilentlyContinue) {
+    throw "Close Civil 3D before installing or uninstalling C3DTools."
+}
+
+if (Test-Path $target) { Remove-Item $target -Recurse -Force }
+
+if ($Uninstall) {
+    Write-Host "C3DTools removed."
+    return
+}
+
+Copy-Item (Join-Path $PSScriptRoot "C3DTools.bundle") $target -Recurse
+# Downloaded files are blocked by Windows; AutoCAD cannot load blocked DLLs.
+Get-ChildItem $target -Recurse -File | Unblock-File
+Write-Host "C3DTools installed to $target"
+Write-Host "Open Civil 3D 2021 and type CTHELLO."
+```
+
+`bundle/install.cmd`:
+
+```bat
+@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1"
+pause
+```
+
+`bundle/uninstall.cmd`:
+
+```bat
+@echo off
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0install.ps1" -Uninstall
+pause
+```
+
+**Step 4: `scripts/package-bundle.ps1`** — builds and produces `artifacts/C3DTools-<version>/` plus the zip. Runs on Windows PowerShell 5.1, pwsh 7 on Windows (CI), and pwsh on macOS (`brew install --cask powershell`) for a local dry run.
+
+```powershell
+param(
+    [string]$Configuration = "Release",
+    [string]$Version = "0.1.0"
+)
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path $PSScriptRoot -Parent
-dotnet build "$root\src\C3DTools.Civil2021\C3DTools.Civil2021.csproj" -c $Configuration
+$artifacts = Join-Path $root "artifacts"
+$stage = Join-Path $artifacts "C3DTools-$Version"
+$bundle = Join-Path $stage "C3DTools.bundle"
+$contents = Join-Path $bundle "Contents"
+$buildOut = Join-Path $root "src/C3DTools.Civil2021/bin/$Configuration/net48"
+
+dotnet build (Join-Path $root "src/C3DTools.Civil2021/C3DTools.Civil2021.csproj") -c $Configuration -p:Version=$Version
 if ($LASTEXITCODE -ne 0) { throw "Build failed" }
 
-$bundle = Join-Path $env:APPDATA "Autodesk\ApplicationPlugins\C3DTools.bundle"
-if (Test-Path $bundle) { Remove-Item $bundle -Recurse -Force }
-New-Item -ItemType Directory -Path "$bundle\Contents" | Out-Null
+if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
+New-Item -ItemType Directory -Path $contents | Out-Null
 
-Copy-Item "$root\bundle\PackageContents.xml" $bundle
-Copy-Item "$root\src\C3DTools.Civil2021\bin\$Configuration\net48\*.dll" "$bundle\Contents"
-Write-Host "Deployed to $bundle"
+# -Encoding UTF8 on both sides: the manifest contains Vietnamese text.
+$manifest = Get-Content (Join-Path $root "bundle/PackageContents.xml") -Raw -Encoding UTF8
+$manifest = $manifest -replace 'AppVersion="[^"]*"', "AppVersion=`"$Version`""
+Set-Content (Join-Path $bundle "PackageContents.xml") $manifest -Encoding UTF8
+
+Copy-Item (Join-Path $buildOut "*.dll") $contents
+foreach ($f in "install.ps1", "install.cmd", "uninstall.cmd") {
+    Copy-Item (Join-Path $root "bundle/$f") $stage
+}
+Copy-Item (Join-Path $root "THIRD_PARTY.md") $stage
+
+$autodesk = Get-ChildItem $contents -Filter *.dll | Where-Object { $_.Name -match '^(Ac|Aec|Adw|AdUi)' }
+if ($autodesk) { throw "Autodesk DLLs must not be packaged: $($autodesk.Name -join ', ')" }
+
+$zip = Join-Path $artifacts "C3DTools-$Version.zip"
+if (Test-Path $zip) { Remove-Item $zip }
+Compress-Archive -Path (Join-Path $stage "*") -DestinationPath $zip
+Write-Host "Package: $zip"
 ```
 
-**Step 4: Deploy and verify manually**
+Also add `artifacts/` to `.gitignore`.
 
-1. Run `powershell -ExecutionPolicy Bypass -File scripts\deploy-bundle.ps1`. Expected: `Deployed to ...C3DTools.bundle`.
-2. Start **Civil 3D 2021**, open any DWG, type `CTHELLO`. Expected: `C3DTools 0.1 — bản vẽ có N tuyến. Ví dụ lý trình: Km1+234.50`.
-3. Start **AutoCAD 2021** (plain, if installed), type `CTHELLO`. Expected: `Unknown command` — the bundle must not load there.
-4. If a security prompt appears on load, record it in the spike report (SECURELOAD / TRUSTEDPATHS handling becomes a Plan 4 packaging item).
+**Step 5: Package locally**
 
-**Step 5: Commit**
+Run: `pwsh scripts/package-bundle.ps1` (macOS needs PowerShell: `brew install --cask powershell`).
+Expected: `Package: .../artifacts/C3DTools-0.1.0.zip`; `unzip -l artifacts/C3DTools-0.1.0.zip` lists `C3DTools.bundle/PackageContents.xml`, `C3DTools.bundle/Contents/C3DTools.Civil2021.dll`, `install.cmd`, `uninstall.cmd`, `install.ps1`, `THIRD_PARTY.md`.
+
+**Step 6: Commit**
 
 ```bash
-git add bundle scripts
-git commit -m "build: Civil 3D 2021 bundle and deploy script"
+git add bundle scripts .gitignore
+git commit -m "build: bundle packaging and tester install scripts"
 ```
+
+**Step 7 (Windows + Civil 3D 2021): Verify install manually**
+
+1. Copy the zip to the Windows machine (or download it from CI once Task 13 is done), extract, double-click `install.cmd`. Expected: `C3DTools installed to ...C3DTools.bundle`.
+2. Start **Civil 3D 2021**, open any DWG, type `CTHELLO`. Expected: `C3DTools 0.1 — bản vẽ có N tuyến. Ví dụ lý trình: Km1+234.50`.
+3. Start **AutoCAD 2021** (plain, if installed), type `CTHELLO`. Expected: `Unknown command` — the bundle must not load there.
+4. If a security prompt appears on load, record it in the spike report (SECURELOAD / code signing becomes a Plan 4 packaging item).
+5. Close Civil 3D, double-click `uninstall.cmd`, restart Civil 3D. Expected: `CTHELLO` is unknown.
 
 ---
 
-### Task 12 (Windows): Spike (PRD §10, weeks 1–2)
+### Task 12 (Windows + Civil 3D 2021): Spike (PRD §10, weeks 1–2)
 
 The spike answers the 7 PRD questions **before** C-01…C-08 are locked. Spike code is throwaway: put it in `src/C3DTools.Civil2021/Spikes/` as `CTSPIKE…` commands, and delete that folder once the report is written. Do not write unit tests for spikes; the output is the report.
 
@@ -1931,7 +2030,7 @@ Civil 3D build tested: ________ (from ABOUT; must be 2021.3 or later)
 
 | # | Question | Method | Result | Decision |
 | --- | --- | --- | --- | --- |
-| 1 | Bundle loads on Civil 3D 2021, not on plain AutoCAD 2021 | Task 11 step 4 | | |
+| 1 | Bundle loads on Civil 3D 2021, not on plain AutoCAD 2021 | Task 11 step 7 | | |
 | 2 | Preview + single undo with COGO points and alignments | | | |
 | 3 | Alignment from polyline with arcs; profile from surface; profile view | | | |
 | 4 | Sample line at a given station | | | |
@@ -1965,9 +2064,122 @@ git commit -m "docs: Civil 3D 2021 API spike report"
 
 ---
 
+### Task 13: CI build and downloadable releases
+
+Can be done right after Task 11 (it does not depend on the spike). Replaces the Core-only workflow from Task 9 with one Windows job that tests Core, builds the add-in and packages the zip.
+
+- Every push / PR: the zip is attached to the run as an artifact named `C3DTools-<version>` (download needs a GitHub login; kept 90 days).
+- Tag `v0.1.0` etc.: the zip is published as a **GitHub Release** — the link to send testers.
+- CI versions are numeric (`0.1.0.<run number>`) because `PackageContents.xml` `AppVersion` and assembly versions must be numeric.
+
+**Files:**
+- Delete: `.github/workflows/core.yml`
+- Create: `.github/workflows/build.yml`
+- Create: `docs/testing.md`
+
+**Step 1: `.github/workflows/build.yml`**
+
+```yaml
+name: build
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # needed only to create releases on tags
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Version
+        id: ver
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
+          else { $v = "0.1.0.$env:GITHUB_RUN_NUMBER" }
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - name: Test Core
+        run: dotnet test C3DTools.Core.slnf
+
+      - name: Package bundle
+        shell: pwsh
+        run: ./scripts/package-bundle.ps1 -Version ${{ steps.ver.outputs.version }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: C3DTools-${{ steps.ver.outputs.version }}
+          path: artifacts/C3DTools-${{ steps.ver.outputs.version }}/
+
+      - name: Publish release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create ${{ github.ref_name }}
+          artifacts/C3DTools-${{ steps.ver.outputs.version }}.zip
+          --title "C3DTools ${{ github.ref_name }}"
+          --generate-notes
+```
+
+The artifact uploads the *folder*, so GitHub's download is a single zip (uploading the zip itself would produce a zip inside a zip).
+
+**Step 2: `docs/testing.md`** — the page to send testers
+
+```markdown
+# Cài C3DTools để thử nghiệm
+
+Yêu cầu: Windows 64-bit, Civil 3D 2021 (update 2021.3 trở lên).
+
+1. Tải file `C3DTools-<phiên bản>.zip` ở mục **Assets** của bản mới nhất: https://github.com/baobeta/civil-utils/releases
+2. Giải nén (chuột phải → Extract All).
+3. Đóng Civil 3D, bấm đúp `install.cmd`.
+4. Mở Civil 3D 2021, gõ lệnh `CTHELLO`.
+
+Gỡ cài đặt: đóng Civil 3D, bấm đúp `uninstall.cmd`.
+
+Báo lỗi: gửi ảnh chụp dòng lệnh, file DWG (nếu được) và phiên bản trong tên file zip.
+```
+
+**Step 3: Replace the workflow and commit**
+
+```bash
+git rm .github/workflows/core.yml
+git add .github/workflows/build.yml docs/testing.md
+git commit -m "ci: build, package and release the Civil 3D bundle on Windows"
+git push
+```
+
+**Step 4: Verify a push build**
+
+Run: `gh run list --repo baobeta/civil-utils --workflow build --limit 1` (with `gh` switched to `baobeta`).
+Expected: `completed  success`. Then `gh run download <run-id> --repo baobeta/civil-utils -D /tmp/c3d-ci && ls -R /tmp/c3d-ci` lists `C3DTools.bundle/Contents/C3DTools.Civil2021.dll` and `install.cmd`.
+
+**Step 5: Verify a release**
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Expected: `gh release view v0.1.0 --repo baobeta/civil-utils` shows asset `C3DTools-0.1.0.zip`. On the Windows machine, repeat Task 11 Step 7 using that downloaded zip — this is the exact path a tester takes, including the Mark-of-the-Web unblock.
+
+---
+
 ## Done criteria for this plan
 
 - `dotnet test C3DTools.Core.slnf` passes (63 tests) locally and in CI.
-- `CTHELLO` works in Civil 3D 2021 from the deployed bundle and is unknown in plain AutoCAD 2021.
+- Every push to `main` produces a `C3DTools-<version>` artifact; tag `v0.1.0` produces a GitHub Release with `C3DTools-0.1.0.zip`.
+- The released zip, installed with `install.cmd` on a Civil 3D 2021 machine, makes `CTHELLO` work; `CTHELLO` is unknown in plain AutoCAD 2021 and after `uninstall.cmd`.
+- No Autodesk DLL is inside the zip.
 - `docs/spikes/2026-10-spike-report.md` has all 7 rows filled with a decision.
-- `THIRD_PARTY.md` lists every shipped dependency.
+- `THIRD_PARTY.md` lists every shipped and compile-only dependency.
