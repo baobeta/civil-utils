@@ -19,6 +19,8 @@ namespace C3DTools.Civil2021.Curves;
 internal static class CurveGeometryWriter
 {
     private const double CheckTolerance = 0.01;
+    /// <summary>Preferred alignment style for a new alignment; the first style is used when the drawing has none by this name.</summary>
+    private const string AlignmentStyleName = "TCVN_Tuyen";
 
     /// <summary>Per curve an ARC and the two clothoid LWPOLYLINEs on YTC_CONG, as the LISP draws them.</summary>
     public static void WritePlain(RouteDrawing d, IReadOnlyList<PlanPoint> pis, RouteDesign design)
@@ -55,7 +57,7 @@ internal static class CurveGeometryWriter
                 var civil = CivilDocument.GetCivilDocument(d.Database);
                 var options = new PolylineOptions { PlineId = polylineId, AddCurvesBetweenTangents = false, EraseExistingEntities = false };
                 id = Alignment.Create(civil, options, UniqueName(civil, nested), ObjectId.Null, layerId,
-                    StyleId(civil.Styles.AlignmentStyles, TcvnStyleImporter.LabelSetName),
+                    StyleId(civil.Styles.AlignmentStyles, AlignmentStyleName),
                     StyleId(civil.Styles.LabelSetStyles.AlignmentLabelSetStyles, TcvnStyleImporter.LabelSetName));
                 var alignment = (Alignment)nested.GetObject(id, OpenMode.ForWrite);
                 d.Tag(alignment, new YtcTag { Kind = YtcKind.Alignment });

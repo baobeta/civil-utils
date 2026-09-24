@@ -17,6 +17,19 @@ public class CurveTableCommand
     [CommandMethod("C3DTOOLS", "CTYTCBANG", CommandFlags.Modal | CommandFlags.UsePickSet)]
     public void CurveTable()
     {
+        try
+        {
+            RunCurveTable();
+        }
+        catch (System.Exception ex)
+        {
+            // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
+            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+        }
+    }
+
+    private void RunCurveTable()
+    {
         var doc = AcCoreApp.DocumentManager.MdiActiveDocument;
         var ed = doc.Editor;
         var messages = new List<string>();

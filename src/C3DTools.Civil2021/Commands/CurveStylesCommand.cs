@@ -15,6 +15,19 @@ public class CurveStylesCommand
     [CommandMethod("C3DTOOLS", "CTYTCMAU", CommandFlags.Modal)]
     public void CurveStyles()
     {
+        try
+        {
+            RunCurveStyles();
+        }
+        catch (System.Exception ex)
+        {
+            // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
+            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+        }
+    }
+
+    private void RunCurveStyles()
+    {
         var doc = AcCoreApp.DocumentManager.MdiActiveDocument;
         var ed = doc.Editor;
         var db = doc.Database;

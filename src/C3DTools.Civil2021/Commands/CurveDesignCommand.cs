@@ -17,6 +17,19 @@ public class CurveDesignCommand
     [CommandMethod("C3DTOOLS", "CTYTC", CommandFlags.Modal | CommandFlags.UsePickSet)]
     public void CurveDesign()
     {
+        try
+        {
+            RunCurveDesign();
+        }
+        catch (System.Exception ex)
+        {
+            // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
+            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+        }
+    }
+
+    private void RunCurveDesign()
+    {
         var doc = AcCoreApp.DocumentManager.MdiActiveDocument;
         var ed = doc.Editor;
         var messages = new List<string>();

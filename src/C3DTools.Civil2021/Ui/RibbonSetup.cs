@@ -53,11 +53,11 @@ public sealed class RibbonSetup : IExtensionApplication
         if (ribbon.Tabs.Any(t => t.Id == TabId)) return;
 
         var panelSource = new RibbonPanelSource { Title = "Tuyến" };
-        panelSource.Items.Add(Button("Yếu tố cong", "_CTYTC ", large: true));
+        panelSource.Items.Add(Button("Yếu tố cong", "\u0003\u0003_CTYTC ", large: true));
         var row = new RibbonRowPanel();
-        row.Items.Add(Button("Mẫu TCVN", "_CTYTCMAU ", large: false));
+        row.Items.Add(Button("Mẫu TCVN", "\u0003\u0003_CTYTCMAU ", large: false));
         row.Items.Add(new RibbonRowBreak());
-        row.Items.Add(Button("Bảng cong", "_CTYTCBANG ", large: false));
+        row.Items.Add(Button("Bảng cong", "\u0003\u0003_CTYTCBANG ", large: false));
         panelSource.Items.Add(row);
 
         var tab = new RibbonTab { Id = TabId, Title = "C3DTools" };
@@ -114,7 +114,7 @@ public sealed class RibbonSetup : IExtensionApplication
     private static void Say(string message) =>
         AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage("\n" + message);
 
-    /// <summary>Runs the button's CommandParameter ("_CTYTC ") in the active drawing.</summary>
+    /// <summary>Runs the button's CommandParameter ("^C^C_CTYTC ": cancel any running command first) in the active drawing.</summary>
     private sealed class SendCommand : ICommand
     {
         public event EventHandler CanExecuteChanged { add { } remove { } }
