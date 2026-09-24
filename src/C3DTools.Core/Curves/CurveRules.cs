@@ -37,5 +37,4 @@ public sealed class CurveBoxOptions
     public double OffsetFromAlignment { get; set; } = 10;
     public int LengthDecimals { get; set; } = 2;
     public int AngleSecondDecimals { get; set; } = 0;
-    public bool ShowZeroValues { get; set; }   // decision D4
 }

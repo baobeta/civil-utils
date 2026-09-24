@@ -70,7 +70,7 @@ public static class CurveRuleChecker
         return result;
     }
 
-    private static RadiusRangeRule Find(IEnumerable<RadiusRangeRule> table, double radius, double speed) =>
+    internal static RadiusRangeRule Find(IEnumerable<RadiusRangeRule> table, double radius, double speed) =>
         table.FirstOrDefault(r => (r.DesignSpeed == 0 || r.DesignSpeed == speed)
                                   && radius > r.RadiusFrom && radius <= r.RadiusTo);
 

@@ -68,6 +68,26 @@ public class CurveGeometryBuilderTests
     }
 
     [Fact]
+    public void Asymmetric_spirals_meet_the_arc()
+    {
+        var a = Math.PI / 4;
+        var pis = new[] { P(0, 0), P(500, 0), P(500 + 500 * Math.Cos(a), 500 * Math.Sin(a)) };
+        var g = Build(pis, new CurveInput { Radius = 300, SpiralIn = 60, SpiralOut = 40 });
+
+        Assert.True(Math.Abs(Distance(g.ArcCentre, g.ArcStart) - 300) < 0.001);
+        Assert.True(Math.Abs(Distance(g.ArcCentre, g.ArcEnd) - 300) < 0.001);
+    }
+
+    [Fact]
+    public void Coincident_points_throw_instead_of_returning_nan()
+    {
+        var e = CurveElementsCalculator.Compute(50, Math.PI / 2, 0, 0);
+
+        Assert.Throws<ArgumentException>(() =>
+            CurveGeometryBuilder.Build(P(100, 0), P(100, 0), P(100, 100), 50, 0, 0, -1, e));
+    }
+
+    [Fact]
     public void Clothoid_series_matches_ytc_clo()
     {
         // At l = L the local offset is close to L²/(6RL) = L/(6R).

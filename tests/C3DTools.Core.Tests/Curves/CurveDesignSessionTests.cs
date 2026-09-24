@@ -142,13 +142,45 @@ public class CurveDesignSessionTests
         row.RadiusText = "abc";
 
         Assert.Equal(250, s.Inputs[0].Radius);
+        Assert.Equal("abc", row.RadiusText);   // the grid keeps what the user typed
         Assert.True(row.HasInputError);
+        Assert.False(s.CanApply);
         Assert.Equal(CurveRowSeverity.Error, row.Severity);
 
         row.RadiusText = "260";
 
         Assert.False(row.HasInputError);
         Assert.Equal(260, s.Inputs[0].Radius);
+        Assert.Equal("260", row.RadiusText);
+    }
+
+    [Fact]
+    public void CopyDown_clears_input_errors_on_overwritten_rows()
+    {
+        var s = Session(Rules());
+        s.Load(Zigzag, new[] { R(300, 40, 40), R(300, 40, 40), R(300, 40, 40) });
+        s.Rows[1].RadiusText = "abc";
+        Assert.False(s.CanApply);
+
+        s.CopyDown(0);
+
+        Assert.Equal(CurveRowSeverity.None, s.Rows[1].Severity);
+        Assert.False(s.Rows[1].HasInputError);
+        Assert.Equal("300", s.Rows[1].RadiusText);
+        Assert.True(s.CanApply);
+    }
+
+    [Fact]
+    public void SuggestAll_clears_input_errors()
+    {
+        var s = Session(Rules());
+        s.Load(Zigzag, null);
+        s.Rows[2].SpiralInText = "x";
+
+        s.SuggestAll();
+
+        Assert.False(s.Rows[2].HasInputError);
+        Assert.True(s.CanApply);
     }
 
     [Fact]
@@ -273,6 +305,32 @@ public class CurveDesignSessionTests
         Assert.False(s.CanApply);
         Assert.Equal("?", s.Rows[0].T1Text);
         Assert.Equal(CurveRowSeverity.Error, s.Rows[0].Severity);
+    }
+
+    [Fact]
+    public void Preset_speed_missing_from_rules_is_still_offered()
+    {
+        var s = Session(Rules(), speed: 50);
+
+        Assert.Equal(new double[] { 50, 60 }, s.AvailableSpeeds);
+        Assert.Equal(50, s.DesignSpeed);
+    }
+
+    [Fact]
+    public void Option_flags_raise_property_changed()
+    {
+        var s = Session();
+        var names = Watch(s);
+
+        s.ReadOnlyGeometry = true;
+        s.TextHeight = 3;
+        s.DrawCurves = false;
+        s.CreateAlignment = true;
+        s.DrawBoxes = false;
+        s.DrawStakes = false;
+        s.WriteCsv = false;
+
+        Assert.Equal(new[] { "ReadOnlyGeometry", "TextHeight", "DrawCurves", "CreateAlignment", "DrawBoxes", "DrawStakes", "WriteCsv" }, names);
     }
 
     [Fact]

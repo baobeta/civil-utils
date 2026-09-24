@@ -89,6 +89,7 @@ public static class CurveGeometryBuilder
     private static void Unit(double x, double y, out double ux, out double uy)
     {
         var l = Math.Sqrt(x * x + y * y);
+        if (l < 1e-12) throw new ArgumentException("Không xác định được hướng: hai điểm trùng nhau hoặc đỉnh không chuyển hướng.");
         ux = x / l;
         uy = y / l;
     }

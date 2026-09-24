@@ -23,16 +23,19 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     private readonly List<CurveInput> _inputs = new List<CurveInput>();
     private double _designSpeed;
     private double _startStation;
+    private bool _readOnlyGeometry, _createAlignment, _drawCurves = true, _drawBoxes = true, _drawStakes = true, _writeCsv = true;
+    private double _textHeight;
 
     public CurveDesignSession(ProjectPreset preset)
     {
         _preset = preset ?? throw new ArgumentNullException(nameof(preset));
         _rules = preset.CurveRules;
         _designSpeed = preset.DesignSpeed ?? 60;
-        TextHeight = preset.CurveBox?.TextHeight ?? 2.5;
-        AvailableSpeeds = _rules != null && _rules.MinRadius.Count > 0
-            ? _rules.MinRadius.Select(r => r.DesignSpeed).Distinct().OrderBy(v => v).ToList()
-            : (IReadOnlyList<double>)FallbackSpeeds;
+        _textHeight = preset.CurveBox?.TextHeight ?? 2.5;
+        var speeds = _rules != null && _rules.MinRadius.Count > 0
+            ? _rules.MinRadius.Select(r => r.DesignSpeed)
+            : FallbackSpeeds;
+        AvailableSpeeds = speeds.Concat(new[] { _designSpeed }).Distinct().OrderBy(v => v).ToList();
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
@@ -77,13 +80,13 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     }
 
     /// <summary>YTCA mode: R/L come from an existing alignment and are not editable. State only; the view enforces it.</summary>
-    public bool ReadOnlyGeometry { get; set; }
-    public double TextHeight { get; set; }
-    public bool DrawCurves { get; set; } = true;
-    public bool CreateAlignment { get; set; }
-    public bool DrawBoxes { get; set; } = true;
-    public bool DrawStakes { get; set; } = true;
-    public bool WriteCsv { get; set; } = true;
+    public bool ReadOnlyGeometry { get => _readOnlyGeometry; set => Set(ref _readOnlyGeometry, value, nameof(ReadOnlyGeometry)); }
+    public double TextHeight { get => _textHeight; set => Set(ref _textHeight, value, nameof(TextHeight)); }
+    public bool DrawCurves { get => _drawCurves; set => Set(ref _drawCurves, value, nameof(DrawCurves)); }
+    public bool CreateAlignment { get => _createAlignment; set => Set(ref _createAlignment, value, nameof(CreateAlignment)); }
+    public bool DrawBoxes { get => _drawBoxes; set => Set(ref _drawBoxes, value, nameof(DrawBoxes)); }
+    public bool DrawStakes { get => _drawStakes; set => Set(ref _drawStakes, value, nameof(DrawStakes)); }
+    public bool WriteCsv { get => _writeCsv; set => Set(ref _writeCsv, value, nameof(WriteCsv)); }
 
     public ObservableCollection<CurveRow> Rows { get; } = new ObservableCollection<CurveRow>();
     public RouteDesign Design { get; private set; }
@@ -139,6 +142,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
             target.SpiralOut = source.SpiralOut;
             target.Wb = source.Wb;
             target.Wl = source.Wl;
+            row.ClearInputErrors();
         }
 
         Recalculate();
@@ -149,12 +153,14 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
         if (_rules != null)
         {
             var speedRule = SpeedRule();
-            foreach (var input in Rows.Select(r => r.Input))
+            foreach (var row in Rows)
             {
+                var input = row.Input;
                 if (speedRule != null) input.Radius = speedRule.NormalRadius;
-                var spiral = Find(_rules.MinSpiral, input.Radius);
+                var spiral = CurveRuleChecker.Find(_rules.MinSpiral, input.Radius, _designSpeed);
                 if (spiral != null) input.SpiralIn = input.SpiralOut = spiral.Value;
-                input.Wb = Find(_rules.Widening, input.Radius)?.Value ?? input.Wb;
+                input.Wb = CurveRuleChecker.Find(_rules.Widening, input.Radius, _designSpeed)?.Value ?? input.Wb;
+                row.ClearInputErrors();
             }
         }
 
@@ -189,14 +195,17 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
 
     private SpeedRadiusRule SpeedRule() => _rules?.MinRadius.FirstOrDefault(r => r.DesignSpeed == _designSpeed);
 
-    private RadiusRangeRule Find(IEnumerable<RadiusRangeRule> table, double radius) =>
-        table.FirstOrDefault(r => (r.DesignSpeed == 0 || r.DesignSpeed == _designSpeed)
-                                  && radius > r.RadiusFrom && radius <= r.RadiusTo);
-
     private static double Deflection(PlanPoint a, PlanPoint b, PlanPoint c)
     {
         double x1 = b.X - a.X, y1 = b.Y - a.Y, x2 = c.X - b.X, y2 = c.Y - b.Y;
         return Math.Abs(Math.Atan2(x1 * y2 - y1 * x2, x1 * x2 + y1 * y2));
+    }
+
+    private void Set<T>(ref T field, T value, string name)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value)) return;
+        field = value;
+        Raise(name);
     }
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -213,7 +222,8 @@ public sealed class CurveRow : INotifyPropertyChanged
     };
 
     private readonly CurveDesignSession _session;
-    private readonly HashSet<string> _badFields = new HashSet<string>();
+    /// <summary>Rejected text per field, shown back to the user until a valid value replaces it.</summary>
+    private readonly Dictionary<string, string> _badText = new Dictionary<string, string>();
 
     internal CurveRow(CurveDesignSession session, int index, int piIndex)
     {
@@ -230,16 +240,16 @@ public sealed class CurveRow : INotifyPropertyChanged
     public PlanPoint Pi => _session.Pis[PiIndex];
     public int Turn => Curve.Turn;
     public string AText => AngleFormatter.Dms(Curve.DeltaRadians * 180 / Math.PI, _session.AngleSecondDecimals);
-    public bool HasInputError => _badFields.Count > 0;
+    public bool HasInputError => _badText.Count > 0;
 
     internal CurveInput Input => _session.InputFor(this);
     private DesignedCurve Curve => _session.CurveFor(this);
 
-    public string RadiusText { get => Text(Input.Radius); set => Set(nameof(RadiusText), value, v => Input.Radius = v); }
-    public string SpiralInText { get => Text(Input.SpiralIn); set => Set(nameof(SpiralInText), value, v => Input.SpiralIn = v); }
-    public string SpiralOutText { get => Text(Input.SpiralOut); set => Set(nameof(SpiralOutText), value, v => Input.SpiralOut = v); }
-    public string WbText { get => Text(Input.Wb); set => Set(nameof(WbText), value, v => Input.Wb = v); }
-    public string WlText { get => Text(Input.Wl); set => Set(nameof(WlText), value, v => Input.Wl = v); }
+    public string RadiusText { get => Text(nameof(RadiusText), Input.Radius); set => Set(nameof(RadiusText), value, v => Input.Radius = v); }
+    public string SpiralInText { get => Text(nameof(SpiralInText), Input.SpiralIn); set => Set(nameof(SpiralInText), value, v => Input.SpiralIn = v); }
+    public string SpiralOutText { get => Text(nameof(SpiralOutText), Input.SpiralOut); set => Set(nameof(SpiralOutText), value, v => Input.SpiralOut = v); }
+    public string WbText { get => Text(nameof(WbText), Input.Wb); set => Set(nameof(WbText), value, v => Input.Wb = v); }
+    public string WlText { get => Text(nameof(WlText), Input.Wl); set => Set(nameof(WlText), value, v => Input.Wl = v); }
 
     public string T1Text => Element(e => e.T1);
     public string T2Text => Element(e => e.T2);
@@ -269,6 +279,9 @@ public sealed class CurveRow : INotifyPropertyChanged
         : Curve.Issues.Count > 0 ? CurveRowSeverity.Warning
         : CurveRowSeverity.None;
 
+    /// <summary>Called when the session overwrites every input value (copy down, suggest).</summary>
+    internal void ClearInputErrors() => _badText.Clear();
+
     internal void Refresh()
     {
         foreach (var name in Derived) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
@@ -278,12 +291,12 @@ public sealed class CurveRow : INotifyPropertyChanged
     {
         if (NumberInput.TryParse(text, out var value))
         {
-            _badFields.Remove(field);
+            _badText.Remove(field);
             apply(value);
         }
         else
         {
-            _badFields.Add(field);
+            _badText[field] = text ?? "";
         }
 
         _session.Recalculate();
@@ -294,5 +307,6 @@ public sealed class CurveRow : INotifyPropertyChanged
 
     private string Station(double station) => StationFormatter.Format(station, _session.StationDecimals, withKmPrefix: false);
 
-    private static string Text(double value) => NumberFormat.Trimmed(value, 3);
+    private string Text(string field, double value) =>
+        _badText.TryGetValue(field, out var bad) ? bad : NumberFormat.Trimmed(value, 3);
 }

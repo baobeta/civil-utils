@@ -21,7 +21,6 @@
     "TextHeight": 2.5,
     "OffsetFromAlignment": 10,
     "LengthDecimals": 2,
-    "AngleSecondDecimals": 0,
-    "ShowZeroValues": false
+    "AngleSecondDecimals": 0
   }
 }

@@ -55,6 +55,13 @@ public class CurveBoxPlacementTests
     }
 
     [Fact]
+    public void Straight_through_pi_throws_instead_of_returning_nan()
+    {
+        Assert.Throws<System.ArgumentException>(() =>
+            CurveBoxPlacement.Place(P(50, 0), P(0, 0), P(100, 0), P(50, 0), 30, 15, 2.5));
+    }
+
+    [Fact]
     public void Corners_frame_the_box()
     {
         var b = Square();
