@@ -46,6 +46,7 @@ internal static class CurveGeometryWriter
         if (!Supported(session, ed, failed)) return false;
 
         var layerId = d.LayerId(RouteDrawing.CurveLayer);
+        EnsureTcvnStyles(d, ed);
         ObjectId id;
         using (var nested = d.Database.TransactionManager.StartTransaction())
         {
@@ -54,8 +55,8 @@ internal static class CurveGeometryWriter
                 var civil = CivilDocument.GetCivilDocument(d.Database);
                 var options = new PolylineOptions { PlineId = polylineId, AddCurvesBetweenTangents = false, EraseExistingEntities = false };
                 id = Alignment.Create(civil, options, UniqueName(civil, nested), ObjectId.Null, layerId,
-                    StyleId(civil.Styles.AlignmentStyles, "TCVN_Tuyen"),
-                    StyleId(civil.Styles.LabelSetStyles.AlignmentLabelSetStyles, "YTC_TCVN"));
+                    StyleId(civil.Styles.AlignmentStyles, TcvnStyleImporter.LabelSetName),
+                    StyleId(civil.Styles.LabelSetStyles.AlignmentLabelSetStyles, TcvnStyleImporter.LabelSetName));
                 var alignment = (Alignment)nested.GetObject(id, OpenMode.ForWrite);
                 d.Tag(alignment, new YtcTag { Kind = YtcKind.Alignment });
                 try
@@ -223,6 +224,24 @@ internal static class CurveGeometryWriter
         for (var i = 0; i < points.Count; i++) pline.AddVertexAt(i, new Point2d(points[i].X, points[i].Y), 0, 0, 0);
         pline.Closed = closed;
         return pline;
+    }
+
+    /// <summary>CTYTCMAU's styles when they are missing (nested transaction: a failure leaves only the fallback styles).</summary>
+    private static void EnsureTcvnStyles(RouteDrawing d, Editor ed)
+    {
+        using (var nested = d.Database.TransactionManager.StartTransaction())
+        {
+            try
+            {
+                if (TcvnStyleImporter.IsInstalled(CivilDocument.GetCivilDocument(d.Database))) return;
+                ed.WriteMessage("\nBản vẽ chưa có kiểu TCVN: nhập như CTYTCMAU (Thêm mới).");
+                if (TcvnStyleImporter.Import(nested, d.Database, false, m => ed.WriteMessage("\n" + m))) nested.Commit();
+            }
+            catch (Exception ex)
+            {
+                ed.WriteMessage($"\nKhông nhập được kiểu TCVN ({ex.Message}); dùng kiểu có sẵn.");
+            }
+        }
     }
 
     private static ObjectId StyleId(StyleCollectionBase styles, string preferred)
