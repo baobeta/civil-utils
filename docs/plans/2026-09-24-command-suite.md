@@ -61,5 +61,5 @@ Business-only calculations remain in Core. `CrossSectionArea` is added to Core w
 ## Known scope limits
 
 - C-07 is a tool-owned cross-section calculation, not Civil 3D material-by-material QTO. The spike moved that comparison to P1.
-- C-08 asks whether Pipe endpoint Z is centerline or invert because a project network is required to verify the convention; the command exposes this as a prompt.
+- C-08 asks whether Pipe endpoint Z is centerline or invert because a project network is required to verify the convention; the command exposes this as a prompt. Cover checks require valid connected Junction Structures with `RimElevation`; the tool does not infer ground from a pipe cover property.
 - XLSX remains out of scope for this build. CSV preserves Vietnamese with UTF-8 BOM; AutoCAD Table is supported directly.

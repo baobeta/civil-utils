@@ -31,6 +31,7 @@ internal static class HostServices
         {
             AllowNone = false
         };
+        options.SetRejectMessage("\nĐối tượng không đúng loại được phép chọn.");
         options.AddAllowedClass(type, true);
         var result = editor.GetEntity(options);
         return result.Status == PromptStatus.OK ? result.ObjectId : ObjectId.Null;
@@ -53,8 +54,8 @@ internal static class HostServices
         };
         if (defaultValue != null) options.DefaultValue = defaultValue;
         var result = editor.GetString(options);
-        if (result.Status == PromptStatus.OK && !string.IsNullOrWhiteSpace(result.StringResult))
-            return result.StringResult.Trim();
+        if (result.Status != PromptStatus.OK) throw new OperationCanceledException();
+        if (!string.IsNullOrWhiteSpace(result.StringResult)) return result.StringResult.Trim();
         return defaultValue ?? throw new OperationCanceledException();
     }
 
@@ -73,7 +74,8 @@ internal static class HostServices
             DefaultValue = defaultValue
         };
         var result = editor.GetDouble(options);
-        return result.Status == PromptStatus.OK ? result.Value : defaultValue;
+        if (result.Status != PromptStatus.OK) throw new OperationCanceledException();
+        return result.Value;
     }
 
     public static int PromptInt(Editor editor, string message, int defaultValue, int minimum, int maximum)
@@ -87,7 +89,8 @@ internal static class HostServices
             UpperLimit = maximum
         };
         var result = editor.GetInteger(options);
-        return result.Status == PromptStatus.OK ? result.Value : defaultValue;
+        if (result.Status != PromptStatus.OK) throw new OperationCanceledException();
+        return result.Value;
     }
 
     public static bool PromptYesNo(Editor editor, string message, bool defaultValue)
@@ -210,7 +213,7 @@ internal static class HostServices
 
     public static void AddKeyword(PromptKeywordOptions options, string display, string key)
     {
-        options.Keywords.Add('"' + display + '"', key, display);
+        options.Keywords.Add(key, display, '"' + display + '"');
     }
 
     public static string PromptCsvPath(Editor editor, string defaultPath, bool optional)

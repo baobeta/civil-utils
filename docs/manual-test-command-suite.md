@@ -99,9 +99,8 @@ File đầu tiên có thể kiểm tra dấu phân cách khác `,`; Core sẽ b�
 ## 4. Xuất bảng — `CTEXPORT`
 
 1. Chạy `CTEXPORT`.
-2. Chọn `Alignment`.
-3. Chọn `ALIGN-TEST`.
-4. Chọn file CSV.
+2. Chọn `Alignment` (lệnh xuất toàn bộ Alignment trong bản vẽ).
+3. Chọn file CSV.
 5. Enter để bỏ qua bảng AutoCAD.
 6. Mở CSV; tiếng Việt phải hiển thị đúng.
 
@@ -165,7 +164,7 @@ Cần hai TIN surface cùng bao phủ Alignment:
 
 ## 9. Kiểm tra cống — `CTCONG`
 
-Cần một DWG có Pipe Network thật.
+Cần một DWG có Pipe Network thật, với Junction Structure/RimElevation hợp lệ ở cả hai đầu Pipe.
 
 1. Chạy `CTCONG` khi chưa cấu hình preset: lệnh phải từ chối và hướng dẫn chạy `CTCONFIG`.
 2. Sau khi cấu hình, chạy lại và chọn Pipe.

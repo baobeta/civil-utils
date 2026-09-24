@@ -110,24 +110,23 @@ internal static class PipeAdapter
         if (pipe == null) throw new ArgumentNullException(nameof(pipe));
         var innerDiameter = pipe.InnerDiameterOrWidth;
         var outerDiameter = pipe.OuterDiameterOrWidth;
-        if (!(innerDiameter > 0) || !(outerDiameter > 0))
-            throw new InvalidOperationException("CTCONG hiện hỗ trợ Pipe tròn có đường kính trong và ngoài.");
-        var wall = Math.Max(0, (outerDiameter - innerDiameter) / 2.0);
-        var innerHeight = pipe.InnerHeight > 0 ? pipe.InnerHeight : innerDiameter;
-        if (wall <= 0) wall = Math.Max(0, ((pipe.OuterHeight > 0 ? pipe.OuterHeight : outerDiameter) - innerHeight) / 2.0);
+        if (!(innerDiameter > 0) || !(outerDiameter > innerDiameter))
+            throw new InvalidOperationException("CTCONG hiện hỗ trợ Pipe tròn có đường kính trong nhỏ hơn đường kính ngoài.");
+        var wall = (outerDiameter - innerDiameter) / 2.0;
+        if (!(wall > 0))
+            throw new InvalidOperationException("Không xác định được độ dày thành ống.");
 
-        var startInvert = endpointsAreCenterlines ? pipe.StartPoint.Z - innerHeight / 2.0 - wall : pipe.StartPoint.Z;
-        var endInvert = endpointsAreCenterlines ? pipe.EndPoint.Z - innerHeight / 2.0 - wall : pipe.EndPoint.Z;
-        var startGround = GroundAtStructure(transaction, pipe.StartStructureId) ??
-                         startInvert + innerHeight + wall + pipe.CoverOfStartPoint;
-        var endGround = GroundAtStructure(transaction, pipe.EndStructureId) ??
-                       endInvert + innerHeight + wall + pipe.CoverOfEndpoint;
-        if (double.IsNaN(startGround) || double.IsInfinity(startGround) ||
-            double.IsNaN(endGround) || double.IsInfinity(endGround))
-            throw new InvalidOperationException("Không xác định được cao độ mặt đất tại hai đầu cống.");
+        var startInvert = endpointsAreCenterlines ? pipe.StartPoint.Z - outerDiameter / 2.0 : pipe.StartPoint.Z;
+        var endInvert = endpointsAreCenterlines ? pipe.EndPoint.Z - outerDiameter / 2.0 : pipe.EndPoint.Z;
+        var startGround = GroundAtStructure(transaction, pipe.StartStructureId);
+        var endGround = GroundAtStructure(transaction, pipe.EndStructureId);
+        if (startGround == null || endGround == null)
+            throw new InvalidOperationException("Cần Junction Structure có RimElevation ở cả hai đầu để kiểm tra chiều sâu chôn.");
 
         var length = pipe.Length2DCenterToCenter;
         if (double.IsNaN(length) || length <= 0) length = pipe.Length2DToInsideEdge;
+        if (double.IsNaN(length) || length <= 0)
+            throw new InvalidOperationException("Chiều dài Pipe không hợp lệ.");
         return new PipeData
         {
             Name = pipe.Name,
@@ -136,8 +135,8 @@ internal static class PipeAdapter
             EndInvert = endInvert,
             InnerDiameter = innerDiameter,
             WallThickness = wall,
-            StartGround = startGround,
-            EndGround = endGround
+            StartGround = startGround.Value,
+            EndGround = endGround.Value
         };
     }
 
@@ -145,6 +144,8 @@ internal static class PipeAdapter
     {
         if (id.IsNull || !id.IsValid || id.IsErased) return null;
         var structure = transaction.GetObject(id, OpenMode.ForRead) as Structure;
-        return structure?.RimElevation;
+        if (structure == null || double.IsNaN(structure.RimElevation) || double.IsInfinity(structure.RimElevation))
+            return null;
+        return structure.RimElevation;
     }
 }
