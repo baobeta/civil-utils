@@ -19,6 +19,16 @@ public class StationFormatterTests
         Assert.Equal(expected, StationFormatter.Format(station, decimals));
     }
 
+    [Theory]
+    [InlineData(131.09, "0+131.09")]
+    [InlineData(1159.24, "1+159.24")]
+    [InlineData(5.5, "0+005.50")]
+    [InlineData(-12.5, "-0+012.50")]
+    public void Format_without_km_prefix_gives_lisp_station_text(double station, string expected)
+    {
+        Assert.Equal(expected, StationFormatter.Format(station, 2, withKmPrefix: false));
+    }
+
     [Fact]
     public void Format_ignores_vietnamese_culture()
     {
