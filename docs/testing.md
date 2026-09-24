@@ -7,6 +7,8 @@ Yêu cầu: Windows 64-bit, Civil 3D 2021 (update 2021.3 trở lên).
 3. Đóng Civil 3D, bấm đúp `install.cmd`.
 4. Mở Civil 3D 2021, gõ lệnh `CTHELLO`.
 
+Bộ lệnh mới được hướng dẫn từng bước tại [manual-test-command-suite.md](manual-test-command-suite.md).
+
 Gỡ cài đặt: đóng Civil 3D, bấm đúp `uninstall.cmd`.
 
 Báo lỗi: gửi ảnh chụp dòng lệnh, file DWG (nếu được) và phiên bản trong tên file zip.

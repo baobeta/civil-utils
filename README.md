@@ -2,13 +2,30 @@
 
 Productivity tools for **Autodesk Civil 3D 2021**, built for Vietnamese road and drainage projects: survey point import checks, station (lý trình) labels, sample lines, cut/fill volumes and pipe checks.
 
-> **Status: 0.1 (foundation).** The Core logic is done and tested. The add-in currently has one command, `CTHELLO`, which checks that the add-in loads. Commands C-01…C-08 are waiting on the Civil 3D API spike ([docs/spikes/2026-10-spike-report.md](docs/spikes/2026-10-spike-report.md)).
+> **Status: 0.2 command suite (local development).** The released `v0.1.0` package still contains only `CTHELLO`. The current development branch adds the Civil 3D 2021 command suite documented below. Every drawing-changing command provides preview, Cancel, one committed transaction, and single-undo behavior.
 
 ## Install (testers)
 
 Testers should follow [docs/testing.md](docs/testing.md), which is in Vietnamese. In short: download `C3DTools-<version>.zip` from [Releases](https://github.com/baobeta/civil-utils/releases), extract it, close Civil 3D, double-click `install.cmd`, then type `CTHELLO` in Civil 3D 2021.
 
 Requires Windows x64 and Civil 3D 2021 with update 2021.3 or later. The bundle doesn't load in plain AutoCAD.
+
+## Commands
+
+| Command | Purpose |
+| --- | --- |
+| `CTHELLO` | Confirm that the local build loads and list available commands. |
+| `CTCONFIG` | Save project display precision and mandatory pipe slope/cover rules. |
+| `CTALIGN` | Create a Civil 3D Alignment from an open LWPOLYLINE. |
+| `CTDIEM` | Validate and import a CSV/TXT survey point file as COGO points. |
+| `CTPROFILE` | Create a surface profile and profile view for an Alignment. |
+| `CTEXPORT` | Export Alignment, Surface, or Pipe Network inventory to CSV and an optional AutoCAD Table. |
+| `CTNHAC` | Create station labels along an Alignment. |
+| `CTCOC` | Create a Sample Line Group at planned stations and explicit offsets. |
+| `CTKHOILUONG` | Sample two surfaces, calculate cut/fill, and create a table/optional CSV. |
+| `CTCONG` | Check a selected Pipe against the project rules saved by `CTCONFIG`. |
+
+The command contract and architectural decisions are recorded in [docs/plans/2026-09-24-command-suite.md](docs/plans/2026-09-24-command-suite.md). Follow [docs/manual-test-command-suite.md](docs/manual-test-command-suite.md) for local QA.
 
 ## Repository layout
 
@@ -52,6 +69,9 @@ dotnet build src/C3DTools.Civil2021/C3DTools.Civil2021.csproj -c Release -p:UseL
 
 # Package bundle + zip into artifacts/ (needs PowerShell 7 or Windows PowerShell 5.1)
 pwsh scripts/package-bundle.ps1 -Version 0.1.0
+
+# Local command-suite package (no release/tag required)
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/package-bundle.ps1 -Version 0.2.0.1
 ```
 
 On macOS, if the Homebrew `powershell` cask isn't available, run `dotnet tool install --global PowerShell`.

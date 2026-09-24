@@ -14,7 +14,10 @@ public class HelloCommand
     {
         var editor = AcApp.DocumentManager.MdiActiveDocument.Editor;
         var alignments = CivilApplication.ActiveDocument.GetAlignmentIds().Count;
+        var version = GetType().Assembly.GetName().Version?.ToString() ?? "local";
         editor.WriteMessage(
-            $"\nC3DTools 0.1 — bản vẽ có {alignments} tuyến. Ví dụ lý trình: {StationFormatter.Format(1234.5, 2)}\n");
+            $"\nC3DTools {version} — bản vẽ có {alignments} tuyến. Ví dụ lý trình: {StationFormatter.Format(1234.5, 2)}");
+        editor.WriteMessage(
+            "\nLệnh: CTCONFIG, CTALIGN, CTDIEM, CTPROFILE, CTEXPORT, CTNHAC, CTCOC, CTKHOILUONG, CTCONG\n");
     }
 }

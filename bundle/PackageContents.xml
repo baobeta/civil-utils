@@ -17,6 +17,15 @@
       <RuntimeRequirements OS="Win64" Platform="Civil3D" SeriesMin="R24.0" SeriesMax="R24.0" />
       <Commands GroupName="C3DTOOLS">
         <Command Global="CTHELLO" Local="CTHELLO" />
+        <Command Global="CTCONFIG" Local="CTCONFIG" />
+        <Command Global="CTALIGN" Local="CTALIGN" />
+        <Command Global="CTDIEM" Local="CTDIEM" />
+        <Command Global="CTPROFILE" Local="CTPROFILE" />
+        <Command Global="CTEXPORT" Local="CTEXPORT" />
+        <Command Global="CTNHAC" Local="CTNHAC" />
+        <Command Global="CTCOC" Local="CTCOC" />
+        <Command Global="CTKHOILUONG" Local="CTKHOILUONG" />
+        <Command Global="CTCONG" Local="CTCONG" />
       </Commands>
     </ComponentEntry>
   </Components>
