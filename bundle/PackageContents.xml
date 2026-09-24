@@ -17,6 +17,7 @@
       <RuntimeRequirements OS="Win64" Platform="Civil3D" SeriesMin="R24.0" SeriesMax="R24.0" />
       <Commands GroupName="C3DTOOLS">
         <Command Global="CTHELLO" Local="CTHELLO" />
+        <Command Global="CTYTC" Local="CTYTC" />
       </Commands>
     </ComponentEntry>
   </Components>

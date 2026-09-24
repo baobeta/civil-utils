@@ -22,6 +22,17 @@ internal sealed class YtcTag
     public double SpiralIn { get; set; }
     public double SpiralOut { get; set; }
 
+    /// <summary>Tag for an object that belongs to one curve: carries the curve's inputs so a rerun can reload them.</summary>
+    public static YtcTag For(C3DTools.Core.Curves.DesignedCurve curve) => new YtcTag
+    {
+        Number = curve.Number,
+        Wb = curve.Input.Wb,
+        Wl = curve.Input.Wl,
+        Radius = curve.Input.Radius,
+        SpiralIn = curve.Input.SpiralIn,
+        SpiralOut = curve.Input.SpiralOut,
+    };
+
     public ResultBuffer ToXData() => new ResultBuffer(
         new TypedValue((int)DxfCode.ExtendedDataRegAppName, RegApp),
         new TypedValue((int)DxfCode.ExtendedDataAsciiString, Marker),

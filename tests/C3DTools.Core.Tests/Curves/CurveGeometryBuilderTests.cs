@@ -36,6 +36,20 @@ public class CurveGeometryBuilderTests
     }
 
     [Fact]
+    public void Arc_angles_run_counter_clockwise_like_the_lisp_arc()
+    {
+        var left = Build(new[] { P(0, 0), P(100, 0), P(100, 100) }, new CurveInput { Radius = 50 });
+        Assert.Equal(-Math.PI / 2, left.ArcDrawStartAngle, 9);   // TĐ → TC
+        Assert.Equal(0, left.ArcDrawEndAngle, 9);
+        Assert.Equal(50, left.Start.X, 9);   // NĐ == TĐ when L = 0
+        Assert.Equal(50, left.End.Y, 9);
+
+        var right = Build(new[] { P(0, 0), P(100, 0), P(100, -100) }, new CurveInput { Radius = 50 });
+        Assert.Equal(0, right.ArcDrawStartAngle, 9);             // TC → TĐ
+        Assert.Equal(Math.PI / 2, right.ArcDrawEndAngle, 9);
+    }
+
+    [Fact]
     public void Right_turn_puts_the_centre_on_the_right()
     {
         var g = Build(new[] { P(0, 0), P(100, 0), P(100, -100) }, new CurveInput { Radius = 50 });

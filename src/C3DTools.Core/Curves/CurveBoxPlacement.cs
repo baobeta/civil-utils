@@ -20,6 +20,15 @@ public sealed class BoxPlacement
 /// <summary>Port of the second ytc:bang: box outside the PI, vertical axis on the bisector, leader through the PI.</summary>
 public static class CurveBoxPlacement
 {
+    /// <summary>ytc:bang line spacing: 1.7h.</summary>
+    public static double LineSpacing(double textHeight) => 1.7 * textHeight;
+
+    /// <summary>ytc:bang frame width: widest line + 2h.</summary>
+    public static double FrameWidth(double textWidth, double textHeight) => textWidth + 2 * textHeight;
+
+    /// <summary>ytc:bang frame height: lines × 1.7h + 0.6h.</summary>
+    public static double FrameHeight(int lineCount, double textHeight) => lineCount * LineSpacing(textHeight) + 0.6 * textHeight;
+
     public static BoxPlacement Place(PlanPoint pi, PlanPoint before, PlanPoint after, PlanPoint curveMid,
         double boxWidth, double boxHeight, double textHeight)
     {

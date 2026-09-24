@@ -7,6 +7,16 @@ public sealed class CurveGeometry
 {
     public PlanPoint ArcCentre { get; set; }
 
+    /// <summary>NĐ: where the curve leaves the incoming tangent (TĐ when L1 = 0).</summary>
+    public PlanPoint Start { get; set; }
+
+    /// <summary>NC: where the curve joins the outgoing tangent (TC when L2 = 0).</summary>
+    public PlanPoint End { get; set; }
+
+    /// <summary>ARC start/end angles, counter-clockwise as AutoCAD draws them: TĐ → TC on a left turn, TC → TĐ on a right turn.</summary>
+    public double ArcDrawStartAngle { get; set; }
+    public double ArcDrawEndAngle { get; set; }
+
     /// <summary>TĐ (end of the entry spiral), or NĐ when there is no spiral.</summary>
     public PlanPoint ArcStart { get; set; }
 
@@ -66,11 +76,20 @@ public static class CurveGeometryBuilder
             }
 
         Unit(pi.X - centre.X, pi.Y - centre.Y, out var mx, out var my);
+        var arcStart = pin.Count > 0 ? pin[pin.Count - 1] : start;
+        var arcEnd = pout.Count > 0 ? pout[0] : end;
+        var angleStart = Math.Atan2(arcStart.Y - centre.Y, arcStart.X - centre.X);
+        var angleEnd = Math.Atan2(arcEnd.Y - centre.Y, arcEnd.X - centre.X);
         return new CurveGeometry
         {
             ArcCentre = centre,
-            ArcStart = pin.Count > 0 ? pin[pin.Count - 1] : start,
-            ArcEnd = pout.Count > 0 ? pout[0] : end,
+            Start = start,
+            End = end,
+            ArcStart = arcStart,
+            ArcEnd = arcEnd,
+            // c:YTC: (if (> sgn 0) (arc cc r (angle cc sc) (angle cc cs)) (arc cc r (angle cc cs) (angle cc sc)))
+            ArcDrawStartAngle = sgn > 0 ? angleStart : angleEnd,
+            ArcDrawEndAngle = sgn > 0 ? angleEnd : angleStart,
             Mid = new PlanPoint(centre.X + mx * radius, centre.Y + my * radius),
             SpiralIn = pin,
             SpiralOut = pout,

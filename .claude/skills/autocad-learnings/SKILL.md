@@ -31,3 +31,13 @@ Append-only knowledge accumulation file. The AI records verified discoveries her
 ## Entries
 
 *(No entries yet — the AI will append discoveries below this line as they occur.)*
+
+## [2026-09-24] Civil 3D 2021 — Alignment signatures in Civil3D2021.Base 1.0.0 (compile-time only)
+- `AlignmentEntityCollection.AddFreeSCS(int previousEntityId, int nextEntityId, double spiral1Param, double spiral2Param, SpiralParamType spType, double radius, bool isGreaterThan180, SpiralType spiralDefinition)`; no clockwise flag (the turn comes from the tangents). `AddFreeCurve(int prev, int next, double paramValue, CurveParamType paramType, bool isGreaterThan180, CurveType curveType)`; `CurveType` is only `Compound`/`Reverse`.
+- `SpiralType` is `Autodesk.Civil.SpiralType` (namespace `Autodesk.Civil`, not `DatabaseServices`); `SpiralParamType`, `SpiralDirectionType`, `CurveParamType`, `AlignmentEntityType` are in `Autodesk.Civil.DatabaseServices`.
+- `Alignment.PointLocation(station, offset, ref e, ref n)` and an overload with `(station, offset, tolerance, ref e, ref n, ref bearing)`; `StationOffset(e, n, ref station, ref offset)`; `ReferencePointStation` has a public setter; `Alignment.Create(CivilDocument, PolylineOptions, name, siteId, layerId, styleId, labelSetId)` exists. `PolylineOptions` is a struct with `PlineId`, `AddCurvesBetweenTangents`, `EraseExistingEntities`.
+- `AlignmentSubEntityArc.Clockwise`, `AlignmentSubEntitySpiral.RadiusIn/RadiusOut/Direction/SpiralDefinition`, `AlignmentEntity.SubEntityCount` + indexer, `AlignmentEntityCollection.GetEntityByOrder(int)` exist.
+- `ShowModalWindow(System.Windows.Window)` lives on `Autodesk.AutoCAD.ApplicationServices.Core.Application` (AcCoreMgd) in 2021, not on `ApplicationServices.Application` (AcMgd has only the `Uri` overloads).
+- Why it matters: the 2027 skills show other overloads; guessing breaks the macOS build.
+- Source: reflection over the NuGet reference assemblies with System.Reflection.MetadataLoadContext, and `AcCoreMgd.xml`; runtime behaviour (e.g. AddFreeSCS with L1 ≠ L2, one spiral 0) is NOT verified yet (Task 0 spikes S8/S9/S10).
+- Promoted to: *(pending)*

@@ -72,4 +72,12 @@ public class CurveBoxPlacementTests
         Assert.Equal(30, Distance(b.Corners[0], b.Corners[1]), 9);
         Assert.Equal(15, Distance(b.Corners[1], b.Corners[2]), 9);
     }
+
+    [Fact]
+    public void Frame_size_follows_ytc_bang()
+    {
+        Assert.Equal(1.7 * 2.5, CurveBoxPlacement.LineSpacing(2.5), 9);
+        Assert.Equal(30 + 5, CurveBoxPlacement.FrameWidth(30, 2.5), 9);
+        Assert.Equal(5 * 1.7 * 2.5 + 0.6 * 2.5, CurveBoxPlacement.FrameHeight(5, 2.5), 9);
+    }
 }

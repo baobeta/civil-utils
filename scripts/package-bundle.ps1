@@ -23,12 +23,16 @@ $manifest = $manifest -replace 'AppVersion="[^"]*"', "AppVersion=`"$Version`""
 Set-Content (Join-Path $bundle "PackageContents.xml") $manifest -Encoding UTF8
 
 Copy-Item (Join-Path $buildOut "*.dll") $contents
+# Presets and other data files: PresetLocator looks in <dll dir>/Resources.
+$resources = Join-Path $contents "Resources"
+New-Item -ItemType Directory -Path $resources | Out-Null
+Copy-Item (Join-Path $root "bundle/Resources/*") $resources -Recurse
 foreach ($f in "install.ps1", "install.cmd", "uninstall.cmd") {
     Copy-Item (Join-Path $root "bundle/$f") $stage
 }
 Copy-Item (Join-Path $root "THIRD_PARTY.md") $stage
 
-$autodesk = Get-ChildItem $contents -Filter *.dll | Where-Object { $_.Name -match '^(Ac|Aec|Adw|AdUi)' }
+$autodesk = Get-ChildItem $contents -Filter *.dll -Recurse | Where-Object { $_.Name -match '^(Ac|Aec|Adw|AdUi)' }
 if ($autodesk) { throw "Autodesk DLLs must not be packaged: $($autodesk.Name -join ', ')" }
 
 $zip = Join-Path $artifacts "C3DTools-$Version.zip"

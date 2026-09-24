@@ -57,6 +57,12 @@ public class CurveDesignCommand
                     case DialogAction.ReadWidening:
                         (source as AlignmentSource)?.ReadWidening(session);
                         continue;
+                    case DialogAction.Preview:
+                        if (RouteWriter.Write(doc, source, session, preset.CurveBox, askToKeep: true)) return;
+                        continue;   // Khong: rolled back, back to the dialog
+                    case DialogAction.Apply:
+                        RouteWriter.Write(doc, source, session, preset.CurveBox, askToKeep: false);
+                        return;
                     default:
                         return;
                 }
