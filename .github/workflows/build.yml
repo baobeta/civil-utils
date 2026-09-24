@@ -22,7 +22,7 @@ jobs:
         shell: pwsh
         run: |
           if ($env:GITHUB_REF_TYPE -eq 'tag') { $v = $env:GITHUB_REF_NAME.TrimStart('v') }
-          else { $v = "0.1.0.$env:GITHUB_RUN_NUMBER" }
+          else { $v = "0.2.0.$env:GITHUB_RUN_NUMBER" }
           "version=$v" >> $env:GITHUB_OUTPUT
 
       - name: Test Core
