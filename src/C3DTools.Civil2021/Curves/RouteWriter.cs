@@ -41,7 +41,10 @@ internal static class RouteWriter
                 var d = new RouteDrawing(tr, doc.Database, source.TagHandle);
                 var recreateAlignment = !source.IsAlignment && session.CreateAlignment;
                 // "Chỉ cắm cọc + khung" replaces only boxes and stakes; curves of an earlier run stay.
-                var kinds = stakesOnly ? new HashSet<YtcKind> { YtcKind.Box, YtcKind.Stake } : null;
+                // The table (CTYTCBANG / "Bảng") is replaced only when a new one is written.
+                var kinds = stakesOnly
+                    ? new HashSet<YtcKind> { YtcKind.Box, YtcKind.Stake }
+                    : new HashSet<YtcKind> { YtcKind.Unknown, YtcKind.Curve, YtcKind.Box, YtcKind.Stake, YtcKind.Alignment };
                 d.EraseTagged(new HashSet<ObjectId> { source.Id }, kinds, recreateAlignment, m => ed.WriteMessage("\n" + m));
 
                 List<BoxSite> sites;
@@ -69,6 +72,12 @@ internal static class RouteWriter
 
                 if (session.DrawBoxes) CurveBoxWriter.Write(d, sites, boxOptions ?? new CurveBoxOptions(), h);
                 if (session.DrawStakes) StakeWriter.Write(d, stakes, written, h);
+                if (session.WriteTable)
+                {
+                    var last = pis[pis.Count - 1];
+                    CurveTableWriter.Write(d, source.Id, CurveTableBuilder.Build(written, boxOptions ?? new CurveBoxOptions()),
+                        new Autodesk.AutoCAD.Geometry.Point3d(last.X + 10 * h, last.Y, 0), h, m => ed.WriteMessage("\n" + m));
+                }
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
@@ -116,7 +125,7 @@ internal static class RouteWriter
         return placed;
     }
 
-    private static bool AskToKeep(Editor ed)
+    internal static bool AskToKeep(Editor ed)
     {
         var options = new PromptKeywordOptions("\nGiữ kết quả? [Co/Khong]", "Co Khong") { AllowNone = true };
         options.Keywords.Default = "Co";
@@ -126,7 +135,7 @@ internal static class RouteWriter
     }
 
     /// <summary>ytc:csv: &lt;DWGPREFIX&gt;&lt;drawing name&gt;_YEUTOCONG.csv, UTF-8 with BOM.</summary>
-    private static void WriteCsv(Editor ed, RouteDesign design)
+    internal static void WriteCsv(Editor ed, RouteDesign design)
     {
         var folder = PresetLocator.DrawingFolder();
         if (folder == null)

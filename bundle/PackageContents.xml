@@ -19,6 +19,7 @@
         <Command Global="CTHELLO" Local="CTHELLO" />
         <Command Global="CTYTC" Local="CTYTC" />
         <Command Global="CTYTCMAU" Local="CTYTCMAU" />
+        <Command Global="CTYTCBANG" Local="CTYTCBANG" />
       </Commands>
     </ComponentEntry>
   </Components>

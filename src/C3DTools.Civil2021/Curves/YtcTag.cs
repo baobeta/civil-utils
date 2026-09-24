@@ -6,7 +6,7 @@ using AcEntity = Autodesk.AutoCAD.DatabaseServices.Entity;
 namespace C3DTools.Civil2021.Curves;
 
 /// <summary>What a tagged object is, so a rerun can replace only some of them ("Chỉ cắm cọc + khung": boxes and stakes).</summary>
-internal enum YtcKind : short { Unknown = 0, Curve = 1, Box = 2, Stake = 3, Alignment = 4 }
+internal enum YtcKind : short { Unknown = 0, Curve = 1, Box = 2, Stake = 3, Alignment = 4, Table = 5 }
 
 /// <summary>
 /// XData that marks every object CTYTC creates: regapp C3DTOOLS_YTC, (1000 "YTC", 1005 source handle,

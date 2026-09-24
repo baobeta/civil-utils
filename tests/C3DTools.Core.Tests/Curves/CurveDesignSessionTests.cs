@@ -350,8 +350,9 @@ public class CurveDesignSessionTests
         s.DrawBoxes = false;
         s.DrawStakes = false;
         s.WriteCsv = false;
+        s.WriteTable = true;
 
-        Assert.Equal(new[] { "ReadOnlyGeometry", "TextHeight", "DrawCurves", "CreateAlignment", "DrawBoxes", "DrawStakes", "WriteCsv" }, names);
+        Assert.Equal(new[] { "ReadOnlyGeometry", "TextHeight", "DrawCurves", "CreateAlignment", "DrawBoxes", "DrawStakes", "WriteCsv", "WriteTable" }, names);
     }
 
     [Fact]
@@ -373,6 +374,7 @@ public class CurveDesignSessionTests
         Assert.Equal(2.5, s.TextHeight);
         Assert.True(s.DrawCurves && s.DrawBoxes && s.DrawStakes && s.WriteCsv);
         Assert.False(s.CreateAlignment);
+        Assert.False(s.WriteTable);
         Assert.False(s.ReadOnlyGeometry);
 
         s.ReadOnlyGeometry = true;

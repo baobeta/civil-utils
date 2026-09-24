@@ -128,6 +128,7 @@ internal sealed class CurveDesignWindow : Window
         outputs.Children.Add(Check("Khung", nameof(CurveDesignSession.DrawBoxes)));
         outputs.Children.Add(Check("Cọc", nameof(CurveDesignSession.DrawStakes)));
         outputs.Children.Add(Check("CSV", nameof(CurveDesignSession.WriteCsv)));
+        outputs.Children.Add(Check("Bảng", nameof(CurveDesignSession.WriteTable)));
         bottom.Children.Add(outputs);
 
         var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = false };
