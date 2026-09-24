@@ -99,7 +99,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     public double EndStation => Design?.EndStation ?? _startStation;
 
     public string SummaryText =>
-        $"{Rows.Count} đường cong, chiều dài tuyến = {NumberFormat.Trimmed(EndStation - _startStation, 2)} m";
+        $"{Design?.Curves.Count(c => c.Elements != null) ?? 0} đường cong, chiều dài tuyến = {NumberFormat.Trimmed(EndStation - _startStation, 2)} m";
 
     internal int StationDecimals => _preset.StationDecimals;
     internal int AngleSecondDecimals => _preset.CurveBox?.AngleSecondDecimals ?? 0;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.Geometry;
 using C3DTools.Core.Curves;
@@ -9,12 +10,16 @@ namespace C3DTools.Civil2021.Curves;
 /// <summary>Stakes (ytc:coc): tick line, station text and stake name on YTC_COC.</summary>
 internal static class StakeWriter
 {
-    public static void Write(RouteDrawing d, IEnumerable<Stake> stakes, double textHeight)
+    /// <param name="design">The design the stakes belong to; its curves' values go into the stakes' XData.</param>
+    public static void Write(RouteDrawing d, IEnumerable<Stake> stakes, RouteDesign design, double textHeight)
     {
+        var curves = design.Curves.ToDictionary(c => c.Number);
         foreach (var stake in stakes)
         {
             var layout = RouteStakes.Layout(stake, textHeight);
-            var tag = new YtcTag { Number = stake.CurveNumber };
+            var tag = curves.TryGetValue(stake.CurveNumber, out var curve)
+                ? YtcTag.For(curve, YtcKind.Stake)
+                : new YtcTag { Kind = YtcKind.Stake };
             d.Add(new AcLine(P3(layout.TickStart), P3(layout.TickEnd)), RouteDrawing.StakeLayer, tag);
             AddText(d, layout.StationText, layout.StationTextPoint, layout.Rotation, textHeight, tag);
             if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NameTextPoint, layout.Rotation, textHeight, tag);

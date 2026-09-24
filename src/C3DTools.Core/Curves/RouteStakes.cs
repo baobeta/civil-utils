@@ -86,6 +86,30 @@ public static class RouteStakes
         return stakes;
     }
 
+    /// <summary>
+    /// Stakes of an as-built design (YTCA, existing alignment): kind, number, station and side only.
+    /// The host puts each one on the alignment by station.
+    /// </summary>
+    public static List<Stake> FromStations(RouteDesign design, double startStation, double endStation)
+    {
+        if (design == null) throw new ArgumentNullException(nameof(design));
+
+        var stakes = new List<Stake> { new Stake { Kind = StakeKind.Start, Station = startStation, Side = 1 } };
+        foreach (var c in design.Curves)
+        {
+            if (c.Elements == null) continue;
+            var input = c.Input;
+            if (input.SpiralIn > 0) stakes.Add(Make(StakeKind.Nd, c, c.StationStart, default, default, c.Turn));
+            stakes.Add(Make(StakeKind.Td, c, c.StationArcStart, default, default, c.Turn));
+            stakes.Add(Make(StakeKind.Tc, c, c.StationArcEnd, default, default, c.Turn));
+            if (input.SpiralOut > 0) stakes.Add(Make(StakeKind.Nc, c, c.StationEnd, default, default, c.Turn));
+            stakes.Add(Make(StakeKind.P, c, c.StationArcMid, default, default, -c.Turn));
+        }
+
+        stakes.Add(new Stake { Kind = StakeKind.End, Station = endStation, Side = 1 });
+        return stakes;
+    }
+
     /// <summary>ytc:coc: tick from −h to 10h along out, texts at 0.55 of the tick, ±0.9h along the route, rotated readable.</summary>
     public static StakeDrawing Layout(Stake stake, double textHeight)
     {

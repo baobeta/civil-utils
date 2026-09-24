@@ -31,6 +31,7 @@ internal static class RouteWriter
         var h = session.TextHeight > 0 ? session.TextHeight : DefaultTextHeight;
         var stakesOnly = source.IsAlignment && session.ReadOnlyGeometry;
         bool keep;
+        var written = design;
 
         using (doc.LockDocument())
         using (var tr = doc.Database.TransactionManager.StartTransaction())
@@ -39,10 +40,21 @@ internal static class RouteWriter
             {
                 var d = new RouteDrawing(tr, doc.Database, source.TagHandle);
                 var recreateAlignment = !source.IsAlignment && session.CreateAlignment;
-                d.EraseTagged(new HashSet<ObjectId> { source.Id }, eraseAlignments: recreateAlignment);
+                // "Chỉ cắm cọc + khung" replaces only boxes and stakes; curves of an earlier run stay.
+                var kinds = stakesOnly ? new HashSet<YtcKind> { YtcKind.Box, YtcKind.Stake } : null;
+                d.EraseTagged(new HashSet<ObjectId> { source.Id }, kinds, recreateAlignment, m => ed.WriteMessage("\n" + m));
 
-                // Curve geometry. "Chỉ cắm cọc + khung" never opens the alignment for write.
-                if (!stakesOnly)
+                List<BoxSite> sites;
+                List<Stake> stakes;
+                if (stakesOnly)
+                {
+                    // The alignment is only read: its own curve groups give stations, points and measured T, P.
+                    var alignment = (Alignment)tr.GetObject(source.Id, OpenMode.ForRead);
+                    sites = new List<BoxSite>();
+                    written = AsBuiltDesign.Read(alignment, (AlignmentSource)source, design, sites, ed);
+                    stakes = OnAlignment(RouteStakes.FromStations(written, alignment.StartingStation, alignment.EndingStation), alignment, ed);
+                }
+                else
                 {
                     var alignmentDone = false;
                     if (session.CreateAlignment)
@@ -51,11 +63,12 @@ internal static class RouteWriter
                             : CurveGeometryWriter.CreateAlignment(d, source.Id, session, ed);
                     if (session.DrawCurves || (session.CreateAlignment && !alignmentDone))
                         CurveGeometryWriter.WritePlain(d, pis, design);
+                    sites = CurveBoxWriter.SitesFromGeometry(pis, design);
+                    stakes = RouteStakes.Build(pis, session.StartStation, design);
                 }
 
-                var measuredOn = stakesOnly ? (Alignment)tr.GetObject(source.Id, OpenMode.ForRead) : null;
-                if (session.DrawBoxes) CurveBoxWriter.Write(d, pis, design, boxOptions ?? new CurveBoxOptions(), h, measuredOn, ed);
-                if (session.DrawStakes) StakeWriter.Write(d, Stakes(pis, session, measuredOn, ed), h);
+                if (session.DrawBoxes) CurveBoxWriter.Write(d, sites, boxOptions ?? new CurveBoxOptions(), h);
+                if (session.DrawStakes) StakeWriter.Write(d, stakes, written, h);
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
@@ -73,37 +86,34 @@ internal static class RouteWriter
 
         if (!keep)
         {
-            ed.UpdateScreen();
+            ed.Regen();
             return false;
         }
 
-        if (session.WriteCsv) WriteCsv(ed, design);
+        if (session.WriteCsv) WriteCsv(ed, written);
         ed.WriteMessage($"\nHoàn thành: {session.SummaryText}.\n");
         return true;
     }
 
-    /// <summary>Polyline mode: points and directions from Core geometry. Alignment mode: measured on the alignment.</summary>
-    private static List<Stake> Stakes(IReadOnlyList<PlanPoint> pis, CurveDesignSession session, Alignment alignment, Editor ed)
+    /// <summary>Puts each stake on the alignment at its station; a stake that can't be located is skipped with a message.</summary>
+    private static List<Stake> OnAlignment(List<Stake> stakes, Alignment alignment, Editor ed)
     {
-        var stakes = RouteStakes.Build(pis, session.StartStation, session.Design);
-        if (alignment == null) return stakes;
-
-        stakes[0].Station = alignment.StartingStation;
-        stakes[stakes.Count - 1].Station = alignment.EndingStation;
+        var placed = new List<Stake>();
         foreach (var s in stakes)
         {
             try
             {
                 s.Point = MeasuredElements.Point(alignment, s.Station);
                 s.Direction = MeasuredElements.Direction(alignment, s.Station);
+                placed.Add(s);
             }
             catch (Exception ex)
             {
-                ed.WriteMessage($"\nCọc {s.Name} tại {NumberFormat.Fixed(s.Station, 2)}: không lấy được điểm trên Alignment ({ex.Message}); dùng hình học tính toán.");
+                ed.WriteMessage($"\nCọc {s.Name} tại {NumberFormat.Fixed(s.Station, 2)}: không lấy được điểm trên Alignment ({ex.Message}); bỏ qua.");
             }
         }
 
-        return stakes;
+        return placed;
     }
 
     private static bool AskToKeep(Editor ed)

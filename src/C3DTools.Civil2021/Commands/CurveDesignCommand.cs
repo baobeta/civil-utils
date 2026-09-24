@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Autodesk.AutoCAD.Runtime;
 using C3DTools.Civil2021.Curves;
 using C3DTools.Civil2021.Ui;
@@ -40,14 +41,16 @@ public class CurveDesignCommand
                 {
                     case DialogAction.Pick:
                         var picked = RouteSource.Prompt(ed);
-                        if (picked != null && TryLoad(ed, picked, session))
+                        if (picked == null) continue;
+                        var snapshot = SessionSnapshot.Take(session);
+                        if (TryLoad(ed, picked, session))
                         {
                             source = picked;
                             selectedRow = 0;
                         }
-                        else if (picked != null)
+                        else
                         {
-                            TryLoad(ed, source, session);   // keep working on the previous route
+                            snapshot.Restore(session);   // keep working on the previous route, edits included
                         }
 
                         continue;
@@ -93,5 +96,33 @@ public class CurveDesignCommand
     {
         var e = session.Design?.Curves[session.Rows[row].Index].Elements;
         return e == null ? 100 : Math.Max(100, 3 * Math.Max(e.T1, e.T2));
+    }
+
+    /// <summary>Grid state before a re-pick, restored when the new object cannot be loaded.</summary>
+    private sealed class SessionSnapshot
+    {
+        private IReadOnlyList<PlanPoint> _pis;
+        private List<CurveInput> _inputs;
+        private double _startStation;
+        private bool _readOnly, _createAlignment, _drawCurves;
+
+        public static SessionSnapshot Take(CurveDesignSession s) => new SessionSnapshot
+        {
+            _pis = s.Pis,
+            _inputs = s.Inputs.Select(i => i.Clone()).ToList(),
+            _startStation = s.StartStation,
+            _readOnly = s.ReadOnlyGeometry,
+            _createAlignment = s.CreateAlignment,
+            _drawCurves = s.DrawCurves,
+        };
+
+        public void Restore(CurveDesignSession s)
+        {
+            s.ReadOnlyGeometry = _readOnly;
+            s.CreateAlignment = _createAlignment;
+            s.DrawCurves = _drawCurves;
+            s.StartStation = _startStation;
+            if (_pis.Count >= 2) s.Load(_pis, _inputs);
+        }
     }
 }

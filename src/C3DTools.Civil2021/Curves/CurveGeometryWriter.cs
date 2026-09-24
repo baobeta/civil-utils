@@ -30,70 +30,124 @@ internal static class CurveGeometryWriter
             var g = CurveGeometryBuilder.Build(pis[c.PiIndex], pis[c.PiIndex - 1], pis[c.PiIndex + 1],
                 input.Radius, input.SpiralIn, input.SpiralOut, c.Turn, c.Elements);
             d.Add(new AcArc(new Point3d(g.ArcCentre.X, g.ArcCentre.Y, 0), Vector3d.ZAxis, input.Radius,
-                g.ArcDrawStartAngle, g.ArcDrawEndAngle), RouteDrawing.CurveLayer, YtcTag.For(c));
-            if (g.SpiralIn.Count > 1) d.Add(Polyline(g.SpiralIn, false), RouteDrawing.CurveLayer, YtcTag.For(c));
-            if (g.SpiralOut.Count > 1) d.Add(Polyline(g.SpiralOut, false), RouteDrawing.CurveLayer, YtcTag.For(c));
+                g.ArcDrawStartAngle, g.ArcDrawEndAngle), RouteDrawing.CurveLayer, YtcTag.For(c, YtcKind.Curve));
+            if (g.SpiralIn.Count > 1) d.Add(Polyline(g.SpiralIn, false), RouteDrawing.CurveLayer, YtcTag.For(c, YtcKind.Curve));
+            if (g.SpiralOut.Count > 1) d.Add(Polyline(g.SpiralOut, false), RouteDrawing.CurveLayer, YtcTag.For(c, YtcKind.Curve));
         }
     }
 
-    /// <summary>Tangents from the polyline, then one free curve per PI. False (with a message) when it fails.</summary>
+    /// <summary>
+    /// Tangents from the polyline, then one free curve per PI, in a nested transaction: either the whole alignment
+    /// is created or nothing is. False (with a message) when it fails, so the caller draws plain geometry.
+    /// </summary>
     public static bool CreateAlignment(RouteDrawing d, ObjectId polylineId, CurveDesignSession session, Editor ed)
     {
-        try
+        const string failed = "Không tạo được Alignment";
+        if (!Supported(session, ed, failed)) return false;
+
+        var layerId = d.LayerId(RouteDrawing.CurveLayer);
+        ObjectId id;
+        using (var nested = d.Database.TransactionManager.StartTransaction())
         {
-            var civil = CivilDocument.GetCivilDocument(d.Database);
-            var options = new PolylineOptions { PlineId = polylineId, AddCurvesBetweenTangents = false, EraseExistingEntities = false };
-            var id = Alignment.Create(civil, options, UniqueName(civil, d.Transaction), ObjectId.Null,
-                d.LayerId(RouteDrawing.CurveLayer), StyleId(civil.Styles.AlignmentStyles, "TCVN_Tuyen"),
-                StyleId(civil.Styles.LabelSetStyles.AlignmentLabelSetStyles, "YTC_TCVN"));
-            var alignment = (Alignment)d.Transaction.GetObject(id, OpenMode.ForWrite);
-            d.Tag(alignment, new YtcTag());
             try
             {
-                alignment.ReferencePointStation = session.StartStation;
+                var civil = CivilDocument.GetCivilDocument(d.Database);
+                var options = new PolylineOptions { PlineId = polylineId, AddCurvesBetweenTangents = false, EraseExistingEntities = false };
+                id = Alignment.Create(civil, options, UniqueName(civil, nested), ObjectId.Null, layerId,
+                    StyleId(civil.Styles.AlignmentStyles, "TCVN_Tuyen"),
+                    StyleId(civil.Styles.LabelSetStyles.AlignmentLabelSetStyles, "YTC_TCVN"));
+                var alignment = (Alignment)nested.GetObject(id, OpenMode.ForWrite);
+                d.Tag(alignment, new YtcTag { Kind = YtcKind.Alignment });
+                try
+                {
+                    alignment.ReferencePointStation = session.StartStation;
+                }
+                catch (Exception ex)
+                {
+                    ed.WriteMessage($"\nKhông đặt được lý trình đầu {NumberFormat.Trimmed(session.StartStation, 2)} cho Alignment: {ex.Message}");
+                }
+
+                AddCurves(alignment, CheckedTangents(alignment, session), session);
+                nested.Commit();
             }
             catch (Exception ex)
             {
-                ed.WriteMessage($"\nKhông đặt được lý trình đầu {NumberFormat.Trimmed(session.StartStation, 2)} cho Alignment: {ex.Message}");
+                ed.WriteMessage($"\n{failed}: {ex.Message} Đã vẽ hình học thường thay thế.");
+                return false;   // nested transaction aborted: no alignment at all
             }
+        }
 
-            AddCurves(alignment, session, ed);
-            ed.WriteMessage($"\nĐã tạo Alignment {alignment.Name}.");
-            return true;
-        }
-        catch (Exception ex)
-        {
-            ed.WriteMessage($"\nKhông tạo được Alignment: {ex.Message}. Đã vẽ hình học thường thay thế.");
-            return false;
-        }
+        var created = (Alignment)d.Transaction.GetObject(id, OpenMode.ForRead);
+        ed.WriteMessage($"\nĐã tạo Alignment {created.Name}.");
+        SelfCheck(created, session.Design, ed);
+        return true;
     }
 
-    /// <summary>"Thiết kế lại cong" on an existing alignment: removes its curves and adds the designed ones between the same tangents.</summary>
+    /// <summary>
+    /// "Thiết kế lại cong" on an existing alignment: removes its curves and adds the designed ones between the same
+    /// tangents. Everything is checked first and done in a nested transaction, so a failure leaves the alignment as it was.
+    /// </summary>
     public static bool UpdateAlignment(RouteDrawing d, ObjectId alignmentId, CurveDesignSession session, Editor ed)
     {
+        const string failed = "Không cập nhật được Alignment";
+        if (!Supported(session, ed, failed)) return false;
         try
         {
-            var alignment = (Alignment)d.Transaction.GetObject(alignmentId, OpenMode.ForWrite);
-            var entities = alignment.Entities;
-            var curves = new List<AlignmentEntity>();
-            for (var i = 0; i < entities.Count; i++)
-            {
-                var e = entities.GetEntityByOrder(i);
-                if (e.EntityType != AlignmentEntityType.Line) curves.Add(e);
-            }
-
-            foreach (var e in curves) entities.Remove(e);
-            AddCurves(alignment, session, ed);
-            return true;
+            CheckedTangents((Alignment)d.Transaction.GetObject(alignmentId, OpenMode.ForRead), session);
         }
         catch (Exception ex)
         {
-            ed.WriteMessage($"\nKhông cập nhật được Alignment: {ex.Message}. Đã vẽ hình học thường thay thế.");
+            ed.WriteMessage($"\n{failed}: {ex.Message} Đã vẽ hình học thường thay thế.");
             return false;
         }
+
+        using (var nested = d.Database.TransactionManager.StartTransaction())
+        {
+            try
+            {
+                var alignment = (Alignment)nested.GetObject(alignmentId, OpenMode.ForWrite);
+                var entities = alignment.Entities;
+                var curves = new List<AlignmentEntity>();
+                for (var i = 0; i < entities.Count; i++)
+                {
+                    var e = entities.GetEntityByOrder(i);
+                    if (e.EntityType != AlignmentEntityType.Line) curves.Add(e);
+                }
+
+                foreach (var e in curves) entities.Remove(e);
+                AddCurves(alignment, CheckedTangents(alignment, session), session);
+                nested.Commit();
+            }
+            catch (Exception ex)
+            {
+                ed.WriteMessage($"\n{failed}: {ex.Message} Đã vẽ hình học thường thay thế.");
+                return false;   // nested transaction aborted: the alignment is unchanged
+            }
+        }
+
+        SelfCheck((Alignment)d.Transaction.GetObject(alignmentId, OpenMode.ForRead), session.Design, ed);
+        return true;
     }
 
-    private static void AddCurves(Alignment alignment, CurveDesignSession session, Editor ed)
+    /// <summary>
+    /// Civil3D2021.Base has AddFreeSCS (two spirals) and AddFreeCurve (none) between tangents, but no verified
+    /// spiral–curve / curve–spiral variant, so a curve with exactly one spiral cannot go into an alignment.
+    /// </summary>
+    private static bool Supported(CurveDesignSession session, Editor ed, string failed)
+    {
+        var oneSided = session.Design.Curves
+            .Where(c => c.Elements != null && (c.Input.SpiralIn > 0) != (c.Input.SpiralOut > 0))
+            .ToList();
+        foreach (var c in oneSided)
+            ed.WriteMessage($"\nĐ{c.Number}: chỉ có một đường cong chuyển tiếp (L1 = {NumberFormat.Trimmed(c.Input.SpiralIn, 2)}, " +
+                            $"L2 = {NumberFormat.Trimmed(c.Input.SpiralOut, 2)}); Civil 3D 2021 API không thêm được loại cong này vào Alignment.");
+        if (oneSided.Count == 0) return true;
+        ed.WriteMessage($"\n{failed}. Đã vẽ hình học thường thay thế.");
+        return false;
+    }
+
+    /// <summary>Tangent entity ids in order; throws when they don't match the PI polygon one to one.</summary>
+    private static List<int> CheckedTangents(Alignment alignment, CurveDesignSession session)
     {
         var entities = alignment.Entities;
         var tangents = new List<int>();
@@ -104,11 +158,15 @@ internal static class CurveGeometryWriter
         }
 
         if (tangents.Count != session.Pis.Count - 1)
-        {
-            ed.WriteMessage($"\nAlignment có {tangents.Count} đoạn thẳng, cần {session.Pis.Count - 1}: không thêm đường cong.");
-            return;
-        }
+            throw new InvalidOperationException(
+                $"Alignment có {tangents.Count} đoạn thẳng, cần {session.Pis.Count - 1} (polyline kín, có cung tròn hoặc đỉnh trùng?).");
+        return tangents;
+    }
 
+    /// <summary>One free curve per designed curve; any failure throws, so the caller aborts the whole alignment.</summary>
+    private static void AddCurves(Alignment alignment, List<int> tangents, CurveDesignSession session)
+    {
+        var entities = alignment.Entities;
         foreach (var c in session.Design.Curves)
         {
             if (c.Elements == null) continue;
@@ -116,7 +174,7 @@ internal static class CurveGeometryWriter
             var input = c.Input;
             try
             {
-                if (input.SpiralIn > 0 || input.SpiralOut > 0)
+                if (input.SpiralIn > 0 && input.SpiralOut > 0)
                     entities.AddFreeSCS(previous, next, input.SpiralIn, input.SpiralOut, SpiralParamType.Length,
                         input.Radius, false, SpiralType.Clothoid);
                 else
@@ -124,11 +182,9 @@ internal static class CurveGeometryWriter
             }
             catch (Exception ex)
             {
-                ed.WriteMessage($"\nĐ{c.Number}: không thêm được đường cong vào Alignment ({ex.Message}).");
+                throw new InvalidOperationException($"Đ{c.Number}: không thêm được đường cong ({ex.Message}).", ex);
             }
         }
-
-        SelfCheck(alignment, session.Design, ed);
     }
 
     /// <summary>Reads the alignment back and compares it with Core's numbers; a difference only warns.</summary>
@@ -178,8 +234,9 @@ internal static class CurveGeometryWriter
     private static string UniqueName(CivilDocument civil, Transaction tr)
     {
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        // openErased: the previous run's alignment was just erased in this transaction but is still listed.
         foreach (ObjectId id in civil.GetAlignmentIds())
-            if (tr.GetObject(id, OpenMode.ForRead) is Alignment a) names.Add(a.Name);
+            if (tr.GetObject(id, OpenMode.ForRead, true) is Alignment a) names.Add(a.Name);
         for (var i = 1; ; i++)
         {
             var name = "YTC - " + i;

@@ -186,7 +186,10 @@ internal sealed class CurveDesignWindow : Window
 
     private void OnSessionChanged(object sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(CurveDesignSession.ReadOnlyGeometry)) UpdateMode();
+        if (e.PropertyName != nameof(CurveDesignSession.ReadOnlyGeometry)) return;
+        // Switching an alignment to "Thiết kế lại cong" means updating it; back to "Chỉ cắm cọc + khung" leaves it alone.
+        if (_isAlignment) _session.CreateAlignment = !_session.ReadOnlyGeometry;
+        UpdateMode();
     }
 
     /// <summary>"Chỉ cắm cọc + khung": R, L1, L2 read-only and grey; the alignment is not touched.</summary>

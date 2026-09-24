@@ -325,6 +325,7 @@ public class CurveDesignSessionTests
         Assert.False(s.CanApply);
         Assert.Equal("?", s.Rows[0].T1Text);
         Assert.Equal(CurveRowSeverity.Error, s.Rows[0].Severity);
+        Assert.StartsWith("0 đường cong", s.SummaryText);   // only curves that can be drawn are counted
     }
 
     [Fact]

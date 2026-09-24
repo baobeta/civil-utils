@@ -98,13 +98,14 @@ internal static class MeasuredElements
 {
     private const double Step = 0.01;
 
-    public static MeasuredCurve Measure(Alignment alignment, DesignedCurve curve)
+    /// <summary>PI from the tangent directions at NĐ and NC, then T1 = |PI − NĐ|, T2 = |PI − NC|, P = |PI − P point|.</summary>
+    public static MeasuredCurve Measure(Alignment alignment, double startStation, double endStation, double midStation)
     {
-        var start = Point(alignment, curve.StationStart);
-        var end = Point(alignment, curve.StationEnd);
-        var startAhead = Point(alignment, Math.Min(curve.StationStart + Step, alignment.EndingStation));
-        var endBehind = Point(alignment, Math.Max(curve.StationEnd - Step, alignment.StartingStation));
-        var mid = Point(alignment, curve.StationArcMid);
+        var start = Point(alignment, startStation);
+        var end = Point(alignment, endStation);
+        var startAhead = Point(alignment, Math.Min(startStation + Step, alignment.EndingStation));
+        var endBehind = Point(alignment, Math.Max(endStation - Step, alignment.StartingStation));
+        var mid = Point(alignment, midStation);
         return PiExtractor.Measure(start, startAhead, end, endBehind, mid);
     }
 

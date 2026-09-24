@@ -42,6 +42,18 @@ public class RouteStakesTests
     }
 
     [Fact]
+    public void FromStations_matches_Build_except_for_points()
+    {
+        var design = Design(Square, new CurveInput { Radius = 50, SpiralIn = 20 });
+        var built = RouteStakes.Build(Square, 0, design);
+        var fromStations = RouteStakes.FromStations(design, 0, design.EndStation);
+
+        Assert.Equal(built.Select(s => s.Name), fromStations.Select(s => s.Name));
+        Assert.Equal(built.Select(s => s.Station), fromStations.Select(s => s.Station));
+        Assert.Equal(built.Select(s => s.Side), fromStations.Select(s => s.Side));
+    }
+
+    [Fact]
     public void Layout_follows_ytc_coc()
     {
         var d = RouteStakes.Layout(new Stake { Kind = StakeKind.Start, Point = P(0, 0), Direction = P(1, 0), Side = 1, Station = 131.09 }, 2);

@@ -66,6 +66,20 @@ public class RouteDesignerTests
     }
 
     [Fact]
+    public void No_curve_pi_runs_straight_through_without_a_number_or_error()
+    {
+        var pis = new[] { P(0, 0), P(100, 0), P(100, 100), P(200, 100) };
+
+        var d = RouteDesigner.Design(pis, 0, new[] { new CurveInput { NoCurve = true }, R(50) }, 60, null);
+
+        var c = Assert.Single(d.Curves);
+        Assert.Equal(1, c.Number);
+        Assert.Equal(2, c.PiIndex);
+        Assert.Equal(150, c.StationArcStart, 4);   // 100 + 100 − T1 50
+        Assert.True(d.CanApply);
+    }
+
+    [Fact]
     public void Overlap_with_route_start_is_an_error()
     {
         var d = RouteDesigner.Design(Square, 0, new[] { R(150) }, 60, null);

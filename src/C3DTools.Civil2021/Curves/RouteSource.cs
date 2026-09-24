@@ -173,7 +173,7 @@ internal sealed class PolylineSource : RouteSource
             session.CreateAlignment = false;
             session.DrawCurves = true;
             session.Load(pis, null);
-            ApplyTags(session, YtcTag.ReadBoxes(tr, Document.Database, TagHandle), withGeometry: true);
+            ApplyTags(session, YtcTag.ReadCurveInputs(tr, Document.Database, TagHandle), withGeometry: true);
             tr.Commit();
         }
     }
@@ -183,6 +183,7 @@ internal sealed class AlignmentSource : RouteSource
 {
     private const double StationTolerance = 0.01;
     private readonly string _name;
+    private readonly Dictionary<int, CurveGroup> _groupByPi = new Dictionary<int, CurveGroup>();
     private int _piCount;
 
     public AlignmentSource(Document document, ObjectId id, string handle, string name) : base(document, id, handle)
@@ -222,15 +223,23 @@ internal sealed class AlignmentSource : RouteSource
             }
 
             var inputs = new CurveInput[pis.Count - 2];
+            _groupByPi.Clear();
             for (var j = 1; j < pis.Count - 1; j++)
             {
                 double from = tangents[j - 1].EndStation, to = tangents[j].StartStation;
                 var group = grouping.Groups.FirstOrDefault(g =>
                     g.StartStation >= from - StationTolerance && g.EndStation <= to + StationTolerance);
                 if (group != null)
+                {
                     inputs[j - 1] = new CurveInput { Radius = group.Radius, SpiralIn = group.SpiralIn, SpiralOut = group.SpiralOut };
-                else if (to - from > StationTolerance)
-                    warnings.Add($"Đỉnh {j}: không đọc được đường cong giữa lý trình {NumberFormat.Fixed(from, 2)} và {NumberFormat.Fixed(to, 2)}; dùng giá trị mặc định.");
+                    _groupByPi[j] = group;
+                    continue;
+                }
+
+                // No curve on the alignment at this PI: stations run straight through it and it gets no row (YTCA).
+                inputs[j - 1] = new CurveInput { NoCurve = true };
+                if (to - from > StationTolerance)
+                    warnings.Add($"Đỉnh {j}: không đọc được đường cong giữa lý trình {NumberFormat.Fixed(from, 2)} và {NumberFormat.Fixed(to, 2)}; bỏ qua đỉnh này.");
             }
 
             foreach (var w in warnings) Warn(w);
@@ -241,10 +250,13 @@ internal sealed class AlignmentSource : RouteSource
             session.DrawCurves = false;
             session.StartStation = alignment.StartingStation;
             session.Load(pis, inputs);
-            ApplyTags(session, YtcTag.ReadBoxes(tr, Document.Database, TagHandle), withGeometry: false);
+            ApplyTags(session, YtcTag.ReadCurveInputs(tr, Document.Database, TagHandle), withGeometry: false);
             tr.Commit();
         }
     }
+
+    /// <summary>The alignment's own curve at the PI of this designed curve, or null.</summary>
+    public CurveGroup GroupFor(DesignedCurve curve) => _groupByPi.TryGetValue(curve.PiIndex, out var g) ? g : null;
 
     /// <summary>Đọc Wb/Wl từ Offset Alignment…: prompts for the edge alignments and fills Wb/Wl in the grid.</summary>
     public void ReadWidening(CurveDesignSession session)
@@ -254,7 +266,7 @@ internal sealed class AlignmentSource : RouteSource
         {
             MessageForAdding = "\nChọn các Offset Alignment (mép trái/phải) có Widening, Enter nếu không có: ",
         };
-        var result = ed.GetSelection(options);
+        var result = ed.GetSelection(options, new SelectionFilter(new[] { new TypedValue((int)DxfCode.Start, "AECC_ALIGNMENT") }));
         if (result.Status != PromptStatus.OK) return;
 
         var alignmentClass = RXObject.GetClass(typeof(Alignment));

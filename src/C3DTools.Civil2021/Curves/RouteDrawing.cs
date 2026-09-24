@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Autodesk.AutoCAD.Colors;
 using Autodesk.AutoCAD.DatabaseServices;
+using Alignment = Autodesk.Civil.DatabaseServices.Alignment;
 using AcEntity = Autodesk.AutoCAD.DatabaseServices.Entity;
 
 namespace C3DTools.Civil2021.Curves;
@@ -47,22 +49,25 @@ internal sealed class RouteDrawing
         using (var rb = tag.ToXData()) obj.XData = rb;
     }
 
-    /// <summary>Erases what the previous run for this source created. keep: never erased (the source itself, alignments to keep).</summary>
-    public int EraseTagged(ISet<ObjectId> keep, bool eraseAlignments)
+    /// <summary>
+    /// Erases what the previous run for this source created. keep: never erased (the source itself).
+    /// kinds: only these kinds are erased; null = every kind. Alignments are erased only when eraseAlignments is set.
+    /// </summary>
+    public void EraseTagged(ISet<ObjectId> keep, ISet<YtcKind> kinds, bool eraseAlignments, Action<string> warn)
     {
-        var alignmentClass = Autodesk.AutoCAD.Runtime.RXObject.GetClass(typeof(Autodesk.Civil.DatabaseServices.Alignment));
-        var ids = YtcTag.FindTagged(Transaction, Database, TagHandle).Select(t => t.id).ToList();
-        var count = 0;
-        foreach (var id in ids)
+        var alignmentClass = Autodesk.AutoCAD.Runtime.RXObject.GetClass(typeof(Alignment));
+        var found = YtcTag.FindTagged(Transaction, Database, TagHandle).ToList();
+        foreach (var (id, tag) in found)
         {
             if (keep.Contains(id)) continue;
-            if (!eraseAlignments && id.ObjectClass.IsDerivedFrom(alignmentClass)) continue;
+            if (kinds != null && !kinds.Contains(tag.Kind)) continue;
+            var isAlignment = id.ObjectClass.IsDerivedFrom(alignmentClass);
+            if (isAlignment && !eraseAlignments) continue;
             var obj = Transaction.GetObject(id, OpenMode.ForWrite);
+            if (isAlignment)
+                warn($"Alignment cũ {((Alignment)obj).Name} sẽ bị xóa; profile/corridor dựa trên nó sẽ mất.");
             obj.Erase();
-            count++;
         }
-
-        return count;
     }
 
     public ObjectId LayerId(string name)

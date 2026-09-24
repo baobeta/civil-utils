@@ -26,6 +26,9 @@ public sealed class CurveInput
     public double Wb { get; set; }
     public double Wl { get; set; }
 
+    /// <summary>The PI has no curve (an existing alignment's tangents meet there): stations run straight through, no row.</summary>
+    public bool NoCurve { get; set; }
+
     public CurveInput Clone() => (CurveInput)MemberwiseClone();
 }
 
@@ -92,7 +95,7 @@ public static class RouteDesigner
         {
             var legIn = Distance(pis[i - 1], pis[i]);
             Deflection(pis[i - 1], pis[i], pis[i + 1], out var delta, out var turn);
-            if (delta < 1e-6)
+            if (delta < 1e-6 || inputs[i - 1] != null && inputs[i - 1].NoCurve)
             {
                 station += legIn - previousT2;   // straight through, as ytc: does
                 previousT2 = 0;
