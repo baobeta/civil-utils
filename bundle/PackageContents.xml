@@ -27,6 +27,7 @@
         <Command Global="CTTRACDOC" Local="CTTRACDOC" />
         <Command Global="CTVN2000" Local="CTVN2000" />
         <Command Global="CTMATDIA" Local="CTMATDIA" />
+        <Command Global="CTBANGCONG" Local="CTBANGCONG" />
       </Commands>
     </ComponentEntry>
   </Components>

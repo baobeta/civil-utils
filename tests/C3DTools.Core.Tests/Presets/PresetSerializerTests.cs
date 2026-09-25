@@ -83,6 +83,7 @@ public class PresetSerializerTests
         preset.Vn2000.Provinces.Add(new Vn2000Province { Province = "Hà Nội", MeridianDeg = 105, MeridianMin = 0 });
         preset.Surface.MaxEdgeLength = 80;
         preset.Culvert.ElevationDecimals = 3;
+        preset.Culvert.EndpointIsCentreline = true;
 
         var back = PresetSerializer.Load(PresetSerializer.Save(preset));
 
@@ -106,6 +107,7 @@ public class PresetSerializerTests
         Assert.Equal(("Hà Nội", 105, 0), (province.Province, province.MeridianDeg, province.MeridianMin));
         Assert.Equal(80, back.Surface.MaxEdgeLength);
         Assert.Equal(3, back.Culvert.ElevationDecimals);
+        Assert.True(back.Culvert.EndpointIsCentreline);
     }
 
     [Fact]
@@ -131,6 +133,7 @@ public class PresetSerializerTests
         Assert.Empty(preset.Vn2000.Provinces);
         Assert.Equal(50, preset.Surface.MaxEdgeLength);
         Assert.Equal(2, preset.Culvert.ElevationDecimals);
+        Assert.False(preset.Culvert.EndpointIsCentreline);
     }
 
     [Fact]

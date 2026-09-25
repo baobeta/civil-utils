@@ -58,3 +58,11 @@ Append-only knowledge accumulation file. The AI records verified discoveries her
 - Why it matters: a percent value read as a fraction makes every A, R, E and grade label 100× wrong.
 - Source: reflection over Civil3D2021.Base 1.0.0 (MetadataLoadContext); runtime pending (test plan 0.3/0.4).
 - Promoted to: *(pending)*
+
+## [2026-09-25] Civil 3D 2021 — Pipe networks for CTBANGCONG (reflection only, runtime pending)
+- The pipe network class is `Autodesk.Civil.DatabaseServices.Network` (no `PipeNetwork` type): `GetPipeIds()`, `GetStructureIds()`, `Name`. List them with `CivilDocument.GetPipeNetworkIds()`.
+- `Pipe.Length2D` is `[Obsolete]` in 2021 (CS0618: "Use Length2DCenterToCenter instead"); `Length2DToInsideEdge`, `Length3D*` also exist. `Pipe.InnerHeight`, `OuterHeight`, `CrossSectionalShape` (`SweptShapeType`: Undefined, CustomShape, Circular, Rectangular, Elliptical, EggShaped, HorizontalElliptical, Arched), `FlowDirection` (`FlowDirectionType`: Bidirectional, StartToEnd, EndToStart), `StartStructureId/EndStructureId` exist.
+- `Part` (base of Pipe/Structure) has `WallThickness`, `PartDescription`, `PartSizeName`, `PartSubType`, `Material` — spike #6 saw no `WallThickness` on `Pipe` because it is inherited; C3DTools still derives wall = (OuterDiameterOrWidth − InnerDiameterOrWidth)/2 as decided in the spike. There is no `PartFamilyName`.
+- `Structure.RimElevation`, `SumpElevation`, `Location` exist. `Alignment.PointLocation(station, offset, tolerance, ref e, ref n, ref bearing)` overload exists (bearing unit not verified).
+- Unverified: whether `Pipe.StartPoint.Z` is the invert or the centreline — preset `Culvert.EndpointIsCentreline` (default false) decides; whether `StationOffset` throws or returns a clamped station for points beyond the alignment ends (C3DTools does both checks).
+- Promoted to: *(pending)*

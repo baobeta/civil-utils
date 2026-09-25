@@ -59,5 +59,11 @@
     "ContourDecimals": 2,
     "ContourTextHeight": 2.5,
     "ContourLabelSpacing": 5
+  },
+  "Culvert": {
+    "ElevationDecimals": 2,
+    "LengthDecimals": 2,
+    "SlopeDecimals": 2,
+    "EndpointIsCentreline": false
   }
 }

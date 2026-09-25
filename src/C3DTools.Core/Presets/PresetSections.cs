@@ -180,4 +180,10 @@ public sealed class CulvertOptions
     public int ElevationDecimals { get; set; } = 2;
     public int LengthDecimals { get; set; } = 2;
     public int SlopeDecimals { get; set; } = 2;
+
+    /// <summary>
+    /// True when Pipe.StartPoint/EndPoint Z is on the pipe centreline: invert = Z − inner height / 2.
+    /// False (default): Z is taken as the invert. Not yet verified on a real 2021 network (spike #6).
+    /// </summary>
+    public bool EndpointIsCentreline { get; set; }
 }

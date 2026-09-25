@@ -11,7 +11,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace C3DTools.Civil2021.Ui;
 
-/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
+/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Panel Thoát nước: Bảng cống (CTBANGCONG). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
 public sealed class RibbonSetup : IExtensionApplication
 {
     private const string TabId = "C3DTOOLS_TAB";
@@ -74,6 +74,9 @@ public sealed class RibbonSetup : IExtensionApplication
         terrainRow.Items.Add(Button("VN-2000", "\u0003\u0003_CTVN2000 ", large: false));
         terrainPanel.Items.Add(terrainRow);
 
+        var drainagePanel = new RibbonPanelSource { Title = "Thoát nước" };
+        drainagePanel.Items.Add(Button("Bảng cống", "\u0003\u0003_CTBANGCONG ", large: true));
+
         var drawingPanel = new RibbonPanelSource { Title = "Bản vẽ" };
         drawingPanel.Items.Add(Button("Chuyển font", "\u0003\u0003_CTFONT ", large: true));
         var drawingRow = new RibbonRowPanel();
@@ -84,6 +87,7 @@ public sealed class RibbonSetup : IExtensionApplication
         tab.Panels.Add(new RibbonPanel { Source = panelSource });
         tab.Panels.Add(new RibbonPanel { Source = profilePanel });
         tab.Panels.Add(new RibbonPanel { Source = terrainPanel });
+        tab.Panels.Add(new RibbonPanel { Source = drainagePanel });
         tab.Panels.Add(new RibbonPanel { Source = drawingPanel });
         ribbon.Tabs.Add(tab);
     }
