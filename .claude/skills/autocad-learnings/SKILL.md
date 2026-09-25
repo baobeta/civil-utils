@@ -50,3 +50,11 @@ Append-only knowledge accumulation file. The AI records verified discoveries her
 - Ribbon (AdWindows 24.0): `ComponentManager.Ribbon`, `ComponentManager.ItemInitialized` (EventHandler<RibbonItemEventArgs>), `RibbonTab{Id,Title,Panels}`, `RibbonPanel{Source}`, `RibbonPanelSource{Title,Items}`, `RibbonRowPanel`/`RibbonRowBreak`, `RibbonButton{Text,ShowText,ShowImage,Size,Orientation,Image,LargeImage,CommandHandler,CommandParameter}`. AdWindows comes from the `AutoCAD.NET` package, so `ExcludeAssets="runtime"` keeps it out of the output.
 - Source: reflection over the NuGet reference assemblies (MetadataLoadContext) and a clean `dotnet build` on macOS. Runtime behaviour NOT verified (field syntax of `Contents`, whether ExportTo works from a side database, whether abbreviations need a write-open).
 - Promoted to: *(pending)*
+
+## [2026-09-25] Civil 3D 2021 — Profile entity grades: unit NOT verified (pending)
+- `ProfileTangent.Grade`, `ProfileCircular/ProfileParabolaSymmetric/ProfileParabolaAsymmetric.GradeIn/GradeOut` and `ProfilePVI.GradeIn/GradeOut` are `double`; whether 2021 returns them as fractions (0.03) or percent (3.0) is not verified on a live Civil 3D.
+- C3DTools does not trust them: `ProfileReader` computes tangent grades from Start/End station and elevation, and checks curve grades against (PVI − TĐ)/(PVIStation − StartStation) and (TC − PVI)/(EndStation − PVIStation) with `ProfileSegment.NormalizeGrade` (ratio 50–200 → divide by 100, one warning "Civil trả về độ dốc theo %; đã quy đổi").
+- Other members used by CTCONGDUNG/CTTRACDOC, verified by reflection only: `Profile.Entities`, `Profile.ElevationAt(double)`, `Profile.ProfileType`, `Alignment.GetProfileIds/GetSampleLineGroupIds`, `SampleLineGroup.GetSampleLineIds()`, `SampleLine.Station`, `ProfileView.FindXYAtStationAndElevation(double, double, ref double, ref double)` → bool, `ProfileView.StationStart/StationEnd/ElevationMin/ElevationMax`, `Graph.Location`, `ProfileViewStyle.GraphStyle.VerticalExaggeration`.
+- Why it matters: a percent value read as a fraction makes every A, R, E and grade label 100× wrong.
+- Source: reflection over Civil3D2021.Base 1.0.0 (MetadataLoadContext); runtime pending (test plan 0.3/0.4).
+- Promoted to: *(pending)*

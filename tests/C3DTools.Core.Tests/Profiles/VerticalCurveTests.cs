@@ -106,6 +106,62 @@ public class VerticalCurveTests
     }
 
     [Fact]
+    public void Asymmetric_high_point_on_the_second_branch()
+    {
+        // L1 60, L2 40: branch 2 grade i2 − r2·u, r2 = −0.05·60/(100·40) = −0.00075 → u = 0.02/0.00075 = 26.667 before TC.
+        var c = VerticalCurve.FromSegment(ProfileSegment.AsymmetricParabola(1000, 50, 0.03, -0.02, 60, 40), 1);
+
+        Assert.Equal(1040 - 0.02 / 0.00075, c.HighLowStation.Value, 9);
+        Assert.Equal(49.2 + 0.02 * (0.02 / 0.00075) / 2, c.HighLowElevation.Value, 9);
+        Assert.Equal("Điểm cao=1+013.33  CĐ=49.47", VerticalCurveBoxText.Build(c)[4]);
+    }
+
+    [Fact]
+    public void Asymmetric_high_point_on_the_first_branch()
+    {
+        // L1 80, L2 20: r1 = −0.05·20/(100·80) = −0.000125 → x = 0.01/0.000125 = 80 would be at the PVI; use i1 = 0.005: x = 40.
+        var c = VerticalCurve.FromSegment(ProfileSegment.AsymmetricParabola(1000, 50, 0.005, -0.045, 80, 20), 1);
+
+        Assert.Equal(960, c.HighLowStation.Value, 9);
+        Assert.Equal(50 - 0.005 * 80 + 0.005 * 40 / 2, c.HighLowElevation.Value, 9);
+    }
+
+    [Fact]
+    public void Asymmetric_vertex_matches_the_curve_at_the_pvi_when_it_falls_there()
+    {
+        var c = VerticalCurve.FromSegment(ProfileSegment.AsymmetricParabola(1000, 50, 0.03, -0.02, 40, 60), 1);
+
+        Assert.Equal(1000, c.HighLowStation.Value, 9);
+        Assert.Equal(c.CurveElevationAtPvi, c.HighLowElevation.Value, 9);
+    }
+
+    [Fact]
+    public void Circular_curve_keeps_the_segment_stations()
+    {
+        var s = ProfileSegment.Circular(1000, 12.35, 0.03, -0.02, 2000);
+        s.StartStation = 949.99;
+        s.EndStation = 1050.02;
+        s.StartElevation = 10.8497;
+        s.EndElevation = 11.3496;
+
+        var c = VerticalCurve.FromSegment(s, 1);
+
+        Assert.Equal((949.99, 1050.02, 10.8497, 11.3496), (c.StartStation, c.EndStation, c.StartElevation, c.EndElevation));
+    }
+
+    [Theory]
+    [InlineData(3.0, 0.03, 0.03, true)]      // percent → fraction
+    [InlineData(-2.0, -0.02, -0.02, true)]
+    [InlineData(0.03, 0.0301, 0.03, false)]  // already a fraction
+    [InlineData(0.5, 0.0, 0.5, false)]       // no geometry to compare with
+    [InlineData(0.9, 0.03, 0.9, false)]      // 30×: not a unit mix-up, left alone
+    public void Normalize_grade(double reported, double geometric, double expected, bool rescaled)
+    {
+        Assert.Equal(expected, ProfileSegment.NormalizeGrade(reported, geometric, out var r), 12);
+        Assert.Equal(rescaled, r);
+    }
+
+    [Fact]
     public void Segments_give_curves_and_corners_in_station_order()
     {
         var segments = new List<ProfileSegment>
@@ -133,7 +189,7 @@ public class VerticalCurveTests
     {
         var lines = VerticalCurveBoxText.Build(VerticalCurve.FromSegment(Crest(), 1));
 
-        Assert.Equal(new[] { "i1=+3.00%  i2=-2.00%", "R=2000  K=100", "T=50  E=0.63", "CĐ đỉnh=12.35" }, lines);
+        Assert.Equal(new[] { "i1=+3.00%  i2=-2.00%", "R=2000  K=100", "T=50  E=0.63", "CĐ đỉnh=12.35", "Điểm cao=1+010.00  CĐ=11.75" }, lines);
     }
 
     [Fact]
@@ -156,9 +212,9 @@ public class VerticalCurveTests
     {
         var table = VerticalCurveTableBuilder.Build(new[] { VerticalCurve.FromSegment(Crest(), 1) }, c => "x");
 
-        Assert.Equal(new[] { "Đỉnh", "Lý trình", "CĐ đỉnh", "i1 (%)", "i2 (%)", "A (%)", "R", "K", "T", "E", "Lý trình TĐ", "Lý trình TC", "Cảnh báo" },
+        Assert.Equal(new[] { "Đỉnh", "Lý trình", "CĐ đỉnh", "i1 (%)", "i2 (%)", "A (%)", "R", "K", "T", "E", "Lý trình TĐ", "Lý trình TC", "Điểm cao/thấp", "Cảnh báo" },
             table.Headers);
-        Assert.Equal(new[] { "Đ1", "1+000.00", "12.35", "+3.00", "-2.00", "5.00", "2000.00", "100.00", "50.00", "0.63", "0+950.00", "1+050.00", "x" },
+        Assert.Equal(new[] { "Đ1", "1+000.00", "12.35", "+3.00", "-2.00", "5.00", "2000.00", "100.00", "50.00", "0.63", "0+950.00", "1+050.00", "1+010.00 / 11.75", "x" },
             table.Rows[0]);
     }
 }

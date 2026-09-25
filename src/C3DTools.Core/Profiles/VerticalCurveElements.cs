@@ -50,8 +50,7 @@ public sealed class VerticalCurveElements
     public bool IsAsymmetric => Kind == ProfileSegmentKind.ParabolaAsymmetric;
 
     /// <summary>
-    /// Distance from TĐ to the high (crest) or low (sag) point, when the grades change sign; null otherwise
-    /// and for the asymmetric parabola.
+    /// Distance from TĐ to the high (crest) or low (sag) point, when the grades change sign; null otherwise.
     /// </summary>
     public double? HighLowOffset { get; private set; }
 
@@ -97,7 +96,7 @@ public sealed class VerticalCurveElements
         if (!(length1 >= 0) || !(length2 >= 0)) throw new ArgumentOutOfRangeException(nameof(length1));
         var a = Math.Abs(gradeIn - gradeOut);
         var length = length1 + length2;
-        return new VerticalCurveElements
+        var e = new VerticalCurveElements
         {
             Kind = ProfileSegmentKind.ParabolaAsymmetric,
             GradeIn = gradeIn,
@@ -109,5 +108,25 @@ public sealed class VerticalCurveElements
             T2 = length2,
             E = length > 0 ? a * length1 * length2 / (2 * length) : 0,
         };
+        e.HighLowOffset = AsymmetricVertex(gradeIn, gradeOut, length1, length2);
+        return e;
+    }
+
+    /// <summary>
+    /// Two parabolas meeting under the PVI with a common grade. Branch 1 (TĐ → PVI): grade i1 + r1·x,
+    /// r1 = (i2 − i1)·L2/(L·L1). Branch 2 (PVI → TC), u measured back from TC: grade i2 − r2·u, r2 = (i2 − i1)·L1/(L·L2).
+    /// The vertex is where the grade is 0 on its own branch; distance from TĐ, or null.
+    /// </summary>
+    private static double? AsymmetricVertex(double g1, double g2, double l1, double l2)
+    {
+        var l = l1 + l2;
+        if (!(g1 * g2 < 0) || !(l1 > 0) || !(l2 > 0)) return null;
+        var r1 = (g2 - g1) * l2 / (l * l1);
+        var x1 = -g1 / r1;
+        if (x1 >= 0 && x1 <= l1) return x1;
+        var r2 = (g2 - g1) * l1 / (l * l2);
+        var u2 = g2 / r2;
+        if (u2 >= 0 && u2 <= l2) return l - u2;
+        return null;
     }
 }

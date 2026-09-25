@@ -41,16 +41,25 @@ public sealed class ProfileTableText
 
 /// <summary>
 /// The table in drawing units: rows downward from top, the label column [left − labelWidth, left], stations at
-/// xOfStation(station). Per-station rows: a tick at each station and the text beside it (rotated 90° along the tick,
-/// or horizontal and centred on the station). Span rows: a line at each span end, text centred in the span
-/// (two lines at ⅓ and ⅔ of the row).
+/// xOfStation(station). Text width is estimated as 0.7·h per character (TextWidth).
+/// Row heights: at least rowHeight; a per-station row with rotated text is as tall as its longest text + h, every
+/// other row at least 2.6·h (room for two span lines at mid ± 0.65·h).
+/// Per-station rows: a tick at each station and the text beside it (rotated 90° along the tick, left of it except at
+/// the first station), or horizontal text centred on the station without ticks, kept inside the table. Span rows: one line at each distinct span edge, text centred in the span; a span too
+/// narrow for its text gets it rotated when that fits the row, otherwise the text is left out (SkippedTexts).
 /// </summary>
 public sealed class ProfileTableLayout
 {
+    public const double CharWidth = 0.7;
+
     private ProfileTableLayout() { }
 
     public List<ProfileTableLine> Lines { get; } = new List<ProfileTableLine>();
     public List<ProfileTableText> Texts { get; } = new List<ProfileTableText>();
+
+    /// <summary>Height of each model row, top to bottom.</summary>
+    public List<double> RowHeights { get; } = new List<double>();
+
     public double Top { get; private set; }
     public double Bottom { get; private set; }
 
@@ -59,6 +68,12 @@ public sealed class ProfileTableLayout
 
     public double Right { get; private set; }
 
+    /// <summary>Span texts left out because the span is too narrow even for rotated text.</summary>
+    public int SkippedTexts { get; private set; }
+
+    /// <summary>Estimated width of a single-line text of this height.</summary>
+    public static double TextWidth(string text, double height) => CharWidth * height * (text ?? "").Length;
+
     public static ProfileTableLayout Build(ProfileTableModel model, Func<double, double> xOfStation, double top, double left, double right,
         double rowHeight, double textHeight, double labelWidth, bool rotateStationText)
     {
@@ -66,27 +81,38 @@ public sealed class ProfileTableLayout
         if (xOfStation == null) throw new ArgumentNullException(nameof(xOfStation));
         if (!(rowHeight > 0) || !(textHeight > 0) || !(labelWidth >= 0)) throw new ArgumentOutOfRangeException(nameof(rowHeight));
 
-        var layout = new ProfileTableLayout
+        var h = textHeight;
+        var layout = new ProfileTableLayout { Top = top, Left = left - labelWidth, Right = right };
+        foreach (var row in model.Rows)
         {
-            Top = top,
-            Bottom = top - model.Rows.Count * rowHeight,
-            Left = left - labelWidth,
-            Right = right,
-        };
+            var needed = 2.6 * h;
+            if (row.Kind == ProfileTableRowKind.PerStation && rotateStationText)
+                needed = row.Cells.Select(c => TextWidth(c, h)).DefaultIfEmpty(0).Max() + h;
+            layout.RowHeights.Add(Math.Max(rowHeight, needed));
+        }
+
+        layout.Bottom = top - layout.RowHeights.Sum();
         var xs = model.Stations.Select(s => xOfStation(s.Station)).ToList();
 
-        for (var r = 0; r <= model.Rows.Count; r++)
-            layout.Lines.Add(new ProfileTableLine(layout.Left, top - r * rowHeight, right, top - r * rowHeight));
+        var y = top;
+        layout.Lines.Add(new ProfileTableLine(layout.Left, y, right, y));
+        foreach (var rh in layout.RowHeights)
+        {
+            y -= rh;
+            layout.Lines.Add(new ProfileTableLine(layout.Left, y, right, y));
+        }
+
         foreach (var x in new[] { layout.Left, left, right })
             layout.Lines.Add(new ProfileTableLine(x, top, x, layout.Bottom));
 
+        var rowTop = top;
         for (var r = 0; r < model.Rows.Count; r++)
         {
             var row = model.Rows[r];
-            var rowTop = top - r * rowHeight;
-            var rowBottom = rowTop - rowHeight;
-            var mid = rowTop - rowHeight / 2;
-            layout.Texts.Add(new ProfileTableText(left - labelWidth / 2, mid, row.Label, 0, textHeight));
+            var rh = layout.RowHeights[r];
+            var rowBottom = rowTop - rh;
+            var mid = rowTop - rh / 2;
+            layout.Texts.Add(new ProfileTableText(left - labelWidth / 2, mid, row.Label, 0, h));
 
             if (row.Kind == ProfileTableRowKind.PerStation)
             {
@@ -95,36 +121,64 @@ public sealed class ProfileTableLayout
                     if (rotateStationText)
                     {
                         layout.Lines.Add(new ProfileTableLine(xs[i], rowTop, xs[i], rowBottom));
+                        // Left of the tick; right of it where that would enter the label column (first station).
+                        var side = xs[i] - 1.25 * h < left ? 0.75 * h : -0.75 * h;
                         if (row.Cells[i].Length > 0)
-                            layout.Texts.Add(new ProfileTableText(xs[i] - 0.75 * textHeight, mid, row.Cells[i], Math.PI / 2, textHeight));
+                            layout.Texts.Add(new ProfileTableText(xs[i] + side, mid, row.Cells[i], Math.PI / 2, h));
                     }
                     else if (row.Cells[i].Length > 0)
                     {
-                        layout.Texts.Add(new ProfileTableText(xs[i], mid, row.Cells[i], 0, textHeight));
+                        // Centred on the station, kept inside the table at both ends.
+                        var half = TextWidth(row.Cells[i], h) / 2 + 0.1 * h;
+                        var x = Math.Max(left + half, Math.Min(right - half, xs[i]));
+                        layout.Texts.Add(new ProfileTableText(x, mid, row.Cells[i], 0, h));
                     }
                 }
-
-                continue;
             }
-
-            foreach (var span in row.Spans)
+            else
             {
-                double x1 = xOfStation(span.From), x2 = xOfStation(span.To);
-                layout.Lines.Add(new ProfileTableLine(x1, rowTop, x1, rowBottom));
-                layout.Lines.Add(new ProfileTableLine(x2, rowTop, x2, rowBottom));
-                var cx = (x1 + x2) / 2;
-                if (span.Line2.Length == 0)
+                var edges = new HashSet<double>();
+                foreach (var span in row.Spans)
                 {
-                    layout.Texts.Add(new ProfileTableText(cx, mid, span.Line1, 0, textHeight));
-                }
-                else
-                {
-                    layout.Texts.Add(new ProfileTableText(cx, rowTop - rowHeight / 3, span.Line1, 0, textHeight));
-                    layout.Texts.Add(new ProfileTableText(cx, rowTop - 2 * rowHeight / 3, span.Line2, 0, textHeight));
+                    double x1 = xOfStation(span.From), x2 = xOfStation(span.To);
+                    foreach (var x in new[] { x1, x2 })
+                    {
+                        if (edges.Add(Math.Round(x, 6))) layout.Lines.Add(new ProfileTableLine(x, rowTop, x, rowBottom));
+                    }
+
+                    layout.PlaceSpanText(span, Math.Min(x1, x2), Math.Max(x1, x2), mid, rh, h);
                 }
             }
+
+            rowTop = rowBottom;
         }
 
         return layout;
+    }
+
+    private void PlaceSpanText(ProfileTableSpan span, double x1, double x2, double mid, double rowHeight, double h)
+    {
+        var lines = new[] { span.Line1, span.Line2 }.Where(t => t.Length > 0).ToList();
+        if (lines.Count == 0) return;
+        var width = x2 - x1;
+        var cx = (x1 + x2) / 2;
+        var longest = lines.Max(t => TextWidth(t, h));
+        // Line k of n is offset (k − (n − 1)/2)·1.3h from the centre: mid ± 0.65h for two lines.
+        double Offset(int k) => (k - (lines.Count - 1) / 2.0) * 1.3 * h;
+
+        if (longest + 0.2 * h <= width)
+        {
+            for (var k = 0; k < lines.Count; k++) Texts.Add(new ProfileTableText(cx, mid - Offset(k), lines[k], 0, h));
+            return;
+        }
+
+        if (longest + 0.2 * h <= rowHeight && lines.Count * 1.3 * h - 0.3 * h + 0.2 * h <= width)
+        {
+            // Rotated 90°: the first line on the left, reading upwards.
+            for (var k = 0; k < lines.Count; k++) Texts.Add(new ProfileTableText(cx + Offset(k), mid, lines[k], Math.PI / 2, h));
+            return;
+        }
+
+        SkippedTexts += lines.Count;
     }
 }

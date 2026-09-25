@@ -27,7 +27,8 @@ public sealed class VerticalCurveRow
         E = cells[9];
         StartStation = cells[10];
         EndStation = cells[11];
-        Warning = cells[12];
+        HighLow = cells[12];
+        Warning = cells[13];
     }
 
     public string Name { get; }
@@ -42,6 +43,10 @@ public sealed class VerticalCurveRow
     public string E { get; }
     public string StartStation { get; }
     public string EndStation { get; }
+
+    /// <summary>"station / elevation" of the high or low point, or empty.</summary>
+    public string HighLow { get; }
+
     public string Warning { get; }
     public bool HasWarning => Warning.Length > 0;
 }

@@ -73,11 +73,12 @@ internal sealed class VerticalCurveWindow : ToolWindow
             nameof(VerticalCurveRow.Name), nameof(VerticalCurveRow.Station), nameof(VerticalCurveRow.PviElevation),
             nameof(VerticalCurveRow.GradeIn), nameof(VerticalCurveRow.GradeOut), nameof(VerticalCurveRow.A),
             nameof(VerticalCurveRow.R), nameof(VerticalCurveRow.K), nameof(VerticalCurveRow.T), nameof(VerticalCurveRow.E),
-            nameof(VerticalCurveRow.StartStation), nameof(VerticalCurveRow.EndStation), nameof(VerticalCurveRow.Warning),
+            nameof(VerticalCurveRow.StartStation), nameof(VerticalCurveRow.EndStation), nameof(VerticalCurveRow.HighLow),
+            nameof(VerticalCurveRow.Warning),
         };
         for (var i = 0; i < paths.Length; i++)
         {
-            var isText = i == 0 || i == paths.Length - 1;
+            var isText = i == 0 || i >= paths.Length - 2;
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = headers[i],

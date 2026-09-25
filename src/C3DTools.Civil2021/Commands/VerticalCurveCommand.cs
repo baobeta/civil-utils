@@ -130,7 +130,7 @@ public class VerticalCurveCommand
                     IReadOnlyList<ProfileSegment> segments = null;
                     try
                     {
-                        segments = ProfileReader.Read((Profile)tr.GetObject(profileId, OpenMode.ForRead));
+                        segments = ProfileReader.Read((Profile)tr.GetObject(profileId, OpenMode.ForRead), m => Prompts.Say(ed, m));
                     }
                     catch (System.Exception ex)
                     {

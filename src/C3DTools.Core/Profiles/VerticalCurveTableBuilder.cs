@@ -5,12 +5,12 @@ using C3DTools.Core.Tables;
 
 namespace C3DTools.Core.Profiles;
 
-/// <summary>The CTCONGDUNG table (dialog grid, AutoCAD Table, CSV, Excel): one row per PVI.</summary>
+/// <summary>The CTCONGDUNG table (dialog grid, AutoCAD Table, CSV, Excel): one row per PVI. "Điểm cao/thấp" = "station / elevation".</summary>
 public static class VerticalCurveTableBuilder
 {
     public static readonly string[] Headers =
     {
-        "Đỉnh", "Lý trình", "CĐ đỉnh", "i1 (%)", "i2 (%)", "A (%)", "R", "K", "T", "E", "Lý trình TĐ", "Lý trình TC", "Cảnh báo",
+        "Đỉnh", "Lý trình", "CĐ đỉnh", "i1 (%)", "i2 (%)", "A (%)", "R", "K", "T", "E", "Lý trình TĐ", "Lý trình TC", "Điểm cao/thấp", "Cảnh báo",
     };
 
     /// <param name="warning">The warning text of a PVI (null = none).</param>
@@ -35,7 +35,9 @@ public static class VerticalCurveTableBuilder
         {
             c.Name, S(c.PviStation), N(c.PviElevation), G(c.GradeIn), G(c.GradeOut), N(c.A),
             e == null ? "" : N(e.R), e == null ? "" : N(e.K), t, e == null ? "" : N(e.E),
-            e == null ? "" : S(c.StartStation), e == null ? "" : S(c.EndStation), warning ?? "",
+            e == null ? "" : S(c.StartStation), e == null ? "" : S(c.EndStation),
+            c.HighLowStation.HasValue && c.HighLowElevation.HasValue ? S(c.HighLowStation.Value) + " / " + N(c.HighLowElevation.Value) : "",
+            warning ?? "",
         };
     }
 }

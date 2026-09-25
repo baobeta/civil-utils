@@ -110,6 +110,20 @@ public class ProfileTableBuilderTests
     }
 
     [Fact]
+    public void Spans_are_clipped_to_a_station_range_narrower_than_the_profile()
+    {
+        var stations = new List<StakeStation> { new StakeStation(20, "C1", StakeOrigin.Interval), new StakeStation(70, "C2", StakeOrigin.Interval) };
+
+        var m = ProfileTableBuilder.Build(stations, null, null, Design(), AllRows());
+
+        var grade = Row(m, "Grade").Spans;
+        Assert.Equal(new[] { (20.0, 60.0, "L=60.00"), (60.0, 70.0, "L=40.00") }, grade.Select(s => (s.From, s.To, s.Line2)));   // L stays the full grade length
+        var curve = Assert.Single(Row(m, "VerticalCurve").Spans);
+        Assert.Equal((40.0, 70.0), (curve.From, curve.To));
+        Assert.Equal(new[] { "0.00", "50.00" }, Row(m, "CumulativeDistance").Cells);
+    }
+
+    [Fact]
     public void Legacy_keys_and_unknown_keys()
     {
         var rows = new List<TableRowSpec>
@@ -199,8 +213,11 @@ public class ProfileTableLayoutTests
     {
         var layout = ProfileTableLayout.Build(Model(), s => 1000 + s, 500, 1000, 1050, 8, 2, 30, rotateStationText: false);
 
+        // Centred on station 0 would stick out left of the table: shifted right by half its width + 0.1·h.
         var a = layout.Texts.Single(t => t.Text == "A");
-        Assert.Equal((1000.0, 496.0, 0.0), (a.X, a.Y, a.Rotation));
+        Assert.Equal((1000.9, 496.0, 0.0), (System.Math.Round(a.X, 9), a.Y, a.Rotation));
+        var b = layout.Texts.Single(t => t.Text == "B");
+        Assert.Equal(1050 - 0.9, b.X, 9);
     }
 
     [Fact]
@@ -210,8 +227,100 @@ public class ProfileTableLayoutTests
 
         var i = layout.Texts.Single(t => t.Text == "i=+2.00%");
         var l = layout.Texts.Single(t => t.Text == "L=50.00");
-        Assert.Equal((1025.0, 488.0), (i.X, i.Y));
-        Assert.Equal((1025.0, 485.0), (l.X, l.Y));
+        // Row 2 is 500 − 9 … 500 − 18, mid 486.5; lines at mid ± 0.65·h.
+        Assert.Equal(1025, i.X, 9);
+        Assert.Equal(487.8, i.Y, 9);
+        Assert.Equal(1025, l.X, 9);
+        Assert.Equal(485.2, l.Y, 9);
+    }
+
+    private static ProfileTableModel Full(double spacing = 20) =>
+        ProfileTableBuilder.Build(
+            Enumerable.Range(0, 6).Select(i => new StakeStation(i * spacing, i == 0 ? "Km0" : "C" + i, StakeOrigin.Interval)).ToList(),
+            new double?[] { 10.5, 10.9, 11.2, 11.3, 11.1, 12.126 },
+            new double?[] { 10, 10.6, 11.2, 11.5, 11.4, 11 },
+            new List<ProfileSegment>
+            {
+                ProfileSegment.Tangent(0, 10, 2 * spacing, 10 + 0.03 * 2 * spacing),
+                ProfileSegment.Parabola(3 * spacing, 10 + 0.03 * 3 * spacing, 0.03, -0.02, 2 * spacing),
+                ProfileSegment.Tangent(4 * spacing, 10 + 0.03 * 3 * spacing - 0.02 * spacing, 5 * spacing, 10 + 0.03 * 3 * spacing - 0.04 * spacing),
+            },
+            ProfileTableBuilder.KnownRows());
+
+    /// <summary>(left, bottom, right, top) of a text from the 0.7·h per character estimate.</summary>
+    private static (double l, double b, double r, double t) Box(ProfileTableText t)
+    {
+        var w = ProfileTableLayout.TextWidth(t.Text, t.Height);
+        var rotated = System.Math.Abs(t.Rotation - System.Math.PI / 2) < 1e-9;
+        double hw = rotated ? t.Height / 2 : w / 2, hh = rotated ? w / 2 : t.Height / 2;
+        return (t.X - hw, t.Y - hh, t.X + hw, t.Y + hh);
+    }
+
+    // Rotated: 20 m stakes. Horizontal station text ("0+000.00" ≈ 14 wide at h 2.5) needs wider stakes: 30 m.
+    [Theory]
+    [InlineData(true, 20)]
+    [InlineData(false, 30)]
+    public void Every_text_fits_its_row_and_none_overlap_with_the_preset_sizes(bool rotate, double spacing)
+    {
+        var model = Full(spacing);
+        const double h = 2.5;
+        var labelWidth = model.Rows.Max(r => ProfileTableLayout.TextWidth(r.Label, h)) + 2 * h;
+
+        var layout = ProfileTableLayout.Build(model, s => 1000 + s, top: 500, left: 1000, right: 1000 + 5 * spacing, rowHeight: 8, textHeight: h,
+            labelWidth: labelWidth, rotateStationText: rotate);
+
+        Assert.All(layout.RowHeights, rh => Assert.True(rh >= 2.6 * h - 1e-9));
+        var bands = new List<(double bottom, double top)>();
+        var y = 500.0;
+        foreach (var rh in layout.RowHeights)
+        {
+            bands.Add((y - rh, y));
+            y -= rh;
+        }
+
+        var boxes = layout.Texts.Select(Box).ToList();
+        foreach (var b in boxes)
+        {
+            Assert.Contains(bands, band => b.b >= band.bottom - 1e-9 && b.t <= band.top + 1e-9);
+            Assert.True(b.l >= layout.Left - 1e-9 && b.r <= layout.Right + 1e-9);
+        }
+
+        for (var i = 0; i < boxes.Count; i++)
+        for (var j = i + 1; j < boxes.Count; j++)
+        {
+            var overlap = boxes[i].l < boxes[j].r - 1e-9 && boxes[j].l < boxes[i].r - 1e-9
+                          && boxes[i].b < boxes[j].t - 1e-9 && boxes[j].b < boxes[i].t - 1e-9;
+            Assert.False(overlap, $"'{layout.Texts[i].Text}' overlaps '{layout.Texts[j].Text}'");
+        }
+
+        Assert.Equal(0, layout.SkippedTexts);
+    }
+
+    [Fact]
+    public void Rotated_station_rows_grow_to_the_longest_text()
+    {
+        var layout = ProfileTableLayout.Build(Full(), s => 1000 + s, 500, 1000, 1100, 8, 2.5, 60, rotateStationText: true);
+        var station = Full().Rows.Select((r, i) => (r, i)).Single(x => x.r.Key == "Station").i;
+
+        Assert.Equal(0.7 * 2.5 * "0+100.00".Length + 2.5, layout.RowHeights[station], 9);
+        Assert.Equal(layout.Top - layout.RowHeights.Sum(), layout.Bottom, 9);
+    }
+
+    [Fact]
+    public void Narrow_span_text_is_rotated_or_skipped_and_edges_are_drawn_once()
+    {
+        var model = ProfileTableBuilder.Build(
+            new List<StakeStation> { new StakeStation(0, "A", StakeOrigin.Interval), new StakeStation(4, "B", StakeOrigin.Interval), new StakeStation(5, "C", StakeOrigin.Interval) },
+            null, null, null, new[] { new TableRowSpec("PartialDistance", "KC", 2) });
+
+        // Span 0–4 (width 4): "4.00" (7 wide) rotated fits a 10-high row; span 4–5 (width 1): too narrow even rotated.
+        var layout = ProfileTableLayout.Build(model, s => s, 100, 0, 5, 10, 2.5, 10, true);
+
+        var four = layout.Texts.Single(t => t.Text == "4.00");
+        Assert.Equal(System.Math.PI / 2, four.Rotation, 9);
+        Assert.DoesNotContain(layout.Texts, t => t.Text == "1.00");
+        Assert.Equal(1, layout.SkippedTexts);
+        Assert.Single(layout.Lines, l => l.X1 == 4 && l.X2 == 4);
     }
 }
 

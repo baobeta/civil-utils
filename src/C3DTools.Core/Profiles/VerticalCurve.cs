@@ -89,12 +89,25 @@ public sealed class VerticalCurve
             EndElevation = segment.PviElevation + segment.GradeOut * e.T2,
             CurveElevationAtPvi = segment.PviElevation + (e.IsCrest ? -e.E : e.E),
         };
+        if (segment.Kind == ProfileSegmentKind.Circular && segment.EndStation > segment.StartStation)
+        {
+            // Civil 3D's own TĐ/TC of the arc rather than the L = R·a approximation.
+            c.StartStation = segment.StartStation;
+            c.EndStation = segment.EndStation;
+            c.StartElevation = segment.StartElevation;
+            c.EndElevation = segment.EndElevation;
+        }
+
         if (e.HighLowOffset.HasValue)
         {
             var x = e.HighLowOffset.Value;
             c.HighLowStation = c.StartStation + x;
-            // y = y(TĐ) + i1·x + (i2 − i1)·x²/(2L); at the vertex x = i1·L/(i1 − i2) this is y(TĐ) + i1·x/2.
-            c.HighLowElevation = c.StartElevation + segment.GradeIn * x / 2;
+            // On the branch from TĐ, y = y(TĐ) + i1·x + r·x²/2 with r·x = −i1 at the vertex: y(TĐ) + i1·x/2.
+            // On the branch into TC (asymmetric, beyond L1), measured back u from TC: y(TC) − i2·u/2.
+            // For a symmetric curve both give the same value.
+            c.HighLowElevation = x <= e.T1
+                ? c.StartElevation + segment.GradeIn * x / 2
+                : c.EndElevation - segment.GradeOut * (c.EndStation - c.HighLowStation.Value) / 2;
         }
 
         return c;

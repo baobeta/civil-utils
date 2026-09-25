@@ -43,6 +43,20 @@ public sealed class ProfileSegment
 
     public bool IsCurve => Kind != ProfileSegmentKind.Tangent;
 
+    /// <summary>
+    /// Guards the grade unit a host API reports: when reported is about 100× the grade from the geometry
+    /// (ratio 50–200), it was in percent and is returned divided by 100 (rescaled = true); otherwise unchanged.
+    /// </summary>
+    public static double NormalizeGrade(double reported, double geometric, out bool rescaled)
+    {
+        rescaled = false;
+        if (Math.Abs(geometric) < 1e-6) return reported;
+        var ratio = reported / geometric;
+        if (ratio < 50 || ratio > 200) return reported;
+        rescaled = true;
+        return reported / 100;
+    }
+
     /// <summary>A tangent between two points; Grade = Δelevation / Δstation.</summary>
     public static ProfileSegment Tangent(double startStation, double startElevation, double endStation, double endElevation)
     {

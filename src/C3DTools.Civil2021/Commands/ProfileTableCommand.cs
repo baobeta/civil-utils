@@ -116,10 +116,16 @@ public class ProfileTableCommand
                 var pv = (ProfileView)tr.GetObject(id, OpenMode.ForRead);
                 var alignment = (Alignment)tr.GetObject(pv.AlignmentId, OpenMode.ForRead);
                 var source = new ViewSource { Id = id, Handle = pv.Handle.ToString() };
-                foreach (var (profileId, name, type) in ProfileReader.ProfilesOf(tr, alignment))
+                // Names in combo order: design (FG) profiles first, as CTCONGDUNG lists them.
+                var surfaceNames = new List<string>();
+                var designNames = new List<string>();
+                foreach (var (profileId, name, type) in ProfileReader.ProfilesOf(tr, alignment).OrderBy(p => p.type == ProfileType.FG ? 0 : 1))
                 {
-                    var target = type == ProfileType.EG ? source.Surfaces : source.Designs;
-                    if (!target.ContainsKey(name)) target[name] = profileId;
+                    var isSurface = type == ProfileType.EG;
+                    var target = isSurface ? source.Surfaces : source.Designs;
+                    if (target.ContainsKey(name)) continue;
+                    target[name] = profileId;
+                    (isSurface ? surfaceNames : designNames).Add(name);
                 }
 
                 double start = pv.StationStart, end = pv.StationEnd;
@@ -134,7 +140,7 @@ public class ProfileTableCommand
                 tr.Commit();
 
                 session.SetSource($"{pv.Name} (tuyến {alignment.Name}, {StationFormatter.Format(start, 2)} – {StationFormatter.Format(end, 2)})", start, end);
-                session.SetProfiles(source.Surfaces.Keys, source.Designs.Keys, surface, design);
+                session.SetProfiles(surfaceNames, designNames, surface, design);
                 if (source.Surfaces.Count == 0 && source.Designs.Count == 0) Prompts.Say(ed, $"Tuyến {alignment.Name} chưa có trắc dọc.");
                 return source;
             }
@@ -220,7 +226,7 @@ public class ProfileTableCommand
             {
                 try
                 {
-                    segments = ProfileReader.Read((Profile)tr.GetObject(designId, OpenMode.ForRead));
+                    segments = ProfileReader.Read((Profile)tr.GetObject(designId, OpenMode.ForRead), m => Prompts.Say(ed, m));
                 }
                 catch (System.Exception ex)
                 {
@@ -253,10 +259,12 @@ public class ProfileTableCommand
                     // A gap of 2 text heights below the view keeps the table clear of the view's own axis labels.
                     var layout = ProfileTableLayout.Build(model, s => frame.ToXY(s, frame.ElevationMin).X,
                         top: origin.Y - 2 * h, left: origin.X, right: frame.ToXY(frame.StationEnd, frame.ElevationMin).X,
-                        rowHeight: session.RowHeight, textHeight: h, labelWidth: 0.7 * h * labelChars + 2 * h,
+                        rowHeight: session.RowHeight, textHeight: h, labelWidth: ProfileTableLayout.CharWidth * h * labelChars + 2 * h,
                         rotateStationText: session.RotateStationText);
                     ProfileTableWriter.Write(d, layout, Tool);
                     fallback = frame.UsedFallback;
+                    if (layout.SkippedTexts > 0)
+                        Prompts.Say(ed, $"{layout.SkippedTexts} chữ trong ô gộp bị bỏ vì khoảng giữa hai cọc quá hẹp; giảm chiều cao chữ nếu cần.");
 
                     tr.TransactionManager.QueueForGraphicsFlush();
                     ed.UpdateScreen();
