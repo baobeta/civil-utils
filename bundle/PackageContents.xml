@@ -24,6 +24,7 @@
         <Command Global="CTLAYER" Local="CTLAYER" />
         <Command Global="CTTOADO" Local="CTTOADO" />
         <Command Global="CTCONGDUNG" Local="CTCONGDUNG" />
+        <Command Global="CTTRACDOC" Local="CTTRACDOC" />
       </Commands>
     </ComponentEntry>
   </Components>

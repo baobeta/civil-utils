@@ -75,7 +75,10 @@ public sealed class TableRowSpec
     public int Decimals { get; set; } = 2;
 }
 
-/// <summary>CTTRACDOC: the data table under a profile view, rows top to bottom.</summary>
+/// <summary>
+/// CTTRACDOC: the data table under a profile view, rows top to bottom. Keys: see ProfileTableBuilder
+/// ("Distance" and "ElevationDifference" are read as PartialDistance and CutFill).
+/// </summary>
 public sealed class ProfileTableOptions
 {
     [JsonProperty(ObjectCreationHandling = ObjectCreationHandling.Replace)]
@@ -93,6 +96,9 @@ public sealed class ProfileTableOptions
 
     public double RowHeight { get; set; } = 8;
     public double TextHeight { get; set; } = 2.5;
+
+    /// <summary>Per-station values (tên cọc, lý trình, cao độ, …) written vertically along the stake line.</summary>
+    public bool RotateStationText { get; set; } = true;
 }
 
 /// <summary>CTTRACNGANG: the data table under a section view.</summary>
