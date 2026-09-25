@@ -138,6 +138,15 @@ public sealed class Vn2000Province
     public string Province { get; set; } = "";
     public int MeridianDeg { get; set; }
     public int MeridianMin { get; set; }
+
+    /// <summary>False until someone has checked the meridian against the official text.</summary>
+    public bool Verified { get; set; }
+
+    /// <summary>Where the value comes from, e.g. the decision number.</summary>
+    public string Source { get; set; } = "";
+
+    [JsonIgnore]
+    public double Meridian => MeridianDeg + MeridianMin / 60.0;
 }
 
 public sealed class Vn2000Options
