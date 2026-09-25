@@ -218,60 +218,118 @@ public static class VietFontCodec
     }
 
     /// <summary>
-    /// The most plausible encoding of text: each reading is scored by the Vietnamese letters it gives, minus stray Latin-1
-    /// symbols, syllables with more than one tone, impossible vowel clusters and capitals inside a lowercase word.
-    /// Plain ASCII goes to Unicode. A tie goes to preferred (e.g. the encoding most other texts of the drawing use), else Unicode:
-    /// "Cát" reads as Unicode "Cát" or TCVN3 "Cỏt" equally well.
+    /// The most plausible encoding of text: each reading is scored by the Vietnamese letters it gives (in words of two or more
+    /// letters), minus stray Latin-1 symbols, syllables with more than one tone, impossible vowel clusters and capitals inside a
+    /// lowercase word. Engineering symbols (Ø × µ ½ ° ± ² ³ ÷) and Western letters (ï, ö…) cost the Unicode reading nothing.
+    /// A legacy reading must beat Unicode by 2 points, by 4 when fontHint is a Unicode font (Arial…), by 0 when fontHint is a
+    /// font of that encoding (.VnTime → TCVN3, VNI-Times → VNI) or, without a font hint, when it is preferred (the encoding most
+    /// other texts of the drawing use). Plain ASCII and text with characters above U+00FF are Unicode.
     /// </summary>
-    public static VietEncoding Detect(string text, VietEncoding preferred = VietEncoding.Unicode)
+    public static VietEncoding Detect(string text, VietEncoding preferred = VietEncoding.Unicode, string fontHint = null)
     {
         if (string.IsNullOrEmpty(text) || text.All(c => c < 0x80)) return VietEncoding.Unicode;
         if (text.Any(c => c > 0xFF)) return VietEncoding.Unicode;   // legacy codes are all ≤ U+00FF
-        var scores = new Dictionary<VietEncoding, int>
+        var hint = FontEncoding(fontHint);
+        var unicode = Score(text);
+        var best = VietEncoding.Unicode;
+        var bestScore = int.MinValue;
+        foreach (var legacy in new[] { VietEncoding.Tcvn3, VietEncoding.Vni })
         {
-            [VietEncoding.Unicode] = Score(text),
-            [VietEncoding.Tcvn3] = Score(ToUnicode(text, VietEncoding.Tcvn3)),
-            [VietEncoding.Vni] = Score(ToUnicode(text, VietEncoding.Vni)),
-        };
-        var bestScore = scores.Values.Max();
-        if (scores[preferred] == bestScore) return preferred;
-        if (scores[VietEncoding.Unicode] == bestScore) return VietEncoding.Unicode;
-        return scores[VietEncoding.Tcvn3] == bestScore ? VietEncoding.Tcvn3 : VietEncoding.Vni;
+            var score = Score(ToUnicode(text, legacy));
+            int margin;
+            if (hint == legacy) margin = 0;
+            else if (hint == VietEncoding.Unicode) margin = 4;
+            else if (hint == null && preferred == legacy) margin = score > 0 ? 0 : 1;
+            else margin = 2;
+            if (score - unicode < margin) continue;
+            if (score > bestScore || (score == bestScore && (legacy == hint || (hint == null && legacy == preferred))))
+            {
+                best = legacy;
+                bestScore = score;
+            }
+        }
+
+        return best;
+    }
+
+    /// <summary>
+    /// The encoding a font implies: VNI-Times… → Vni, .VnTime / VnArial / vntime.shx → Tcvn3, any other font → Unicode,
+    /// no font → null. Path and a font-file extension are ignored.
+    /// </summary>
+    public static VietEncoding? FontEncoding(string fontName)
+    {
+        var name = FontBaseName(fontName);
+        if (name == null) return null;
+        if (name.StartsWith("VNI", StringComparison.OrdinalIgnoreCase) && name.Length > 3 && "-_ ".IndexOf(name[3]) >= 0) return VietEncoding.Vni;
+        if (name.StartsWith(".Vn", StringComparison.OrdinalIgnoreCase) || name.StartsWith("Vn", StringComparison.OrdinalIgnoreCase)) return VietEncoding.Tcvn3;
+        return VietEncoding.Unicode;
     }
 
     /// <summary>A .VnXxxH font: TCVN3 all-capitals variant (".VnTimeH", "VNARIALH.TTF"). Path and extension are ignored.</summary>
     public static bool IsUpperCaseFont(string fontName)
     {
-        if (string.IsNullOrWhiteSpace(fontName)) return false;
-        string name;
-        try { name = Path.GetFileName(fontName.Trim()); }
-        catch (ArgumentException) { return false; }
-        // Not GetFileNameWithoutExtension: ".VnTimeH" would be all extension.
-        var ext = Path.GetExtension(name);
-        if (new[] { ".ttf", ".otf", ".ttc", ".shx" }.Contains(ext, StringComparer.OrdinalIgnoreCase)) name = name.Substring(0, name.Length - ext.Length);
-        if (name.StartsWith(".", StringComparison.Ordinal)) name = name.Substring(1);
-        if (name.Length < 4 || !name.StartsWith("Vn", StringComparison.OrdinalIgnoreCase)) return false;
+        if (FontEncoding(fontName) != VietEncoding.Tcvn3) return false;
+        var name = FontBaseName(fontName).TrimStart('.');
+        if (name.Length < 4) return false;
         var last = name[name.Length - 1];
         return last == 'H' || (last == 'h' && name == name.ToLowerInvariant());
     }
 
+    /// <summary>The first TCVN3 or VNI font named by a \f or \F code of MText contents, or null.</summary>
+    public static string MTextFontHint(string contents)
+    {
+        if (string.IsNullOrEmpty(contents)) return null;
+        for (var i = contents.IndexOf('\\'); i >= 0 && i + 1 < contents.Length; i = contents.IndexOf('\\', i + 2))
+        {
+            var code = contents[i + 1];
+            if (code != 'f' && code != 'F') continue;
+            var end = Semicolon(contents, i + 2);
+            var body = contents.Substring(i + 2, end - (i + 2));
+            var bar = body.IndexOf('|');
+            var font = bar < 0 ? body : body.Substring(0, bar);
+            var encoding = FontEncoding(font);
+            if (encoding == VietEncoding.Tcvn3 || encoding == VietEncoding.Vni) return font;
+        }
+
+        return null;
+    }
+
+    /// <summary>Font name without folder and without a .ttf/.otf/.ttc/.shx extension; null when empty.</summary>
+    private static string FontBaseName(string fontName)
+    {
+        if (string.IsNullOrWhiteSpace(fontName)) return null;
+        // Both separators on every OS: style file names come from Windows.
+        var name = fontName.Trim();
+        name = name.Substring(Math.Max(name.LastIndexOf('\\'), name.LastIndexOf('/')) + 1);
+        // Not GetFileNameWithoutExtension: ".VnTimeH" would be all extension.
+        var ext = Path.GetExtension(name);
+        if (new[] { ".ttf", ".otf", ".ttc", ".shx" }.Contains(ext, StringComparer.OrdinalIgnoreCase)) name = name.Substring(0, name.Length - ext.Length);
+        return name.Length == 0 ? null : name;
+    }
+
     /// <summary>
     /// Converts the visible text of MText contents; control codes (\P \L \O \f…; \H…; \C…; \S…; { } \\ %%d …) are kept.
-    /// Stacked text (\S…;) is converted. When converting to Unicode, every \f/\F font becomes unicodeFont (if given),
-    /// keeping its |b|i|c|p options. upperCaseFont: the text style's font is a TCVN3 all-capitals font; \f changes it per group.
+    /// Stacked text (\S…;) is converted. When converting to Unicode, a TCVN3/VNI \f/\F font becomes unicodeFont (if given),
+    /// keeping its |b|i|c|p options; text after a font of another encoding (\fSymbol;, \fArial; when decoding) is kept.
+    /// upperCaseFont: the text style's font is a TCVN3 all-capitals font; \f changes it per group.
     /// </summary>
     public static string ConvertMText(string contents, VietEncoding from, VietEncoding to, string unicodeFont = null, bool upperCaseFont = false)
     {
         if (string.IsNullOrEmpty(contents) || from == to) return contents ?? "";
         var sb = new StringBuilder(contents.Length + 16);
         var run = new StringBuilder();
-        var groups = new Stack<bool>();
+        var groups = new Stack<(bool upper, VietEncoding? font)>();
         var upper = upperCaseFont;
+        VietEncoding? font = null;   // encoding of the current \f font; null = the text style's font
+
+        // Text in a font of another encoding (\fSymbol; while decoding TCVN3, \f.VnTime; while encoding Unicode) is left alone.
+        string Run(string text) =>
+            font == null || font == from ? Convert(text, from, to, upper && from == VietEncoding.Tcvn3) : text;
 
         void Flush()
         {
             if (run.Length == 0) return;
-            sb.Append(Convert(run.ToString(), from, to, upper && from == VietEncoding.Tcvn3));
+            sb.Append(Run(run.ToString()));
             run.Clear();
         }
 
@@ -292,9 +350,10 @@ public static class VietFontCodec
                         end = Semicolon(contents, i + 2);
                         var body = contents.Substring(i + 2, end - (i + 2));
                         var bar = body.IndexOf('|');
-                        var font = bar < 0 ? body : body.Substring(0, bar);
-                        upper = IsUpperCaseFont(font);
-                        if (to == VietEncoding.Unicode && !string.IsNullOrEmpty(unicodeFont))
+                        var fontName = bar < 0 ? body : body.Substring(0, bar);
+                        upper = IsUpperCaseFont(fontName);
+                        font = FontEncoding(fontName);
+                        if (to == VietEncoding.Unicode && !string.IsNullOrEmpty(unicodeFont) && (font == VietEncoding.Tcvn3 || font == VietEncoding.Vni))
                             sb.Append("\\f").Append(unicodeFont).Append(bar < 0 ? "" : body.Substring(bar)).Append(end < contents.Length ? ";" : "");
                         else sb.Append(contents, i, Math.Min(end + 1, contents.Length) - i);
                         i = end + 1;
@@ -302,7 +361,7 @@ public static class VietFontCodec
                     }
                     case 'S':
                         end = Semicolon(contents, i + 2);
-                        sb.Append("\\S").Append(Convert(contents.Substring(i + 2, end - (i + 2)), from, to, upper && from == VietEncoding.Tcvn3));
+                        sb.Append("\\S").Append(Run(contents.Substring(i + 2, end - (i + 2))));
                         if (end < contents.Length) sb.Append(';');
                         i = end + 1;
                         continue;
@@ -341,13 +400,13 @@ public static class VietFontCodec
             if (c == '{')
             {
                 Flush();
-                groups.Push(upper);
+                groups.Push((upper, font));
                 sb.Append(c);
             }
             else if (c == '}')
             {
                 Flush();
-                if (groups.Count > 0) upper = groups.Pop();
+                if (groups.Count > 0) (upper, font) = groups.Pop();
                 sb.Append(c);
             }
             else if (c == '%' && i + 2 < contents.Length && contents[i + 1] == '%')
@@ -377,16 +436,12 @@ public static class VietFontCodec
         return end < 0 ? contents.Length : end;
     }
 
+    /// <summary>Symbols common in engineering text; a Unicode reading keeping them is not penalised.</summary>
+    private const string EngineeringSymbols = "Ø×µ½¼¾°±²³÷";
+
     private static int Score(string reading)
     {
         var score = 0;
-        foreach (var c in reading)
-        {
-            if (c < 0x80) continue;
-            if (Letters.ContainsKey(c)) score++;
-            else if (c >= 0xA0 && c <= 0xFF) score -= 2;
-        }
-
         var word = new StringBuilder();
         foreach (var c in reading + " ")
         {
@@ -396,11 +451,29 @@ public static class VietFontCodec
                 continue;
             }
 
-            if (word.Length > 0) score -= WordPenalty(word.ToString());
+            if (word.Length > 0) score += WordScore(word.ToString());
             word.Clear();
+            if (c >= 0xA0 && c <= 0xFF && EngineeringSymbols.IndexOf(c) < 0) score -= 2;
         }
 
         return score;
+    }
+
+    /// <summary>+1 per Vietnamese letter (only in words of two or more letters), −2 per non-Western Latin-1 letter, minus penalties.</summary>
+    private static int WordScore(string word)
+    {
+        var score = 0;
+        foreach (var c in word)
+        {
+            if (c < 0x80) continue;
+            if (Letters.ContainsKey(c))
+            {
+                if (word.Length > 1) score++;
+            }
+            else if (c >= 0xA0 && c <= 0xFF && c < 0xC0 && EngineeringSymbols.IndexOf(c) < 0) score -= 2;   // ª º: not Western letters
+        }
+
+        return score - WordPenalty(word);
     }
 
     private static int WordPenalty(string word)

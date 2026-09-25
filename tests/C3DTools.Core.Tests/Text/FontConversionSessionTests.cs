@@ -126,6 +126,30 @@ public class FontConversionSessionTests
     }
 
     [Fact]
+    public void Style_font_guides_detection()
+    {
+        // "Cèng" in a .VnTime style is TCVN3 "Cống"; "Ø600" in an Arial style stays.
+        var s = Session(
+            new FontTextItem("DBText", "C\u00E8ng", false, false, ".VnTime"),
+            new FontTextItem("DBText", "Ø600", false, false, "Arial"),
+            new FontTextItem("MText", "{\\f.VnTime;C\u00E8ng}", true, false, "Arial"));
+
+        Assert.Equal(new[] { "Cống", "{\\fArial;Cống}" }, s.Preview.Select(p => p.After));
+    }
+
+    [Fact]
+    public void Engineering_symbols_are_not_touched_in_a_tcvn3_drawing()
+    {
+        var s = Session(
+            new FontTextItem("DBText", Tcvn3Road, false, false),
+            new FontTextItem("DBText", "D=Ø600", false, false),
+            new FontTextItem("DBText", "2×3", false, false),
+            new FontTextItem("DBText", "½", false, false));
+
+        Assert.Equal(1, s.ChangeCount);
+    }
+
+    [Fact]
     public void Convert_returns_null_when_nothing_changes()
     {
         var s = Session();

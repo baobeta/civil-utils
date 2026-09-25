@@ -36,13 +36,17 @@ public static class MinimalXlsxWriter
     }
 
     /// <summary>
-    /// A number Excel should see as a number: optional sign, digits, optional '.' decimals, InvariantCulture.
-    /// No thousands separators, exponent, spaces or NaN, so "1+234.56", "1,5" and "007A" stay text.
+    /// A number Excel should see as a number: optional '-', digits, optional '.' decimals, InvariantCulture.
+    /// Stays text: thousands separators, exponent, spaces, NaN ("1+234.56", "1,5"), a leading '+', a leading zero before a digit
+    /// ("007", a code) and more than 15 significant digits (Excel would round them).
     /// </summary>
     public static bool TryNumber(string text, out double value)
     {
         value = 0;
-        if (string.IsNullOrEmpty(text)) return false;
+        if (string.IsNullOrEmpty(text) || text[0] == '+') return false;
+        var digits = text[0] == '-' ? text.Substring(1) : text;
+        if (digits.Length > 1 && digits[0] == '0' && char.IsDigit(digits[1])) return false;
+        if (digits.Replace(".", "").TrimStart('0').Count(char.IsDigit) > 15) return false;
         return double.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out value)
                && !double.IsNaN(value) && !double.IsInfinity(value);
     }

@@ -164,6 +164,75 @@ public class VietFontCodecTests
         Assert.Equal(expected, VietFontCodec.Detect(text));
     }
 
+    [Theory]
+    [InlineData("Ø600")]
+    [InlineData("D=Ø600")]
+    [InlineData("2×3")]
+    [InlineData("µm")]
+    [InlineData("½")]
+    [InlineData("ÐƯỜNG")]
+    [InlineData("naïve")]
+    [InlineData("±0.5 m², 25°C, L÷2, ¼")]
+    [InlineData("Cống D=Ø1500, i=0.5‰")]
+    public void Symbols_and_western_letters_stay_unicode(string text)
+    {
+        Assert.Equal(VietEncoding.Unicode, VietFontCodec.Detect(text));
+        Assert.Equal(VietEncoding.Unicode, VietFontCodec.Detect(text, VietEncoding.Unicode, "Arial"));
+    }
+
+    [Fact]
+    public void Font_hint_is_a_prior()
+    {
+        Assert.Equal(VietEncoding.Tcvn3, VietFontCodec.Detect("\u00AE\u00AD\u00EAng", VietEncoding.Unicode, ".VnTime"));
+        // Ties or small margins follow the font: ".VnTime" "Cèng" is "Cống", VNI-Times "hoø" is "hò".
+        Assert.Equal(VietEncoding.Tcvn3, VietFontCodec.Detect("C\u00E8ng", VietEncoding.Unicode, ".VnTime"));
+        Assert.Equal(VietEncoding.Tcvn3, VietFontCodec.Detect("ho\u00B5", VietEncoding.Unicode, "VNTIME.TTF"));
+        Assert.Equal(VietEncoding.Vni, VietFontCodec.Detect("ho\u00F8", VietEncoding.Unicode, "VNI-Times"));
+        // A Unicode font needs a clear legacy reading.
+        Assert.Equal(VietEncoding.Unicode, VietFontCodec.Detect("ho\u00B5", VietEncoding.Tcvn3, "Arial"));
+        Assert.Equal(VietEncoding.Tcvn3, VietFontCodec.Detect("\u00AE\u00AD\u00EAng", VietEncoding.Unicode, "Arial"));
+    }
+
+    [Theory]
+    [InlineData(".VnTime", VietEncoding.Tcvn3)]
+    [InlineData("VnArial", VietEncoding.Tcvn3)]
+    [InlineData("vntime.shx", VietEncoding.Tcvn3)]
+    [InlineData(@"C:\Fonts\VNTIMEH.TTF", VietEncoding.Tcvn3)]
+    [InlineData("VNI-Times", VietEncoding.Vni)]
+    [InlineData("VNI-Helve.ttf", VietEncoding.Vni)]
+    [InlineData("Arial", VietEncoding.Unicode)]
+    [InlineData("romans.shx", VietEncoding.Unicode)]
+    [InlineData("Symbol", VietEncoding.Unicode)]
+    public void Font_names_imply_an_encoding(string font, VietEncoding expected)
+    {
+        Assert.Equal(expected, VietFontCodec.FontEncoding(font));
+    }
+
+    [Fact]
+    public void No_font_implies_nothing()
+    {
+        Assert.Null(VietFontCodec.FontEncoding(null));
+        Assert.Null(VietFontCodec.FontEncoding(" "));
+    }
+
+    [Fact]
+    public void MText_non_legacy_fonts_are_kept_and_their_text_not_decoded()
+    {
+        // \fSymbol: "a" is alpha and ¸ a Symbol glyph, not TCVN3; the .VnTime part is converted and its font replaced.
+        var result = VietFontCodec.ConvertMText("{\\fSymbol|b0;a\u00B8}{\\f.VnTime;C\u00B8t}\\fArial;\u00B8", VietEncoding.Tcvn3, VietEncoding.Unicode, "Arial");
+
+        Assert.Equal("{\\fSymbol|b0;a\u00B8}{\\fArial;Cát}\\fArial;\u00B8", result);
+    }
+
+    [Fact]
+    public void MText_font_hint_is_the_first_legacy_font()
+    {
+        Assert.Equal(".VnTime", VietFontCodec.MTextFontHint("{\\fArial;x}{\\f.VnTime|b1;y}"));
+        Assert.Equal("VNI-Times", VietFontCodec.MTextFontHint("\\FVNI-Times;y"));
+        Assert.Null(VietFontCodec.MTextFontHint("{\\fArial;x}"));
+        Assert.Null(VietFontCodec.MTextFontHint(null));
+    }
+
     [Fact]
     public void A_tie_goes_to_the_preferred_encoding()
     {

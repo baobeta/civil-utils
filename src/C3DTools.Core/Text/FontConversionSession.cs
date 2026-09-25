@@ -11,8 +11,9 @@ namespace C3DTools.Core.Text;
 /// <summary>One text string read from the drawing. Kind: "DBText", "MText", "AttributeReference", …</summary>
 public sealed class FontTextItem
 {
-    public FontTextItem(string kind, string text, bool isMText, bool upperCaseFont)
+    public FontTextItem(string kind, string text, bool isMText, bool upperCaseFont, string fontName = null)
     {
+        FontName = fontName;
         Kind = kind ?? throw new ArgumentNullException(nameof(kind));
         Text = text ?? "";
         IsMText = isMText;
@@ -27,6 +28,12 @@ public sealed class FontTextItem
 
     /// <summary>The text style's font is a TCVN3 all-capitals font (.VnTimeH).</summary>
     public bool UpperCaseFont { get; }
+
+    /// <summary>The text style's font (typeface or file), a hint for detection; null when unknown.</summary>
+    public string FontName { get; }
+
+    /// <summary>For MText, a TCVN3/VNI \f font in the contents wins over the style's font.</summary>
+    internal string FontHint => (IsMText ? VietFontCodec.MTextFontHint(Text) : null) ?? FontName;
 }
 
 /// <summary>A before/after line of the CTFONT preview grid.</summary>
@@ -154,7 +161,7 @@ public sealed class FontConversionSession : INotifyPropertyChanged
     /// <summary>The legacy encoding most scanned strings clearly use (breaks ties such as "Cát" / "Cỏt"), else Unicode.</summary>
     private static VietEncoding Dominant(IEnumerable<FontTextItem> items)
     {
-        var legacy = items.Select(i => VietFontCodec.Detect(i.Text)).Where(e => e != VietEncoding.Unicode)
+        var legacy = items.Select(i => VietFontCodec.Detect(i.Text, VietEncoding.Unicode, i.FontHint)).Where(e => e != VietEncoding.Unicode)
             .GroupBy(e => e).OrderByDescending(g => g.Count()).ThenBy(g => g.Key).FirstOrDefault();
         return legacy?.Key ?? VietEncoding.Unicode;
     }
@@ -163,7 +170,7 @@ public sealed class FontConversionSession : INotifyPropertyChanged
     public string Convert(FontTextItem item)
     {
         if (item == null || item.Text.Length == 0) return null;
-        var from = Source ?? VietFontCodec.Detect(item.Text, _preferred);
+        var from = Source ?? VietFontCodec.Detect(item.Text, _preferred, item.FontHint);
         if (from == Target) return null;
         var result = item.IsMText
             ? VietFontCodec.ConvertMText(item.Text, from, Target, Target == VietEncoding.Unicode ? TargetFont : null, item.UpperCaseFont)
@@ -198,7 +205,7 @@ public sealed class FontConversionSession : INotifyPropertyChanged
         var lines = new List<string>();
         foreach (var kind in _items.Where(i => i.Text.Any(c => c >= 0x80)).GroupBy(i => i.Kind))
         {
-            var counts = kind.GroupBy(i => Source ?? VietFontCodec.Detect(i.Text, _preferred)).ToDictionary(g => g.Key, g => g.Count());
+            var counts = kind.GroupBy(i => Source ?? VietFontCodec.Detect(i.Text, _preferred, i.FontHint)).ToDictionary(g => g.Key, g => g.Count());
             var parts = new[] { (VietEncoding.Tcvn3, "TCVN3"), (VietEncoding.Vni, "VNI"), (VietEncoding.Unicode, "Unicode") }
                 .Where(p => counts.ContainsKey(p.Item1))
                 .Select(p => p.Item2 + " " + counts[p.Item1].ToString(CultureInfo.InvariantCulture));
