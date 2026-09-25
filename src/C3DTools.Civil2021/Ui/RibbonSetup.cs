@@ -11,7 +11,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace C3DTools.Civil2021.Ui;
 
-/// <summary>Tab C3DTools, panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG).</summary>
+/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG). Panel Bản vẽ: Chuyển font (CTFONT).</summary>
 public sealed class RibbonSetup : IExtensionApplication
 {
     private const string TabId = "C3DTOOLS_TAB";
@@ -60,8 +60,12 @@ public sealed class RibbonSetup : IExtensionApplication
         row.Items.Add(Button("Bảng cong", "\u0003\u0003_CTYTCBANG ", large: false));
         panelSource.Items.Add(row);
 
+        var drawingPanel = new RibbonPanelSource { Title = "Bản vẽ" };
+        drawingPanel.Items.Add(Button("Chuyển font", "\u0003\u0003_CTFONT ", large: true));
+
         var tab = new RibbonTab { Id = TabId, Title = "C3DTools" };
         tab.Panels.Add(new RibbonPanel { Source = panelSource });
+        tab.Panels.Add(new RibbonPanel { Source = drawingPanel });
         ribbon.Tabs.Add(tab);
     }
 
