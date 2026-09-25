@@ -253,13 +253,13 @@ public class ProfileTableCommand
                     d.EraseTagged(new HashSet<ObjectId> { view.Id }, (id, tag) => tag.Kind == ProfileTableWriter.TableKind);
                     var pv = (ProfileView)tr.GetObject(view.Id, OpenMode.ForRead);
                     var frame = new ProfileViewFrame(tr, pv);
-                    var h = session.TextHeight;
+                    var h = session.DrawingTextHeight;
                     var labelChars = model.Rows.Count == 0 ? 0 : model.Rows.Max(r => r.Label.Length);
                     var origin = frame.ToXY(frame.StationStart, frame.ElevationMin);
                     // A gap of 2 text heights below the view keeps the table clear of the view's own axis labels.
                     var layout = ProfileTableLayout.Build(model, s => frame.ToXY(s, frame.ElevationMin).X,
                         top: origin.Y - 2 * h, left: origin.X, right: frame.ToXY(frame.StationEnd, frame.ElevationMin).X,
-                        rowHeight: session.RowHeight, textHeight: h, labelWidth: ProfileTableLayout.CharWidth * h * labelChars + 2 * h,
+                        rowHeight: session.DrawingRowHeight, textHeight: h, labelWidth: ProfileTableLayout.CharWidth * h * labelChars + 2 * h,
                         rotateStationText: session.RotateStationText);
                     ProfileTableWriter.Write(d, layout, Tool);
                     fallback = frame.UsedFallback;

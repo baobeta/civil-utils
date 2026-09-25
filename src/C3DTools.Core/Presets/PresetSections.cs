@@ -99,6 +99,11 @@ public sealed class ProfileTableOptions
 
     /// <summary>Per-station values (tên cọc, lý trình, cao độ, …) written vertically along the stake line.</summary>
     public bool RotateStationText { get; set; } = true;
+    /// <summary>
+    /// False (default, as 0.3 CTTRACDOC): TextHeight and RowHeight are drawing units. True: they are mm on paper and are
+    /// multiplied by SheetLayout.Scale / 1000 (2.5 mm at 1:200 = 0.5 m).
+    /// </summary>
+    public bool ScaleTextToPlot { get; set; }
 }
 
 /// <summary>CTTRACNGANG: the data table under a section view.</summary>
@@ -119,6 +124,11 @@ public sealed class SectionTableOptions
 
     /// <summary>Per-offset values (cao độ, khoảng cách tim) written vertically along the offset tick.</summary>
     public bool RotateOffsetText { get; set; } = true;
+    /// <summary>
+    /// True (default): TextHeight and RowHeight are mm on paper, multiplied by SheetLayout.Scale / 1000 in the drawing
+    /// (drawing unit = metre; 2.5 mm at 1:200 = 0.5 m). False: they are drawing units.
+    /// </summary>
+    public bool ScaleTextToPlot { get; set; } = true;
 }
 
 /// <summary>CTXEPTRANG: sheet size (mm, landscape), margins and how many views go on one sheet.</summary>

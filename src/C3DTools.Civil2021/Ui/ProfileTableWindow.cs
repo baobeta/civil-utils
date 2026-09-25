@@ -38,7 +38,7 @@ internal sealed class ProfileTableWindow : ToolWindow
         var sizes = Row();
         sizes.Children.Add(new TextBlock { Text = "Khoảng cách cọc (m)", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
         sizes.Children.Add(Input(nameof(ProfileTableSession.IntervalText), nameof(ProfileTableSession.IsIntervalValid), 60));
-        sizes.Children.Add(Label("Chiều cao chữ"));
+        sizes.Children.Add(Label(session.TextHeightLabel));
         sizes.Children.Add(Input(nameof(ProfileTableSession.TextHeightText), nameof(ProfileTableSession.IsTextHeightValid), 60));
         top.Children.Add(sizes);
 

@@ -142,7 +142,7 @@ public sealed class SheetArrangeSession : INotifyPropertyChanged
         }
     }
 
-    /// <summary>The views' extents (drawing units) and stations, already in station order.</summary>
+    /// <summary>The views' extents (drawing units) and stations (NaN = unknown), already in station order.</summary>
     public void SetViews(string description, IEnumerable<(double Width, double Height)> sizes, IEnumerable<double> stations)
     {
         _sourceText = description ?? "";

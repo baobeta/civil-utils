@@ -47,8 +47,9 @@ internal static class SectionTableWriter
 
 /// <summary>
 /// Offset/elevation → drawing XY in a section view. First SectionView.FindXYAtOffsetAndElevation; when that fails or
-/// returns false, Location + offset·1 and (elevation − ElevationMin)·VerticalExaggeration of the view style's
-/// GraphStyle (1 when unreadable). What Location marks on a 2021 section view is not verified, hence UsedFallback.
+/// returns false, Location taken as the grid's lower-left corner (OffsetLeft, ElevationMin): Location + (offset − OffsetLeft)·1
+/// and (elevation − ElevationMin)·VerticalExaggeration of the view style's GraphStyle (1 when unreadable). What Location
+/// marks on a 2021 section view is not verified, hence UsedFallback and the command's message.
 /// </summary>
 internal sealed class SectionViewFrame
 {
@@ -95,6 +96,6 @@ internal sealed class SectionViewFrame
         }
 
         _findFailed = true;
-        return new Point2d(Origin.X + offset, Origin.Y + (elevation - ElevationMin) * VerticalExaggeration);
+        return new Point2d(Origin.X + (offset - OffsetLeft), Origin.Y + (elevation - ElevationMin) * VerticalExaggeration);
     }
 }

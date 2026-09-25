@@ -9,9 +9,11 @@ namespace C3DTools.Core.Sections;
 /// The section table in drawing units, sized by ProfileTableLayout's rules: rows downward from top, the label column
 /// [left − labelWidth, left], offsets at xOfOffset(offset) inside [left, right]. Row heights: at least rowHeight; a
 /// per-offset row with rotated text is as tall as its longest text + h, every other row at least 2.6·h.
-/// Offsets are often closer than a text line (curbs, ditches), so a column is kept only when its text clears the
-/// previous kept column's text and tick; the others are left out of every per-offset row (SkippedColumns), and
-/// khoảng cách lẻ is measured between the kept columns. Diện tích rows are one cell across the table.
+/// Offsets are often closer than a text line (curbs, ditches), so a column is kept only when its text and tick clear
+/// every kept neighbour's. Columns are taken by the model's priority (tim and both ends, then design vertices, then
+/// ground-only vertices; left to right within one priority), so a lower-ranked neighbour is the one dropped. Dropped
+/// columns are left out of every per-offset row (DroppedOffsets) and khoảng cách lẻ is measured between the kept
+/// columns. Diện tích rows are one cell across the table.
 /// </summary>
 public sealed class SectionTableLayout
 {
@@ -32,8 +34,10 @@ public sealed class SectionTableLayout
     /// <summary>Offsets printed, left to right.</summary>
     public List<double> KeptOffsets { get; } = new List<double>();
 
-    /// <summary>Offsets left out because they are too close to the previous one (or outside the view).</summary>
-    public int SkippedColumns { get; private set; }
+    /// <summary>Offsets left out because they are too close to a higher-ranked column (or outside the view), left to right.</summary>
+    public List<double> DroppedOffsets { get; } = new List<double>();
+
+    public int SkippedColumns => DroppedOffsets.Count;
 
     /// <summary>Span texts left out because the span is too narrow even for rotated text.</summary>
     public int SkippedTexts { get; private set; }
@@ -102,19 +106,19 @@ public sealed class SectionTableLayout
             else
             {
                 var spans = row.Key == SectionTableBuilder.PartialDistance ? KeptGaps(model, kept, row.Decimals) : row.Spans;
+                // Diện tích: one cell across the whole table, not just between the outer offsets, and no inner edges.
+                var whole = row.Key == SectionTableBuilder.CutArea || row.Key == SectionTableBuilder.FillArea;
                 var edges = new HashSet<double>();
                 foreach (var span in spans)
                 {
                     double x1 = Clamp(xOfOffset(span.From), left, right), x2 = Clamp(xOfOffset(span.To), left, right);
                     if (Math.Abs(x2 - x1) <= 1e-9) continue;
-                    foreach (var x in new[] { x1, x2 })
+                    foreach (var x in whole ? new double[0] : new[] { x1, x2 })
                     {
                         if (x > left + 1e-9 && x < right - 1e-9 && edges.Add(Math.Round(x, 6)))
                             layout.Lines.Add(new ProfileTableLine(x, rowTop, x, rowBottom));
                     }
 
-                    // Diện tích: one cell across the whole table, not just between the outer offsets.
-                    var whole = row.Key == SectionTableBuilder.CutArea || row.Key == SectionTableBuilder.FillArea;
                     layout.PlaceSpanText(span, whole ? left : Math.Min(x1, x2), whole ? right : Math.Max(x1, x2), mid, rh, h);
                 }
             }
@@ -131,45 +135,51 @@ public sealed class SectionTableLayout
     private List<int> KeepColumns(SectionTableModel model, List<SectionTableRow> perOffset, Func<double, double> xOfOffset, double left, double right,
         double h, bool rotateText)
     {
-        var kept = new List<int>();
-        double lastHi = double.NegativeInfinity, lastTick = double.NegativeInfinity;
+        // Per column: x, the text's extent [lo, hi] and the tick (rotated text only).
+        var columns = new List<(int Index, double X, double Lo, double Hi, double Tick)>();
+        var dropped = new List<int>();
         for (var i = 0; i < model.Offsets.Count; i++)
         {
             var x = xOfOffset(model.Offsets[i]);
             if (x < left - 1e-6 || x > right + 1e-6)
             {
-                SkippedColumns++;
+                dropped.Add(i);
                 continue;
             }
 
-            double lo, hi;
             if (rotateText)
             {
                 var c = x + RotatedSide(x, left, h);
-                lo = c - 0.5 * h;
-                hi = c + 0.5 * h;
+                columns.Add((i, x, c - 0.5 * h, c + 0.5 * h, x));
             }
             else
             {
                 var width = perOffset.Select(r => ProfileTableLayout.TextWidth(Cell(r, i), h)).DefaultIfEmpty(0).Max();
                 var half = width / 2 + 0.1 * h;
                 var c = Math.Max(left + half, Math.Min(right - half, x));
-                lo = c - half;
-                hi = c + half;
+                columns.Add((i, x, c - half, c + half, double.NaN));
             }
-
-            if (kept.Count > 0 && lo < Math.Max(lastHi, lastTick) + 0.1 * h)
-            {
-                SkippedColumns++;
-                continue;
-            }
-
-            kept.Add(i);
-            KeptOffsets.Add(model.Offsets[i]);
-            lastHi = hi;
-            lastTick = rotateText ? x : double.NegativeInfinity;
         }
 
+        double Start(double lo, double tick) => double.IsNaN(tick) ? lo : Math.Min(lo, tick);
+        double End(double hi, double tick) => double.IsNaN(tick) ? hi : Math.Max(hi, tick);
+        bool Clear((int Index, double X, double Lo, double Hi, double Tick) a, (int Index, double X, double Lo, double Hi, double Tick) b)
+        {
+            if (a.X > b.X) (a, b) = (b, a);
+            return End(a.Hi, a.Tick) + 0.1 * h <= Start(b.Lo, b.Tick);
+        }
+
+        var accepted = new List<(int Index, double X, double Lo, double Hi, double Tick)>();
+        var order = columns.OrderByDescending(c => c.Index < model.Priorities.Count ? model.Priorities[c.Index] : 0).ThenBy(c => c.Index);
+        foreach (var c in order)
+        {
+            if (accepted.All(a => Clear(a, c))) accepted.Add(c);
+            else dropped.Add(c.Index);
+        }
+
+        var kept = accepted.Select(c => c.Index).OrderBy(i => i).ToList();
+        KeptOffsets.AddRange(kept.Select(i => model.Offsets[i]));
+        DroppedOffsets.AddRange(dropped.OrderBy(i => i).Select(i => model.Offsets[i]));
         return kept;
     }
 

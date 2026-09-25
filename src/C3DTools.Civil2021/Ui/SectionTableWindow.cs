@@ -32,7 +32,7 @@ internal sealed class SectionTableWindow : ToolWindow
         top.Children.Add(sections);
 
         var sizes = Row();
-        sizes.Children.Add(new TextBlock { Text = "Chiều cao chữ", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
+        sizes.Children.Add(new TextBlock { Text = session.TextHeightLabel, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0) });
         sizes.Children.Add(Input(nameof(SectionTableSession.TextHeightText), nameof(SectionTableSession.IsTextHeightValid), 60));
         top.Children.Add(sizes);
 

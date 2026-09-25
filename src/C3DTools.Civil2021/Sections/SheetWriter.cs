@@ -31,13 +31,17 @@ internal sealed class SheetItem
 /// onto its packed cell, then draws each sheet's frame on TN_KHUNG: Resources\A3.dwg inserted as a block (drawn in mm,
 /// base point at the paper's lower-left, scaled by drawing units per mm) when that file exists, else the paper outline
 /// and the margin frame as polylines; plus the title "TRẮC NGANG – Tờ n/N – Km a … Km b". Frames are tagged XEPTRANG kind 1
-/// (Number = sheet index, Values = sheet lower-left) so a rerun replaces them and starts from the same place.
+/// (Number = sheet index, Values = sheet lower-left) so a rerun replaces them; a kind 2 DBPoint keeps sheet 1's origin so a
+/// rerun starts from the same place even without frames.
 /// </summary>
 internal static class SheetWriter
 {
     public const string Tool = "XEPTRANG";
     public const string FrameLayer = "TN_KHUNG";
     public const short FrameKind = 1;
+
+    /// <summary>A DBPoint at sheet 1's lower-left (Values = X, Y): remembers the layout origin even when Khung is off.</summary>
+    public const short OriginKind = 2;
     private const string FrameBlock = "C3DT_KHUNG_A3";
 
     /// <summary>The view's extents together with its table; null (with a message) when the view has no extents.</summary>
@@ -74,15 +78,29 @@ internal static class SheetWriter
         return item;
     }
 
-    /// <summary>Lower-left of sheet 1 from the previous run for this tag, or null.</summary>
+    /// <summary>Lower-left of sheet 1 from the previous run for this tag (origin point, else sheet 1's frame), or null.</summary>
     public static Point2d? PreviousOrigin(Transaction tr, Database db, string tagHandle)
     {
+        Point2d? frame = null;
         foreach (var (_, tag) in TaggedDrawing.FindTagged(tr, db, Tool, tagHandle))
         {
-            if (tag.Kind == FrameKind && tag.Number == 0 && tag.Values.Count >= 2) return new Point2d(tag.Values[0], tag.Values[1]);
+            if (tag.Values.Count < 2) continue;
+            if (tag.Kind == OriginKind) return new Point2d(tag.Values[0], tag.Values[1]);
+            if (tag.Kind == FrameKind && tag.Number == 0 && frame == null) frame = new Point2d(tag.Values[0], tag.Values[1]);
         }
 
-        return null;
+        return frame;
+    }
+
+    /// <summary>Replaces the remembered origin with a point at (x, y) on TN_KHUNG.</summary>
+    public static void WriteOrigin(TaggedDrawing d, double x, double y)
+    {
+        d.EraseTagged(null, (id, tag) => tag.Kind == OriginKind);
+        d.EnsureLayer(FrameLayer, 4);
+        var tag = new ToolTag(Tool) { Kind = OriginKind };
+        tag.Values.Add(x);
+        tag.Values.Add(y);
+        d.Add(new DBPoint(new Point3d(x, y, 0)), FrameLayer, tag);
     }
 
     /// <summary>Moves the items to their placements. Throws (the caller aborts) when a view refuses the new Location.</summary>

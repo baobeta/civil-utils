@@ -61,6 +61,33 @@ public class SectionTableSessionTests
     }
 
     [Fact]
+    public void Heights_scale_to_the_plot_when_the_preset_says_so()
+    {
+        var preset = new ProjectPreset();
+        preset.SheetLayout.Scale = 200;
+        var session = new SectionTableSession(preset);
+
+        // 2.5 mm on paper at 1:200 = 0.5 m; row 8 mm = 1.6 m.
+        Assert.Equal(0.5, session.DrawingTextHeight, 9);
+        Assert.Equal(1.6, session.DrawingRowHeight, 9);
+        Assert.Equal("Chiều cao chữ (mm giấy, 1:200)", session.TextHeightLabel);
+
+        preset.SectionTable.ScaleTextToPlot = false;
+        var plain = new SectionTableSession(preset);
+        Assert.Equal(2.5, plain.DrawingTextHeight, 9);
+        Assert.Equal("Chiều cao chữ", plain.TextHeightLabel);
+    }
+
+    [Fact]
+    public void Profile_table_keeps_drawing_unit_heights_by_default()
+    {
+        var preset = new ProjectPreset();
+        Assert.Equal(2.5, new C3DTools.Core.Profiles.ProfileTableSession(preset).DrawingTextHeight, 9);
+        preset.ProfileTable.ScaleTextToPlot = true;
+        Assert.Equal(0.5, new C3DTools.Core.Profiles.ProfileTableSession(preset).DrawingTextHeight, 9);
+    }
+
+    [Fact]
     public void Build_orders_by_station_and_sums_areas_in_the_summary()
     {
         var session = new SectionTableSession(new ProjectPreset());

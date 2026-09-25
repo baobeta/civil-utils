@@ -31,7 +31,8 @@ public class SectionTableLayoutTests
         // h = 1: rotated text needs about 1.35 between ticks; −2.5 → −2 and 2 → 2.5 are only 0.5 apart.
         var layout = Layout(Model(), 1);
 
-        Assert.Equal(new[] { -10, -2.5, 2, 10.0 }, layout.KeptOffsets);
+        Assert.Equal(new[] { -10, -2.5, 0, 2, 10.0 }, layout.KeptOffsets);
+        Assert.Equal(new[] { -2, 2.5 }, layout.DroppedOffsets);
         Assert.Equal(2, layout.SkippedColumns);
     }
 
@@ -52,8 +53,10 @@ public class SectionTableLayoutTests
     {
         var layout = Layout(Model(new[] { new TableRowSpec(SectionTableBuilder.GroundElevation, "TN", 2), new TableRowSpec("Distance", "KC", 2) }), 1);
 
-        var texts = layout.Texts.Where(t => t.Rotation == 0 && t.Text != "TN" && t.Text != "KC").Select(t => t.Text).ToList();
-        Assert.Equal(new[] { "7.50", "4.50", "8.00" }, texts);
+        // The KC row is the second 8-high row (mid y = −12); 2.50 and 2.00 do not fit across their spans and are rotated.
+        var texts = layout.Texts.Where(t => System.Math.Abs(t.Y + 12) < 1e-9 && t.Text != "KC").OrderBy(t => t.X).ToList();
+        Assert.Equal(new[] { "7.50", "2.50", "2.00", "8.00" }, texts.Select(t => t.Text));
+        Assert.Equal(new[] { 0, System.Math.PI / 2, System.Math.PI / 2, 0 }, texts.Select(t => t.Rotation));
     }
 
     [Fact]
@@ -82,9 +85,43 @@ public class SectionTableLayoutTests
     {
         var layout = Layout(Model(new[] { new TableRowSpec(SectionTableBuilder.GroundElevation, "TN", 2) }), 1, rotate: false);
 
-        // "0.00" is 2.8 wide (+0.1 each side): −2 and 2.5 are closer than that to the previous kept column.
-        Assert.Equal(new[] { -10, -2.5, 2, 10.0 }, layout.KeptOffsets);
+        // "0.00" is 2.8 wide (+0.1 each side): the ends and the centre go first, and every ditch vertex is within
+        // 3 of one of them or of each other.
+        Assert.Equal(new[] { -10, 0, 10.0 }, layout.KeptOffsets);
         Assert.DoesNotContain(layout.Texts, t => t.Rotation != 0);
+    }
+
+    [Fact]
+    public void Centre_column_is_kept_over_a_close_ground_vertex_on_its_left()
+    {
+        // Ground-only vertex at −0.5 is within a text width of the centre; left to right it would win, by priority it loses.
+        var model = SectionTableBuilder.Build("C1", 0, Line(-10, 0, -0.5, 0.2, 10, 0), null,
+            new[] { new TableRowSpec(SectionTableBuilder.GroundElevation, "TN", 2) });
+        var layout = Layout(model, 1);
+
+        Assert.Contains(0.0, layout.KeptOffsets);
+        Assert.Equal(new[] { -0.5 }, layout.DroppedOffsets);
+    }
+
+    [Fact]
+    public void Design_toe_beats_a_nearby_ground_vertex()
+    {
+        // Ground vertex at −5.3, design toe at −5: the toe is kept although the ground vertex comes first.
+        var model = SectionTableBuilder.Build("C1", 0, Line(-10, 0, -5.3, 0.2, 10, 0), Line(-5, 0.1, -4, 1, 4, 1, 5, 0.1),
+            new[] { new TableRowSpec(SectionTableBuilder.GroundElevation, "TN", 2) });
+        var layout = Layout(model, 1);
+
+        Assert.Contains(-5.0, layout.KeptOffsets);
+        Assert.Contains(-5.3, layout.DroppedOffsets);
+    }
+
+    [Fact]
+    public void Area_rows_have_no_inner_edges()
+    {
+        var layout = Layout(Model(new[] { new TableRowSpec(SectionTableBuilder.CutArea, "Đào", 2) }), 1);
+
+        // Top and bottom borders, and the verticals at the label column's left, the table's left and its right only.
+        Assert.Equal(new[] { 75, 90, 110.0 }, layout.Lines.Where(l => l.X1 == l.X2).Select(l => l.X1).OrderBy(x => x));
     }
 
     [Fact]
@@ -93,7 +130,7 @@ public class SectionTableLayoutTests
         var model = SectionTableBuilder.Build("C1", 0, Line(-20, 0, 20, 0), null, new[] { new TableRowSpec(SectionTableBuilder.GroundElevation, "TN", 2) });
         var layout = Layout(model, 1);
 
-        Assert.Empty(layout.KeptOffsets);
-        Assert.Equal(2, layout.SkippedColumns);
+        Assert.Equal(new[] { 0.0 }, layout.KeptOffsets);
+        Assert.Equal(new[] { -20, 20.0 }, layout.DroppedOffsets);
     }
 }

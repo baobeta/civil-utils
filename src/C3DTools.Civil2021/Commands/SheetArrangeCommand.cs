@@ -127,7 +127,7 @@ public class SheetArrangeCommand
                 };
                 tr.Commit();
 
-                var stations = items.Select(i => double.IsNaN(i.Station) ? 0 : i.Station).ToList();
+                var stations = items.Select(i => i.Station).ToList();
                 session.SetViews($"{items.Count.ToString(CultureInfo.InvariantCulture)} trắc ngang", items.Select(i => (i.Width, i.Height)), stations);
                 return selection;
             }
@@ -161,7 +161,7 @@ public class SheetArrangeCommand
             try
             {
                 var d = new TaggedDrawing(tr, doc.Database, SheetWriter.Tool, selection.TagHandle);
-                d.EraseTagged(null, (id, tag) => tag.Kind == SheetWriter.FrameKind);
+                SheetWriter.WriteOrigin(d, selection.OriginX, selection.OriginY);
                 try
                 {
                     SheetWriter.Move(tr, selection.Items, plan);
@@ -175,6 +175,8 @@ public class SheetArrangeCommand
 
                 if (session.WriteFrames)
                 {
+                    // Old frames go only when a new set replaces them.
+                    d.EraseTagged(null, (id, tag) => tag.Kind == SheetWriter.FrameKind);
                     var titles = Enumerable.Range(0, plan.SheetCount).Select(i => session.Title(plan, i)).ToList();
                     usedBlock = SheetWriter.WriteFrames(d, plan, session.Layout(), session.UnitsPerMm, titles, Say);
                 }

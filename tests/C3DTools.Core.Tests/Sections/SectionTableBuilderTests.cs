@@ -86,6 +86,38 @@ public class SectionTableBuilderTests
     }
 
     [Fact]
+    public void Vertical_step_crossing_the_ground_closes_one_loop_and_opens_another()
+    {
+        // Design −0.5 on −2…0, steps up through the ground to +0.3 on 0…2: cut 2·0.5, fill 2·0.3.
+        var areas = SectionTableBuilder.Areas(Line(-2, 0, 2, 0), Line(-2, -0.5, 0, -0.5, 0, 0.3, 2, 0.3));
+
+        Assert.Equal(1.0, areas.Cut, 9);
+        Assert.Equal(0.6, areas.Fill, 9);
+        Assert.Equal(2, areas.Loops);
+    }
+
+    [Fact]
+    public void Vertical_step_at_the_first_vertex_is_ignored_for_area()
+    {
+        // (−2, −1) then (−2, −0.5): only the −0.5 line spans −2…2, so cut = 4 · 0.5.
+        var areas = SectionTableBuilder.Areas(Line(-2, 0, 2, 0), Line(-2, -1, -2, -0.5, 2, -0.5));
+
+        Assert.Equal(2.0, areas.Cut, 9);
+        Assert.Equal(1, areas.Loops);
+    }
+
+    [Fact]
+    public void Design_ending_above_the_ground_is_closed_vertically()
+    {
+        // Design +1 on −3…3 over flat ground −10…10: the loop is closed by verticals at ±3, fill = 6 · 1.
+        var areas = SectionTableBuilder.Areas(FlatGround(), Line(-3, 1, 3, 1));
+
+        Assert.Equal(6.0, areas.Fill, 9);
+        Assert.Equal(0, areas.Cut, 9);
+        Assert.Equal(1, areas.Loops);
+    }
+
+    [Fact]
     public void Shoelace_of_a_unit_square()
     {
         Assert.Equal(1, Math.Abs(SectionTableBuilder.Shoelace(new List<(double, double)> { (0, 0), (1, 0), (1, 1), (0, 1) })), 12);
@@ -96,12 +128,14 @@ public class SectionTableBuilderTests
     {
         var model = SectionTableBuilder.Build("C5", 100, Line(-10, 1, 10, 3), Line(-2.5, 2, 2.5, 2), AllRows());
 
-        Assert.Equal(new[] { -10, -2.5, 2.5, 10.0 }, model.Offsets);
+        // The centre (tim) is a column too.
+        Assert.Equal(new[] { -10, -2.5, 0, 2.5, 10.0 }, model.Offsets);
         var ground = model.Rows.Single(r => r.Key == SectionTableBuilder.GroundElevation);
         var design = model.Rows.Single(r => r.Key == SectionTableBuilder.DesignElevation);
-        Assert.Equal(new[] { "1.00", "1.75", "2.25", "3.00" }, ground.Cells);
-        Assert.Equal(new[] { "", "2.00", "2.00", "" }, design.Cells);
-        Assert.Equal(new[] { "10.00", "2.50", "2.50", "10.00" }, model.Rows.Single(r => r.Key == SectionTableBuilder.Offset).Cells);
+        Assert.Equal(new[] { "1.00", "1.75", "2.00", "2.25", "3.00" }, ground.Cells);
+        Assert.Equal(new[] { "", "2.00", "2.00", "2.00", "" }, design.Cells);
+        Assert.Equal(new[] { "10.00", "2.50", "0.00", "2.50", "10.00" }, model.Rows.Single(r => r.Key == SectionTableBuilder.Offset).Cells);
+        Assert.Equal(new[] { 3, 2, 3, 2, 3 }, model.Priorities);
     }
 
     [Fact]
@@ -111,7 +145,7 @@ public class SectionTableBuilderTests
 
         var gaps = model.Rows.Single(r => r.Key == SectionTableBuilder.PartialDistance);
         Assert.Equal(SectionTableRowKind.Span, gaps.Kind);
-        Assert.Equal(new[] { "7.50", "0.50", "4.00", "0.50", "7.50" }, gaps.Spans.Select(s => s.Line1));
+        Assert.Equal(new[] { "7.50", "0.50", "2.00", "2.00", "0.50", "7.50" }, gaps.Spans.Select(s => s.Line1));
         var cut = model.Rows.Single(r => r.Key == SectionTableBuilder.CutArea).Spans.Single();
         Assert.Equal("4.50", cut.Line1);
         Assert.Equal(-10, cut.From);

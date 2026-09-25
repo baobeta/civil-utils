@@ -42,6 +42,8 @@ public sealed class SectionTableSession : INotifyPropertyChanged
 
     private readonly SectionTableOptions _options;
     private readonly int _stationDecimals;
+    private readonly double _plotFactor;
+    private readonly bool _scaled;
     private readonly List<string> _presetMessages = new List<string>();
     private string _sourceText, _textHeightText;
     private int _viewCount, _groundIndex, _designIndex, _selectedRow = -1;
@@ -52,6 +54,9 @@ public sealed class SectionTableSession : INotifyPropertyChanged
     {
         _options = preset?.SectionTable ?? new SectionTableOptions();
         _stationDecimals = preset?.StationDecimals ?? 2;
+        var scale = preset?.SheetLayout?.Scale ?? 0;
+        _scaled = _options.ScaleTextToPlot && scale > 0;
+        _plotFactor = _scaled ? scale / 1000 : 1;
         _textHeightText = NumberFormat.Trimmed(_options.TextHeight > 0 ? _options.TextHeight : 2.5, 3);
 
         var used = new HashSet<string>();
@@ -133,6 +138,20 @@ public sealed class SectionTableSession : INotifyPropertyChanged
     /// <summary>NaN while TextHeightText is not a number &gt; 0.</summary>
     public double TextHeight => NumberInput.TryParse(_textHeightText, out var v) && v > 0 ? v : double.NaN;
     public bool IsTextHeightValid => !double.IsNaN(TextHeight);
+
+    /// <summary>Drawing units per unit of TextHeight / RowHeight: SheetLayout.Scale / 1000 when the preset's ScaleTextToPlot is set, else 1.</summary>
+    public double PlotFactor => _plotFactor;
+
+    /// <summary>"Chiều cao chữ (mm giấy, 1:200)" when heights are scaled to the plot, else "Chiều cao chữ".</summary>
+    public string TextHeightLabel => !_scaled
+        ? "Chiều cao chữ"
+        : "Chiều cao chữ (mm giấy, 1:" + NumberFormat.Trimmed(_plotFactor * 1000, 3) + ")";
+
+    /// <summary>TextHeight in drawing units; NaN while invalid.</summary>
+    public double DrawingTextHeight => TextHeight * _plotFactor;
+
+    /// <summary>RowHeight in drawing units.</summary>
+    public double DrawingRowHeight => RowHeight * _plotFactor;
 
     public double RowHeight => _options.RowHeight > 0 ? _options.RowHeight : 8;
     public bool RotateText => _options.RotateOffsetText;

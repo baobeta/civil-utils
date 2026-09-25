@@ -11,6 +11,7 @@ using C3DTools.Civil2021.Sections;
 using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Profiles;
 using C3DTools.Core.Sections;
+using C3DTools.Core.Tables;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 [assembly: CommandClass(typeof(C3DTools.Civil2021.Commands.SectionTableCommand))]
@@ -233,8 +234,8 @@ public class SectionTableCommand
                 try
                 {
                     var fallback = false;
-                    int skippedColumns = 0, skippedTexts = 0;
-                    var h = session.TextHeight;
+                    var skippedTexts = 0;
+                    var h = session.DrawingTextHeight;
                     for (var i = 0; i < inputs.Count; i++)
                     {
                         var v = inputs[i].view;
@@ -251,21 +252,34 @@ public class SectionTableCommand
                             continue;
                         }
 
+                        // Below everything the view draws (axis labels, bands) when its extents can be read.
+                        var bottom = origin.Y;
+                        try
+                        {
+                            bottom = System.Math.Min(bottom, view.GeometricExtents.MinPoint.Y);
+                        }
+                        catch (System.Exception)
+                        {
+                            // No extents: start under the grid's lowest elevation.
+                        }
+
                         var labelChars = model.Rows.Count == 0 ? 0 : model.Rows.Max(r => r.Label.Length);
                         var layout = SectionTableLayout.Build(model, o => frame.ToXY(o, frame.ElevationMin).X,
-                            top: origin.Y - 2 * h, left: origin.X, right: right, rowHeight: session.RowHeight, textHeight: h,
+                            top: bottom - 2 * h, left: origin.X, right: right, rowHeight: session.DrawingRowHeight, textHeight: h,
                             labelWidth: ProfileTableLayout.CharWidth * h * labelChars + 2 * h, rotateText: session.RotateText);
                         SectionTableWriter.Write(d, layout);
                         fallback |= frame.UsedFallback;
-                        skippedColumns += layout.SkippedColumns;
                         skippedTexts += layout.SkippedTexts;
+                        if (layout.DroppedOffsets.Count > 0)
+                            Say($"Trắc ngang {v.Name}: không ghi chữ ở offset "
+                                + string.Join(", ", layout.DroppedOffsets.Select(o => NumberFormat.Fixed(o, 2)))
+                                + " (quá sát cột ưu tiên hơn hoặc nằm ngoài trắc ngang); giảm chiều cao chữ nếu cần.");
                     }
 
-                    if (skippedColumns > 0)
-                        Say($"{skippedColumns} cột offset không ghi chữ vì quá sát cột bên cạnh (hoặc nằm ngoài trắc ngang); giảm chiều cao chữ nếu cần.");
                     if (skippedTexts > 0) Say($"{skippedTexts} chữ khoảng cách bị bỏ vì ô quá hẹp.");
                     if (fallback)
-                        Say("Không lấy được toạ độ từ trắc ngang (FindXYAtOffsetAndElevation); bảng đặt theo Location của trắc ngang, hãy kiểm tra vị trí.");
+                        Say("Không lấy được toạ độ từ trắc ngang (FindXYAtOffsetAndElevation); bảng đặt theo Location của trắc ngang, "
+                            + "giả định Location là góc trái dưới (offset trái, cao độ nhỏ nhất); hãy kiểm tra vị trí.");
 
                     tr.TransactionManager.QueueForGraphicsFlush();
                     ed.UpdateScreen();

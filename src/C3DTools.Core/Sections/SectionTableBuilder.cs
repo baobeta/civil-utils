@@ -62,11 +62,12 @@ public sealed class SectionCutFill
 public sealed class SectionTableModel
 {
     public SectionTableModel(string name, double station, IReadOnlyList<double> offsets, IReadOnlyList<SectionTableRow> rows,
-        IReadOnlyList<string> messages, SectionCutFill areas, double? centreDifference)
+        IReadOnlyList<string> messages, SectionCutFill areas, double? centreDifference, IReadOnlyList<int> priorities = null)
     {
         Name = name ?? "";
         Station = station;
         Offsets = offsets;
+        Priorities = priorities ?? offsets.Select(_ => SectionTableBuilder.GroundPriority).ToList();
         Rows = rows;
         Messages = messages;
         Areas = areas;
@@ -80,6 +81,12 @@ public sealed class SectionTableModel
 
     /// <summary>Columns, left to right.</summary>
     public IReadOnlyList<double> Offsets { get; }
+
+    /// <summary>
+    /// Per offset: which column the layout keeps when texts collide (higher first): KeyPriority for the centre (tim)
+    /// and both ends, DesignPriority for design vertices (toe, daylight, edge), GroundPriority for ground-only vertices.
+    /// </summary>
+    public IReadOnlyList<int> Priorities { get; }
 
     public IReadOnlyList<SectionTableRow> Rows { get; }
 
@@ -107,6 +114,10 @@ public static class SectionTableBuilder
     public const string PartialDistance = "PartialDistance";
     public const string CutArea = "CutArea";
     public const string FillArea = "FillArea";
+
+    public const int GroundPriority = 1;
+    public const int DesignPriority = 2;
+    public const int KeyPriority = 3;
 
     /// <summary>Offsets closer than this (m) are one column.</summary>
     public const double OffsetTolerance = 1e-4;
@@ -177,7 +188,11 @@ public static class SectionTableBuilder
 
         var g0 = ground?.ElevationAt(0);
         var d0 = design?.ElevationAt(0);
-        return new SectionTableModel(name, station, offsets, result, messages, areas, g0.HasValue && d0.HasValue ? d0 - g0 : null);
+        var priorities = offsets.Select((o, i) =>
+            i == 0 || i == n - 1 || Math.Abs(o) <= OffsetTolerance ? KeyPriority
+            : design != null && design.Points.Any(p => Math.Abs(p.Offset - o) <= OffsetTolerance) ? DesignPriority
+            : GroundPriority).ToList();
+        return new SectionTableModel(name, station, offsets, result, messages, areas, g0.HasValue && d0.HasValue ? d0 - g0 : null, priorities);
     }
 
     /// <summary>One row per section in station order (CSV / Excel): Tên cọc, Lý trình, Diện tích đào, Diện tích đắp, Chênh cao tim.</summary>
@@ -197,11 +212,16 @@ public static class SectionTableBuilder
         return table;
     }
 
-    /// <summary>Union of both lines' vertex offsets, sorted, near-duplicates merged.</summary>
+    /// <summary>Union of both lines' vertex offsets plus the centre (0, when a line reaches it), sorted, near-duplicates merged.</summary>
     public static List<double> Offsets(SectionProfile ground, SectionProfile design)
     {
         var all = new List<double>();
-        foreach (var p in new[] { ground, design }.Where(p => p != null)) all.AddRange(p.Points.Select(v => v.Offset));
+        foreach (var p in new[] { ground, design }.Where(p => p != null))
+        {
+            all.AddRange(p.Points.Select(v => v.Offset));
+            if (p.ElevationAt(0).HasValue) all.Add(0);
+        }
+
         all.Sort();
         var result = new List<double>();
         foreach (var o in all)

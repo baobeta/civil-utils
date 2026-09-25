@@ -100,6 +100,7 @@ public class SheetPackerTests
         {
             Assert.Equal("TRẮC NGANG – Tờ 1/2 – Km0+000.00 … Km0+120.50", SheetPacker.Title(0, 2, 0, 120.5));
             Assert.Equal("TRẮC NGANG – Tờ 2/2 – Km1+000.00", SheetPacker.Title(1, 2, 1000, 1000));
+            Assert.Equal("TRẮC NGANG – Tờ 2/2", SheetPacker.Title(1, 2, 1000, double.NaN));
         });
     }
 }

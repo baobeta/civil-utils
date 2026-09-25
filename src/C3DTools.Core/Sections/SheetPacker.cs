@@ -160,13 +160,18 @@ public static class SheetPacker
         return new SheetPlan(placements, sheets, cellW, cellH);
     }
 
-    /// <summary>"TRẮC NGANG – Tờ 1/2 – Km0+000.00 … Km0+100.00" (one station when both are the same).</summary>
+    /// <summary>
+    /// "TRẮC NGANG – Tờ 1/2 – Km0+000.00 … Km0+100.00" (one station when both are the same; no range when either is
+    /// unknown, NaN).
+    /// </summary>
     public static string Title(int sheet, int count, double firstStation, double lastStation, int stationDecimals = 2)
     {
+        var head = "TRẮC NGANG – Tờ " + (sheet + 1).ToString(CultureInfo.InvariantCulture) + "/" + count.ToString(CultureInfo.InvariantCulture);
+        if (double.IsNaN(firstStation) || double.IsNaN(lastStation)) return head;
         var from = StationFormatter.Format(firstStation, stationDecimals);
         var to = StationFormatter.Format(lastStation, stationDecimals);
         var range = from == to ? from : from + " … " + to;
-        return "TRẮC NGANG – Tờ " + (sheet + 1).ToString(CultureInfo.InvariantCulture) + "/" + count.ToString(CultureInfo.InvariantCulture) + " – " + range;
+        return head + " – " + range;
     }
 
     /// <summary>A Vietnamese message for the first invalid value, or null.</summary>
