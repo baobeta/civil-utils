@@ -47,11 +47,4 @@ public class TableExportTests
             File.Delete(path);
         }
     }
-
-    [Fact]
-    public void Xlsx_is_not_available_yet()
-    {
-        var ex = Assert.Throws<NotSupportedException>(() => TableExport.WriteXlsx(new TableData("A"), "x.xlsx", "Bang"));
-        Assert.Equal("Xuất Excel sẽ có ở bước sau", ex.Message);
-    }
 }

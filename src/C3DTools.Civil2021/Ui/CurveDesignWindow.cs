@@ -101,6 +101,7 @@ internal sealed class CurveDesignWindow : ToolWindow
             ("Khung", nameof(CurveDesignSession.DrawBoxes)),
             ("Cọc", nameof(CurveDesignSession.DrawStakes)),
             ("CSV", nameof(CurveDesignSession.WriteCsv)),
+            ("Excel", nameof(CurveDesignSession.WriteXlsx)),
             ("Bảng", nameof(CurveDesignSession.WriteTable)));
         _createAlignment = (CheckBox)outputs.Children[1];
         bottom.Children.Add(outputs);

@@ -15,9 +15,14 @@ public static class TableExport
         CsvTableWriter.Write(table, stream);
     }
 
-    /// <summary>XLSX output. Not available yet: always throws NotSupportedException.</summary>
-    public static void WriteXlsx(TableData table, string path, string sheetName) =>
-        throw new NotSupportedException("Xuất Excel sẽ có ở bước sau");
+    /// <summary>One-sheet .xlsx (MinimalXlsxWriter); overwrites an existing file. sheetName is sanitised to Excel's rules.</summary>
+    public static void WriteXlsx(TableData table, string path, string sheetName)
+    {
+        if (table == null) throw new ArgumentNullException(nameof(table));
+        if (string.IsNullOrEmpty(path)) throw new ArgumentNullException(nameof(path));
+        using var stream = File.Create(path);
+        MinimalXlsxWriter.Write(table, stream, sheetName);
+    }
 
     /// <summary>&lt;drawing folder&gt;/&lt;drawing name&gt;_&lt;suffix&gt;.&lt;ext&gt;, e.g. C:\Du an\Tuyen.dwg → C:\Du an\Tuyen_TOADO.csv.</summary>
     public static string SuggestPath(string drawingPath, string suffix, string ext)

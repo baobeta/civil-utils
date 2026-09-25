@@ -101,6 +101,7 @@ internal static class RouteWriter
         }
 
         if (session.WriteCsv) WriteCsv(ed, written);
+        if (session.WriteXlsx) WriteXlsx(ed, written);
         ed.WriteMessage($"\nHoàn thành: {session.SummaryText}.\n");
         return true;
     }
@@ -127,25 +128,32 @@ internal static class RouteWriter
     }
 
     /// <summary>ytc:csv: &lt;DWGPREFIX&gt;&lt;drawing name&gt;_YEUTOCONG.csv, UTF-8 with BOM.</summary>
-    internal static void WriteCsv(Editor ed, RouteDesign design)
+    internal static void WriteCsv(Editor ed, RouteDesign design) =>
+        WriteFile(ed, design, "csv", "CSV", (table, path) => TableExport.WriteCsv(table, path));
+
+    /// <summary>"Excel": the same table as the CSV in &lt;DWGPREFIX&gt;&lt;drawing name&gt;_YEUTOCONG.xlsx.</summary>
+    internal static void WriteXlsx(Editor ed, RouteDesign design) =>
+        WriteFile(ed, design, "xlsx", "Excel", (table, path) => TableExport.WriteXlsx(table, path, "Yếu tố cong"));
+
+    private static void WriteFile(Editor ed, RouteDesign design, string ext, string kind, Action<TableData, string> write)
     {
         var folder = PresetLocator.DrawingFolder();
         if (folder == null)
         {
-            ed.WriteMessage("\nBản vẽ chưa được lưu: bỏ qua xuất CSV.");
+            ed.WriteMessage($"\nBản vẽ chưa được lưu: bỏ qua xuất {kind}.");
             return;
         }
 
         try
         {
-            var name = Path.GetFileNameWithoutExtension(Convert.ToString(AcCoreApp.GetSystemVariable("DWGNAME")));
-            var path = Path.Combine(folder, name + "_YEUTOCONG.csv");
-            using (var stream = File.Create(path)) CsvTableWriter.Write(CurveTableBuilder.BuildLispCsv(design), stream);
+            var name = Convert.ToString(AcCoreApp.GetSystemVariable("DWGNAME"));
+            var path = TableExport.SuggestPath(Path.Combine(folder, name), "YEUTOCONG", ext);
+            write(CurveTableBuilder.BuildLispCsv(design), path);
             ed.WriteMessage($"\nĐã xuất bảng yếu tố cong: {path}");
         }
         catch (Exception ex)
         {
-            ed.WriteMessage($"\nKhông ghi được CSV: {ex.Message}");
+            ed.WriteMessage($"\nKhông ghi được {kind}: {ex.Message}");
         }
     }
 }
