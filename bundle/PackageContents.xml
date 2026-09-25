@@ -22,6 +22,7 @@
         <Command Global="CTYTCBANG" Local="CTYTCBANG" />
         <Command Global="CTFONT" Local="CTFONT" />
         <Command Global="CTLAYER" Local="CTLAYER" />
+        <Command Global="CTTOADO" Local="CTTOADO" />
       </Commands>
     </ComponentEntry>
   </Components>

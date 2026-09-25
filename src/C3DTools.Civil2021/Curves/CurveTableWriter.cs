@@ -15,9 +15,19 @@ internal static class CurveTableWriter
     public static void Write(RouteDrawing d, ObjectId sourceId, TableData data, Point3d position, double textHeight, Action<string> warn)
     {
         d.EraseTagged(new HashSet<ObjectId> { sourceId }, new HashSet<YtcKind> { YtcKind.Table }, false, warn);
+        var table = Create(d.Database, data, Title, position, textHeight);
+        d.Add(table, RouteDrawing.BoxLayer, new YtcTag { Kind = YtcKind.Table });
+        table.GenerateLayout();
+    }
 
+    /// <summary>
+    /// A new (not yet added) Table in the drawing's current table style: title row merged across, header row, data rows,
+    /// column widths from the longest text, top-left corner at position. The caller adds it, then calls GenerateLayout.
+    /// </summary>
+    public static Table Create(Database db, TableData data, string title, Point3d position, double textHeight)
+    {
         var columns = data.Headers.Count;
-        var table = new Table { TableStyle = d.Database.Tablestyle };
+        var table = new Table { TableStyle = db.Tablestyle };
         table.SetSize(data.Rows.Count + 2, columns);
         table.SetRowHeight(textHeight * 2);
 
@@ -32,7 +42,7 @@ internal static class CurveTableWriter
             // Already merged by the table style.
         }
 
-        SetCell(table, 0, 0, Title, textHeight);
+        SetCell(table, 0, 0, title, textHeight);
         SetRowStyle(table, 1, "_HEADER");
         for (var c = 0; c < columns; c++)
         {
@@ -50,8 +60,7 @@ internal static class CurveTableWriter
         }
 
         table.Position = position;
-        d.Add(table, RouteDrawing.BoxLayer, new YtcTag { Kind = YtcKind.Table });
-        table.GenerateLayout();
+        return table;
     }
 
     /// <summary>A table style without this cell style keeps the row as it is.</summary>
