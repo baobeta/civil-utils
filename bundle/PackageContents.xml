@@ -21,6 +21,7 @@
         <Command Global="CTYTCMAU" Local="CTYTCMAU" />
         <Command Global="CTYTCBANG" Local="CTYTCBANG" />
         <Command Global="CTFONT" Local="CTFONT" />
+        <Command Global="CTLAYER" Local="CTLAYER" />
       </Commands>
     </ComponentEntry>
   </Components>
