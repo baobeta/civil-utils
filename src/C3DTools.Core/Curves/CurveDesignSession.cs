@@ -23,7 +23,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     private readonly List<CurveInput> _inputs = new List<CurveInput>();
     private double _designSpeed;
     private double _startStation;
-    private bool _readOnlyGeometry, _createAlignment, _drawCurves = true, _drawBoxes = true, _drawStakes = true, _writeCsv = true, _writeTable;
+    private bool _readOnlyGeometry, _createAlignment, _drawCurves = true, _drawBoxes = true, _drawStakes = true, _writeCsv = true, _writeXlsx, _writeTable;
     private double _textHeight;
 
     public CurveDesignSession(ProjectPreset preset)
@@ -87,6 +87,8 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     public bool DrawBoxes { get => _drawBoxes; set => Set(ref _drawBoxes, value, nameof(DrawBoxes)); }
     public bool DrawStakes { get => _drawStakes; set => Set(ref _drawStakes, value, nameof(DrawStakes)); }
     public bool WriteCsv { get => _writeCsv; set => Set(ref _writeCsv, value, nameof(WriteCsv)); }
+    /// <summary>"Excel": &lt;drawing&gt;_YEUTOCONG.xlsx next to the CSV.</summary>
+    public bool WriteXlsx { get => _writeXlsx; set => Set(ref _writeXlsx, value, nameof(WriteXlsx)); }
     /// <summary>Curve summary AutoCAD Table (CTYTCBANG) next to the route's last PI.</summary>
     public bool WriteTable { get => _writeTable; set => Set(ref _writeTable, value, nameof(WriteTable)); }
 

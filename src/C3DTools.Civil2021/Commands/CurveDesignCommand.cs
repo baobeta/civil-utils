@@ -24,7 +24,7 @@ public class CurveDesignCommand
         catch (System.Exception ex)
         {
             // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
-            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+            Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message}");
         }
     }
 
@@ -34,7 +34,7 @@ public class CurveDesignCommand
         var ed = doc.Editor;
         var messages = new List<string>();
         var preset = PresetLocator.LoadForDrawing(messages);
-        foreach (var m in messages) ed.WriteMessage("\n" + m);
+        foreach (var m in messages) Prompts.Say(ed, m);
 
         var session = new CurveDesignSession(preset);
         var source = RouteSource.PickFirst(ed) ?? RouteSource.Prompt(ed);
@@ -46,7 +46,7 @@ public class CurveDesignCommand
             while (true)
             {
                 var window = new CurveDesignWindow(session, source.Description, source.IsAlignment, selectedRow);
-                AcCoreApp.ShowModalWindow(window);
+                window.ShowModal();
                 selectedRow = Math.Max(0, window.SelectedRow);
                 RouteSource.ClearMarker();
 
@@ -99,7 +99,7 @@ public class CurveDesignCommand
         }
         catch (InvalidOperationException ex)
         {
-            ed.WriteMessage("\n" + ex.Message);
+            Prompts.Say(ed, ex.Message);
             return false;
         }
     }

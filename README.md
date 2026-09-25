@@ -2,18 +2,27 @@
 
 Productivity tools for **Autodesk Civil 3D 2021**, built for Vietnamese road and drainage projects: survey point import checks, station (lý trình) labels, sample lines, cut/fill volumes and pipe checks.
 
-> **Status: 0.2 (curve element tools).** The Core logic is done and tested. The add-in has `CTHELLO` plus the TCVN curve element tools below. Commands C-01…C-08 are waiting on the Civil 3D API spike ([docs/spikes/2026-10-spike-report.md](docs/spikes/2026-10-spike-report.md)).
+> **Status: 0.3 (daily-use tools).** The Core logic is done and tested on macOS and CI. The add-in has `CTHELLO`, the TCVN curve element tools from 0.2 and the ten 0.3/0.4 commands below, each with its own dialog, preview, apply and single undo. None of the 0.3/0.4 commands has run inside Civil 3D yet: [docs/test-plan-0.3-0.4.md](docs/test-plan-0.3-0.4.md) is the Windows test plan, and it lists the Civil 3D API calls still to confirm. Commands C-01…C-08 are waiting on the Civil 3D API spike ([docs/spikes/2026-10-spike-report.md](docs/spikes/2026-10-spike-report.md)).
 
 ## Commands
 
-Ribbon tab **C3DTools** (panel **Tuyến**), or type the command directly:
+Ribbon tab **C3DTools**, grouped by panel, or type the command directly. The first command of each panel is its large button. `CTHELLO` checks that the add-in loads.
 
-| Command | Does |
-| --- | --- |
-| `CTHELLO` | Checks that the add-in loads |
-| `CTYTC` | Curve elements dialog (Yếu tố cong): pick a polyline or an existing alignment, edit R/L1/L2/Wb/Wl per PI, preview and apply TCVN curves, boxes, stakes and CSV |
-| `CTYTCMAU` | Imports TCVN curve styles, label set and abbreviations (Mẫu TCVN) |
-| `CTYTCBANG` | Curve summary AutoCAD Table plus CSV for an alignment or polyline (Bảng cong) |
+| Panel | Command | Button | Does |
+| --- | --- | --- | --- |
+| Tuyến | `CTYTC` | Yếu tố cong | Curve elements dialog: pick a polyline or an existing alignment, edit R/L1/L2/Wb/Wl per PI, preview and apply TCVN curves, boxes, stakes, CSV and Excel |
+| | `CTYTCMAU` | Mẫu TCVN | Imports TCVN curve styles, label set and abbreviations |
+| | `CTYTCBANG` | Bảng cong | Curve summary as an AutoCAD Table, CSV or Excel for an alignment or polyline |
+| | `CTTOADO` | Toạ độ cọc | Stake coordinate table of an alignment (interval, curve and extra stakes; Z from a surface) as a Table, CSV, Excel or COGO points |
+| Trắc dọc | `CTTRACDOC` | Bảng trắc dọc | Vietnamese profile data table drawn under a profile view (stakes, distances, stations, ground/design elevations, cut/fill, grades), CSV and Excel |
+| | `CTCONGDUNG` | Cong đứng | Vertical curve elements (i1, i2, A, R, K, T, E, high/low point) of a design profile, checked against the preset; box above each PVI, Table, CSV, Excel |
+| Trắc ngang | `CTTRACNGANG` | Bảng trắc ngang | Data table with cut/fill areas under each section view (or the whole section view group), CSV and Excel |
+| | `CTXEPTRANG` | Xếp trang | Moves section views and their tables onto print sheets in station order and draws sheet frames and titles |
+| Địa hình | `CTMATDIA` | Mặt địa hình | Deletes long or outside-boundary TIN triangles, or labels contour elevations where picked lines cross them |
+| | `CTVN2000` | VN-2000 | Moves objects or all COGO points from one VN-2000 central meridian / zone to another |
+| Thoát nước | `CTBANGCONG` | Bảng cống | Culvert schedule of the pipe networks crossing an alignment as a Table, CSV or Excel |
+| Bản vẽ | `CTFONT` | Chuyển font | Converts Vietnamese text between TCVN3, VNI and Unicode for a selection or the whole drawing |
+| | `CTLAYER` | Chuẩn layer | Moves objects to the preset's standard layers, creates them and optionally purges empty layers |
 
 ## Install (testers)
 
@@ -39,13 +48,20 @@ Host code only reads and writes drawing objects and calls Core. Everything that 
 
 | Core area | Used by |
 | --- | --- |
-| `Stations`: format and parse `Km1+234.56`; plan sample line stations | C-05, C-06, C-07 |
+| `Stations`: format and parse `Km1+234.56`; plan sample line stations; stake lists and coordinate tables | C-05, C-06, C-07, `CTTOADO` |
 | `Points`: validate point files (duplicate numbers, swapped N/E, comma decimals) | C-02 |
 | `Volumes`: average-end-area cut/fill | C-07 |
-| `Drainage`: pipe slope and cover checks against preset rules | C-08 |
+| `Drainage`: pipe slope and cover checks against preset rules; culvert schedule | C-08, `CTBANGCONG` |
 | `Curves`: TCVN 4054 curve elements (A, R, T1, T2, P, K), rule checks, route design and station formatting | C-09, C-10 |
+| `Text`: TCVN3 / VNI / Unicode codec and encoding detection | `CTFONT` |
+| `Geodesy`: transverse Mercator, VN-2000 meridian and zone conversion | `CTVN2000` |
+| `Profiles`: vertical curve elements and checks, profile data table and layout | `CTCONGDUNG`, `CTTRACDOC` |
+| `Sections`: section cut/fill areas, section table layout, sheet packing | `CTTRACNGANG`, `CTXEPTRANG` |
+| `Surfaces`: triangle filter (edge length, boundary), contour label placement | `CTMATDIA` |
+| `Drawing`: layer mapping rules | `CTLAYER` |
+| `Ui`: remembered dialog options (size, last choices) | all dialogs |
 | `Presets`: versioned JSON project presets | all |
-| `Tables`: table model, UTF-8 CSV with BOM | exports |
+| `Tables`: table model, UTF-8 CSV with BOM, dependency-free XLSX | exports |
 
 ## Development
 
@@ -63,7 +79,7 @@ dotnet build src/C3DTools.Civil2021/C3DTools.Civil2021.csproj -c Release -p:UseL
 # add -p:Civil3DDir="D:\Autodesk\AutoCAD 2021" if Civil 3D is not in the default folder
 
 # Package bundle + zip into artifacts/ (needs PowerShell 7 or Windows PowerShell 5.1)
-pwsh scripts/package-bundle.ps1 -Version 0.2.0
+pwsh scripts/package-bundle.ps1 -Version 0.3.0
 ```
 
 On macOS, if the Homebrew `powershell` cask isn't available, run `dotnet tool install --global PowerShell`.
@@ -77,7 +93,7 @@ The bundle also carries `bundle/Resources/` (versioned JSON presets such as `tcv
 The GitHub Actions workflow [build.yml](.github/workflows/build.yml) runs on `windows-latest`:
 
 - **Every push to `main` and every PR:** tests Core, builds the add-in and uploads the bundle as an artifact.
-- **Tag `v*`** (for example `git tag v0.2.0 && git push origin v0.2.0`): also publishes a GitHub Release with `C3DTools-<version>.zip`.
+- **Tag `v*`** (for example `git tag v0.3.0 && git push origin v0.3.0`): also publishes a GitHub Release with `C3DTools-<version>.zip`.
 
 ## Conventions
 
