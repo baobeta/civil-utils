@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using C3DTools.Core.Curves;
 using C3DTools.Core.Drainage;
 using C3DTools.Core.Points;
 
@@ -25,4 +26,12 @@ public sealed class ProjectPreset
 
     /// <summary>Null until the project defines its thresholds; C-08 refuses to run without them.</summary>
     public PipeRules PipeRules { get; set; }
+
+    /// <summary>km/h. Default for CTYTC's design-speed prompt.</summary>
+    public double? DesignSpeed { get; set; }
+
+    /// <summary>Null until the project defines TCVN tables; CTYTC then skips checks and W.</summary>
+    public CurveRules CurveRules { get; set; }
+
+    public CurveBoxOptions CurveBox { get; set; } = new CurveBoxOptions();
 }
