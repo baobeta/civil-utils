@@ -3,10 +3,10 @@ using System.Globalization;
 
 namespace C3DTools.Core.Stations;
 
-/// <summary>Formats and parses Vietnamese station text such as "Km1+234.56".</summary>
+/// <summary>Formats and parses Vietnamese station text such as "Km1+234.56" (or "1+234.56" without the prefix).</summary>
 public static class StationFormatter
 {
-    public static string Format(double station, int decimals)
+    public static string Format(double station, int decimals, bool withKmPrefix = true)
     {
         if (decimals < 0 || decimals > 6) throw new ArgumentOutOfRangeException(nameof(decimals));
 
@@ -23,7 +23,7 @@ public static class StationFormatter
         var width = decimals == 0 ? 3 : 4 + decimals;
         var metresText = metres.ToString("F" + decimals, CultureInfo.InvariantCulture).PadLeft(width, '0');
         var sign = station < 0 && rounded > 0 ? "-" : "";
-        return sign + "Km" + km.ToString(CultureInfo.InvariantCulture) + "+" + metresText;
+        return sign + (withKmPrefix ? "Km" : "") + km.ToString(CultureInfo.InvariantCulture) + "+" + metresText;
     }
 
     public static bool TryParse(string text, out double station)

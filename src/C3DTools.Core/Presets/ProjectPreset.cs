@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using C3DTools.Core.Curves;
 using C3DTools.Core.Drainage;
 using C3DTools.Core.Points;
 
@@ -25,4 +26,33 @@ public sealed class ProjectPreset
 
     /// <summary>Null until the project defines its thresholds; C-08 refuses to run without them.</summary>
     public PipeRules PipeRules { get; set; }
+
+    /// <summary>km/h. Default for CTYTC's design-speed prompt.</summary>
+    public double? DesignSpeed { get; set; }
+
+    /// <summary>Null until the project defines TCVN tables; CTYTC then skips checks and W.</summary>
+    public CurveRules CurveRules { get; set; }
+
+    public CurveBoxOptions CurveBox { get; set; } = new CurveBoxOptions();
+
+    public FontConversionOptions FontConversion { get; set; } = new FontConversionOptions();
+
+    /// <summary>Empty until the project defines its layer standard.</summary>
+    public List<LayerMapRule> LayerMap { get; set; } = new List<LayerMapRule>();
+
+    public StakeTableOptions StakeTable { get; set; } = new StakeTableOptions();
+
+    public VerticalRules VerticalRules { get; set; } = new VerticalRules();
+
+    public ProfileTableOptions ProfileTable { get; set; } = new ProfileTableOptions();
+
+    public SectionTableOptions SectionTable { get; set; } = new SectionTableOptions();
+
+    public SheetLayoutOptions SheetLayout { get; set; } = new SheetLayoutOptions();
+
+    public Vn2000Options Vn2000 { get; set; } = new Vn2000Options();
+
+    public SurfaceOptions Surface { get; set; } = new SurfaceOptions();
+
+    public CulvertOptions Culvert { get; set; } = new CulvertOptions();
 }

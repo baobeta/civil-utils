@@ -31,6 +31,20 @@
     </Reference>
   </ItemGroup>
 
+  <!-- WPF for the CTYTC dialog, built in code (no .xaml), so it compiles on macOS too -->
+  <ItemGroup>
+    <Reference Include="PresentationFramework" />
+    <Reference Include="PresentationCore" />
+    <Reference Include="WindowsBase" />
+    <Reference Include="System.Xaml" />
+  </ItemGroup>
+
+  <!-- Ribbon icons (Ui/RibbonSetup.cs loads them by these names) -->
+  <ItemGroup>
+    <!-- One 16/32 px pair per panel: ytc (Tuyến), tracdoc, tracngang, diahinh, thoatnuoc, banve -->
+    <EmbeddedResource Include="Resources\*.png" LogicalName="C3DTools.Civil2021.Resources.%(Filename)%(Extension)" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\C3DTools.Core\C3DTools.Core.csproj" />
   </ItemGroup>

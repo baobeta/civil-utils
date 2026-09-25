@@ -1,2 +1,3 @@
 # Windows batch files need CRLF
 *.cmd text eol=crlf
+*.dwg binary
