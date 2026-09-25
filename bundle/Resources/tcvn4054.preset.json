@@ -51,5 +51,13 @@
       { "Province": "Cà Mau", "MeridianDeg": 104, "MeridianMin": 30, "Verified": false, "Source": "QĐ 05/2007/QĐ-BTNMT (kinh tuyến trục theo tỉnh, trước sáp nhập 2025) — nhập theo trí nhớ, chưa đối chiếu văn bản" },
       { "Province": "An Giang", "MeridianDeg": 104, "MeridianMin": 45, "Verified": false, "Source": "QĐ 05/2007/QĐ-BTNMT (kinh tuyến trục theo tỉnh, trước sáp nhập 2025) — nhập theo trí nhớ, chưa đối chiếu văn bản" }
     ]
+  },
+  "Surface": {
+    "MaxEdgeLength": 50,
+    "MajorInterval": 5,
+    "MinorInterval": 1,
+    "ContourDecimals": 2,
+    "ContourTextHeight": 2.5,
+    "ContourLabelSpacing": 5
   }
 }

@@ -11,7 +11,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace C3DTools.Civil2021.Ui;
 
-/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Địa hình: VN-2000 (CTVN2000). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
+/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
 public sealed class RibbonSetup : IExtensionApplication
 {
     private const string TabId = "C3DTOOLS_TAB";
@@ -69,6 +69,7 @@ public sealed class RibbonSetup : IExtensionApplication
         profilePanel.Items.Add(profileRow);
 
         var terrainPanel = new RibbonPanelSource { Title = "Địa hình" };
+        terrainPanel.Items.Add(Button("Mặt địa hình", "\u0003\u0003_CTMATDIA ", large: true));
         var terrainRow = new RibbonRowPanel();
         terrainRow.Items.Add(Button("VN-2000", "\u0003\u0003_CTVN2000 ", large: false));
         terrainPanel.Items.Add(terrainRow);

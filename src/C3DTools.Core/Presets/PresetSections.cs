@@ -159,6 +159,19 @@ public sealed class SurfaceOptions
 {
     /// <summary>m. Triangles with a longer edge are dropped.</summary>
     public double MaxEdgeLength { get; set; } = 50;
+
+    /// <summary>m. Contour intervals used when the surface style cannot be read.</summary>
+    public double MajorInterval { get; set; } = 5;
+
+    public double MinorInterval { get; set; } = 1;
+
+    /// <summary>Most decimals of a contour label; trailing zeros are dropped (12.50 → "12.5").</summary>
+    public int ContourDecimals { get; set; } = 2;
+
+    public double ContourTextHeight { get; set; } = 2.5;
+
+    /// <summary>m along the picked line: a label closer than this to the previous one is skipped.</summary>
+    public double ContourLabelSpacing { get; set; } = 5;
 }
 
 /// <summary>CTBANGCONG: the culvert/pipe table.</summary>

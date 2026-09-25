@@ -14,7 +14,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 namespace C3DTools.Civil2021.Ui;
 
 /// <summary>What the dialog asks the command to do after it closes.</summary>
-internal enum DialogAction { Cancel, Pick, ZoomToPi, ReadWidening, Preview, Apply }
+internal enum DialogAction { Cancel, Pick, ZoomToPi, ReadWidening, Preview, Apply, Count }
 
 /// <summary>
 /// The skeleton every C3DTools dialog shares (UI rule 2), built in code (no XAML): header with the source and
