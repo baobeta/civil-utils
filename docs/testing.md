@@ -54,3 +54,67 @@ Các mục sau cần người test trên Windows + Civil 3D 2021 xác nhận:
 - [ ] Hộp thoại ở độ phân giải màn hình DPI 150%
 
 Khi báo lỗi hoặc báo kết quả thử, gửi kèm: ảnh chụp dòng lệnh, file DWG (nếu được), và phiên bản trong tên file zip.
+
+## Các lệnh mới trong 0.3 / 0.4
+
+Từ bản 0.3 tab **C3DTools** có sáu panel: **Tuyến**, **Trắc dọc**, **Trắc ngang**, **Địa hình**, **Thoát nước**, **Bản vẽ**. Mỗi nút có tooltip một câu (rê chuột lên nút để xem). Lệnh nào cũng mở hộp thoại trước; dòng lệnh chỉ dùng để chọn đối tượng, chọn điểm chèn và hỏi `Giữ kết quả? [Co/Khong]` sau **Xem trước**. Hộp thoại nhớ kích thước và các ô đã tích cho lần sau. Kịch bản thử chi tiết, có số liệu mong đợi: [test-plan-0.3-0.4.md](test-plan-0.3-0.4.md).
+
+### Toạ độ cọc — `CTTOADO` (panel Tuyến)
+
+Lập bảng toạ độ cọc của một **alignment**: cọc chi tiết theo khoảng cách, cọc đường cong NĐ/TĐ/P/TC/NC, cọc thêm; Z lấy từ mặt phủ nếu chọn. Xuất **Bảng** (AutoCAD Table), **CSV**, **Excel** (`<tên bản vẽ>_TOADO`) và **Điểm COGO**.
+
+Kiểm tra: tên cọc và lý trình đúng thứ tự, cột X/Y đổi chỗ khi tích/bỏ **X = Bắc (VN-2000)**, file Excel mở được. Chạy lại cho cùng tuyến sẽ thay bảng và điểm COGO cũ. `U` một lần xoá bảng và điểm COGO vừa tạo.
+
+### Bảng trắc dọc — `CTTRACDOC` (panel Trắc dọc)
+
+Vẽ bảng số liệu trắc dọc kiểu Việt Nam (tên cọc, khoảng cách, lý trình, cao độ tự nhiên/thiết kế, chênh cao, độ dốc) bằng đường và chữ ngay dưới profile view (layer `TD_BANG`, `TD_CHU`); xuất CSV/Excel `<tên bản vẽ>_TRACDOC`.
+
+Kiểm tra: các cột cọc thẳng với lý trình trên trắc dọc, chữ không chồng nhau, bật/tắt và đổi thứ tự dòng bằng **Lên** / **Xuống**. `U` một lần xoá bảng.
+
+### Cong đứng — `CTCONGDUNG` (panel Trắc dọc)
+
+Đọc các đỉnh của trắc dọc thiết kế, tính i1, i2, A, R, K, T, E, lý trình TĐ/TC và điểm cao/thấp; kiểm tra theo bảng cong đứng của preset (nếu có). Xuất **Khung** trên mỗi đỉnh (layer `TD_YTC`), **Bảng**, **CSV**, **Excel** (`<tên bản vẽ>_CONGDUNG`).
+
+Kiểm tra: số trong khung khớp với Profile Grid View; nếu dòng lệnh báo `Civil trả về độ dốc theo %; đã quy đổi` thì chụp lại. `U` một lần xoá khung và bảng.
+
+### Bảng trắc ngang — `CTTRACNGANG` (panel Trắc ngang)
+
+Vẽ bảng số liệu dưới mỗi section view (cao độ tự nhiên/thiết kế, khoảng cách, diện tích đào/đắp tính từ hai mặt cắt đã chọn), layer `TN_BANG`, `TN_CHU`; xuất CSV/Excel `<tên bản vẽ>_TRACNGANG`. Tích **Cả nhóm (section view group)** để làm cho cả nhóm.
+
+Kiểm tra: diện tích đào/đắp so với Civil 3D (Compute Materials hoặc đo tay), bảng nằm đúng dưới trắc ngang. `U` một lần xoá mọi bảng vừa vẽ.
+
+### Xếp trang — `CTXEPTRANG` (panel Trắc ngang)
+
+Dời các section view (cùng bảng `CTTRACNGANG` của chúng) vào các ô của tờ in theo thứ tự lý trình, vẽ khung tờ và tên tờ trên layer `TN_KHUNG`. Khổ giấy, lề, số cột × hàng, khoảng hở và tỷ lệ lấy từ preset (mặc định A3 420 × 297, 3 × 2, 1:200).
+
+Kiểm tra: thứ tự từ trái sang phải, trên xuống dưới; tên tờ `TRẮC NGANG – Tờ n/N – Km… … Km…`. `U` một lần đưa trắc ngang về chỗ cũ và xoá khung.
+
+### Mặt địa hình — `CTMATDIA` (panel Địa hình)
+
+Hai thẻ: **Xoá tam giác dài** (cạnh dài hơn giá trị nhập, hoặc ngoài polyline ranh giới; nút **Đếm** chỉ đếm, không sửa) và **Ghi cao độ đồng mức** (chọn line/polyline cắt qua đồng mức; chữ TEXT trên layer `DH_CAODO`, xoay theo đồng mức).
+
+Kiểm tra: số tam giác bị xoá hợp lý, mặt phủ không bị thủng ở giữa; nhãn đọc được, không lộn ngược. `U` một lần hoàn tác.
+
+### VN-2000 — `CTVN2000` (panel Địa hình)
+
+Chuyển toạ độ đối tượng chọn (điểm, line, polyline, cung, block, text) hoặc tất cả điểm COGO từ kinh tuyến trục / múi chiếu này sang kinh tuyến trục / múi chiếu khác. Chọn tỉnh trong danh sách hoặc gõ kinh tuyến (`105°45'`, `105 45`, `105.75`). **Kinh tuyến theo tỉnh trong preset chưa được đối chiếu văn bản**: hãy kiểm tra trước khi dùng.
+
+Kiểm tra: chuyển đi rồi chuyển ngược lại phải về đúng toạ độ cũ (sai lệch ≤ 1 mm). `U` một lần hoàn tác.
+
+### Bảng cống — `CTBANGCONG` (panel Thoát nước)
+
+Lập bảng thống kê cống của các mạng cống (pipe network) cắt qua một alignment: lý trình, vị trí trái/phải, góc chéo, khẩu độ, chiều dài, cao độ đáy thượng/hạ lưu, độ dốc, chiều sâu chôn. Sửa được cột **Tên**, **Loại**, **Ghi chú**. Xuất **Bảng**, **CSV**, **Excel** (`<tên bản vẽ>_BANGCONG`).
+
+Kiểm tra: lý trình và cao độ đáy khớp với Pipe Properties. `U` một lần xoá bảng.
+
+### Chuyển font — `CTFONT` (panel Bản vẽ)
+
+Chuyển chữ tiếng Việt giữa **TCVN3 (ABC)**, **VNI Windows** và **Unicode** cho đối tượng chọn hoặc toàn bản vẽ (TEXT, MTEXT, thuộc tính, kích thước, MLeader, ô bảng); có thể đổi font kiểu chữ sang font Unicode của preset (mặc định Arial). Bảng dưới hộp thoại cho xem 20 chuỗi đầu **Trước** / **Sau**.
+
+Kiểm tra: chữ đúng dấu sau khi chuyển; ký hiệu như `Ø600`, `2×3`, `½` **không** bị đổi; đối tượng có field được bỏ qua và báo số lượng. `U` một lần hoàn tác.
+
+### Chuẩn layer — `CTLAYER` (panel Bản vẽ)
+
+Liệt kê mọi layer với số đối tượng; nhập **Layer đích** (hoặc lấy từ `LayerMap` của preset) để chuyển đối tượng sang layer chuẩn, tạo layer mới với **Màu** đã nhập. Tuỳ chọn **Áp dụng cho block**, **Xoá layer rỗng**; nút **Lưu vào preset** ghi bảng vào `*.c3dtools.json` cạnh bản vẽ.
+
+Kiểm tra: đối tượng chuyển đúng layer (kể cả trên layer khoá), layer 0 trong block giữ nguyên. `U` một lần hoàn tác.
