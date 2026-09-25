@@ -128,4 +128,25 @@ public class Vn2000SessionTests
         Assert.Equal(105.75, provinces.Single(p => p.Province == "TP. Hồ Chí Minh").Meridian);
         Assert.Equal(50, preset.Surface.MaxEdgeLength);
     }
+
+    [Fact]
+    public void Typing_a_meridian_updates_the_preview_rows_and_defers_the_statistics()
+    {
+        var s = new Vn2000Session(Preset()) { FromText = "105°45'", ToText = "106°15'" };
+        s.SetSelection("8 đối tượng", Items(8));
+        var before = s.MaxShift;
+        var rowBefore = s.Rows[0].XAfter;
+
+        s.ToText = "107°45'";
+
+        Assert.Equal(5, s.Rows.Count);
+        Assert.NotEqual(rowBefore, s.Rows[0].XAfter);
+        Assert.Equal(before, s.MaxShift);
+        Assert.Contains("Xem trước", s.DistortionText);
+
+        s.UpdateStatistics();
+
+        Assert.True(s.MaxShift > before);
+        Assert.Contains("ppm", s.DistortionText);
+    }
 }

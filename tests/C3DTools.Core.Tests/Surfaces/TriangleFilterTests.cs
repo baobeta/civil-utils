@@ -94,4 +94,34 @@ public class TriangleFilterTests
 
         Assert.Equal(new[] { 0, 3 }, result);
     }
+
+    [Fact]
+    public void Edge_with_its_midpoint_in_the_notch_is_outside()
+    {
+        // Both ends inside the L, midpoint (70, 70) in the notch.
+        Assert.True(TriangleFilter.IsOutside(new PlanPoint(50, 90), new PlanPoint(90, 50), Ell));
+        Assert.True(TriangleFilter.ShouldDeleteEdge(new PlanPoint(50, 90), new PlanPoint(90, 50), 0, Ell));
+    }
+
+    [Fact]
+    public void Edge_cutting_the_notch_corner_is_outside_even_with_ends_and_midpoint_inside()
+    {
+        var a = new PlanPoint(20, 99);
+        var b = new PlanPoint(99, 50);
+        Assert.True(TriangleFilter.IsInside(a, Ell));
+        Assert.True(TriangleFilter.IsInside(b, Ell));
+        Assert.True(TriangleFilter.IsInside(new PlanPoint((a.X + b.X) / 2, (a.Y + b.Y) / 2), Ell));
+
+        Assert.True(TriangleFilter.IsOutside(a, b, Ell));
+        Assert.Equal(TriangleFlag.Outside, TriangleFilter.Check(a, b, new PlanPoint(20, 50), 0, Ell));
+    }
+
+    [Fact]
+    public void Edges_inside_or_along_the_boundary_are_kept()
+    {
+        Assert.False(TriangleFilter.IsOutside(new PlanPoint(10, 10), new PlanPoint(50, 90), Ell));
+        Assert.False(TriangleFilter.IsOutside(new PlanPoint(60, 70), new PlanPoint(60, 90), Ell));   // on the inner edge
+        Assert.False(TriangleFilter.IsOutside(new PlanPoint(30, 30), new PlanPoint(60, 60), Ell));   // ends at the notch vertex
+        Assert.False(TriangleFilter.IsOutside(new PlanPoint(10, 10), new PlanPoint(1000, 1000), null));
+    }
 }

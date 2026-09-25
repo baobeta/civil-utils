@@ -230,11 +230,14 @@ public class Vn2000Command
     private static bool Write(Document doc, List<ObjectId> ids, Vn2000Session session, bool askToKeep)
     {
         var ed = doc.Editor;
+        session.UpdateStatistics();
         var t = session.Transform();
         var moved = 0;
         var failed = 0;
         var blocks = 0;
         var arcs = 0;
+        var bulged = 0;
+        var texts = 0;
         bool keep;
         using (doc.LockDocument())
         using (var tr = doc.Database.TransactionManager.StartTransaction())
@@ -249,6 +252,8 @@ public class Vn2000Command
                         var entity = (AcEntity)tr.GetObject(id, OpenMode.ForWrite);
                         if (entity is BlockReference) blocks++;
                         if (entity is Arc || entity is Circle) arcs++;
+                        if (entity is Polyline bp && bp.HasBulges) bulged++;
+                        if (entity is DBText || entity is MText) texts++;
                         if (Move(tr, entity, t)) moved++;
                     }
                     catch (System.Exception ex)
@@ -262,9 +267,11 @@ public class Vn2000Command
                 ed.UpdateScreen();
                 Prompts.Say(ed, $"Đã chuyển {moved} đối tượng" + (failed > 0 ? $", {failed} đối tượng giữ nguyên" : "") + ". " + session.DistortionText + ".");
                 if (arcs > 0)
-                    Prompts.Say(ed, $"{arcs} cung/đường tròn chỉ dời tâm, giữ bán kính và góc (sai lệch bán kính tới {NumberFormat.Fixed(session.MaxRadiusError * 1000, 1)} mm). Cung trong polyline giữ độ phình.");
-                if (blocks > 0)
-                    Prompts.Say(ed, $"{blocks} block được xoay thêm theo chênh lệch góc hội tụ kinh tuyến (tới {NumberFormat.Fixed(session.MaxRotation * 180 / System.Math.PI * 3600, 1)}\").");
+                    Prompts.Say(ed, $"{arcs} cung/đường tròn chỉ dời tâm, giữ bán kính và góc (sai lệch bán kính tới {NumberFormat.Fixed(session.MaxRadiusError * 1000, 1)} mm).");
+                if (bulged > 0)
+                    Prompts.Say(ed, $"{bulged} polyline có cung: chỉ dời đỉnh, cung trong polyline giữ độ phình.");
+                if (blocks > 0 || texts > 0)
+                    Prompts.Say(ed, $"{blocks} block, {texts} TEXT/MTEXT được xoay thêm theo chênh lệch góc hội tụ kinh tuyến (tới {NumberFormat.Fixed(session.MaxRotation * 180 / System.Math.PI * 3600, 1)}\").");
                 keep = moved > 0 && (!askToKeep || Prompts.AskKeep(ed));
             }
             catch (System.Exception ex)
@@ -293,7 +300,7 @@ public class Vn2000Command
         return new Point3d(q.X, q.Y, p.Z);
     }
 
-    /// <summary>Moves one entity's points; blocks also turn by the convergence change. False when the type is not supported.</summary>
+    /// <summary>Moves one entity's points; blocks, TEXT and MTEXT also turn by the convergence change. False when the type is not supported.</summary>
     private static bool Move(Transaction tr, AcEntity entity, Vn2000Transform t)
     {
         switch (entity)
@@ -341,16 +348,14 @@ public class Vn2000Command
                 return true;
             case BlockReference b:
                 // TransformBy moves the attributes with the block; the rotation keeps its bearing to true north.
-                var from = b.Position;
-                var to = Map(t, from);
-                var turn = t.RotationDelta(from.X, from.Y);
-                b.TransformBy(Matrix3d.Rotation(turn, Vector3d.ZAxis, to) * Matrix3d.Displacement(to - from));
+                b.TransformBy(MoveAndTurn(t, b.Position));
                 return true;
             case DBText text:
-                text.TransformBy(Matrix3d.Displacement(Map(t, text.Position) - text.Position));
+                // Like a block: moved by its position and turned by the convergence change there.
+                text.TransformBy(MoveAndTurn(t, text.Position));
                 return true;
             case MText mt:
-                mt.TransformBy(Matrix3d.Displacement(Map(t, mt.Location) - mt.Location));
+                mt.TransformBy(MoveAndTurn(t, mt.Location));
                 return true;
             case CogoPoint cp:
                 // Easting/Northing have public setters in the 2021 API (reflection); a locked point throws and is reported.
@@ -361,5 +366,12 @@ public class Vn2000Command
             default:
                 return false;
         }
+    }
+
+    /// <summary>Moves from its converted position and turns about it by the convergence change there.</summary>
+    private static Matrix3d MoveAndTurn(Vn2000Transform t, Point3d from)
+    {
+        var to = Map(t, from);
+        return Matrix3d.Rotation(t.RotationDelta(from.X, from.Y), Vector3d.ZAxis, to) * Matrix3d.Displacement(to - from);
     }
 }

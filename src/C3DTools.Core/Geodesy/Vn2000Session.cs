@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using C3DTools.Core.Curves;
 using C3DTools.Core.Presets;
 using C3DTools.Core.Tables;
 
@@ -63,7 +64,7 @@ public sealed class Vn2000Session : INotifyPropertyChanged
     private Vn2000Target _target = Vn2000Target.Selection;
     private List<Vn2000Item> _selection = new List<Vn2000Item>();
     private List<Vn2000Item> _cogo = new List<Vn2000Item>();
-    private bool _hasSelection, _hasCogo;
+    private bool _hasSelection, _hasCogo, _statisticsStale;
 
     public Vn2000Session(ProjectPreset preset)
     {
@@ -84,13 +85,13 @@ public sealed class Vn2000Session : INotifyPropertyChanged
     public string FromText
     {
         get => _fromText;
-        set { _fromText = value ?? ""; Raise(nameof(FromText)); Raise(nameof(FromMeridian)); Raise(nameof(FromIsInvalid)); Recalculate(); }
+        set { _fromText = value ?? ""; Raise(nameof(FromText)); Raise(nameof(FromMeridian)); Raise(nameof(FromIsInvalid)); RecalculatePreview(); }
     }
 
     public string ToText
     {
         get => _toText;
-        set { _toText = value ?? ""; Raise(nameof(ToText)); Raise(nameof(ToMeridian)); Raise(nameof(ToIsInvalid)); Recalculate(); }
+        set { _toText = value ?? ""; Raise(nameof(ToText)); Raise(nameof(ToMeridian)); Raise(nameof(ToIsInvalid)); RecalculatePreview(); }
     }
 
     public double? FromMeridian => Resolve(_fromText);
@@ -156,6 +157,7 @@ public sealed class Vn2000Session : INotifyPropertyChanged
         get
         {
             if (Transform() == null || Items.Count == 0) return "";
+            if (_statisticsStale) return "Dịch chuyển và biến dạng lớn nhất được tính lại khi Xem trước / Áp dụng";
             var text = "Dịch chuyển lớn nhất " + NumberFormat.Fixed(MaxShift, 3) + " m · biến dạng tỷ lệ lớn nhất "
                 + NumberFormat.Fixed(MaxScaleDistortion, 1) + " ppm · xoay " + NumberFormat.Fixed(MaxRotation * 180 / Math.PI * 3600, 1) + "\"";
             if (Items.Any(i => i.Radius > 0))
@@ -231,41 +233,58 @@ public sealed class Vn2000Session : INotifyPropertyChanged
         return MeridianText.TryParse(t, out var deg) ? deg : (double?)null;
     }
 
+    /// <summary>Full pass over every point (Xem trước / Áp dụng, a new selection, target or zone): rows and statistics.</summary>
+    public void UpdateStatistics() => Recalculate();
+
     private void Recalculate()
     {
-        Rows.Clear();
         MaxShift = MaxScaleDistortion = MaxRadiusError = MaxRotation = 0;
         var t = Transform();
         if (t != null)
         {
-            var items = Items;
-            for (var i = 0; i < items.Count; i++)
+            foreach (var item in Items)
             {
-                var item = items[i];
                 var p = t.Apply(item.X, item.Y);
-                var shift = Math.Sqrt((p.X - item.X) * (p.X - item.X) + (p.Y - item.Y) * (p.Y - item.Y));
                 var distortion = Math.Abs(t.ScaleRatio(item.X, item.Y) - 1);
-                MaxShift = Math.Max(MaxShift, shift);
+                MaxShift = Math.Max(MaxShift, Shift(item, p));
                 MaxScaleDistortion = Math.Max(MaxScaleDistortion, distortion * 1e6);
                 MaxRotation = Math.Max(MaxRotation, Math.Abs(t.RotationDelta(item.X, item.Y)));
                 if (item.Radius > 0) MaxRadiusError = Math.Max(MaxRadiusError, item.Radius * distortion);
-                if (i < PreviewCount)
-                {
-                    Rows.Add(new Vn2000PreviewRow(item.Name, NumberFormat.Fixed(item.X, 3), NumberFormat.Fixed(item.Y, 3),
-                        NumberFormat.Fixed(p.X, 3), NumberFormat.Fixed(p.Y, 3), NumberFormat.Fixed(shift, 3)));
-                }
             }
         }
 
-        Raise(nameof(Items));
+        _statisticsStale = false;
         Raise(nameof(MaxShift));
         Raise(nameof(MaxScaleDistortion));
         Raise(nameof(MaxRadiusError));
         Raise(nameof(MaxRotation));
+        RecalculatePreview(stale: false);
+    }
+
+    /// <summary>While a meridian is typed: only the first PreviewCount rows; the statistics wait for UpdateStatistics.</summary>
+    private void RecalculatePreview(bool stale = true)
+    {
+        if (stale) _statisticsStale = true;
+        Rows.Clear();
+        var t = Transform();
+        if (t != null)
+        {
+            foreach (var item in Items.Take(PreviewCount))
+            {
+                var p = t.Apply(item.X, item.Y);
+                Rows.Add(new Vn2000PreviewRow(item.Name, NumberFormat.Fixed(item.X, 3), NumberFormat.Fixed(item.Y, 3),
+                    NumberFormat.Fixed(p.X, 3), NumberFormat.Fixed(p.Y, 3), NumberFormat.Fixed(Shift(item, p), 3)));
+            }
+        }
+
+        Raise(nameof(Items));
         Raise(nameof(DistortionText));
         Raise(nameof(CanApply));
         Raise(nameof(SummaryText));
     }
+
+    private static double Shift(Vn2000Item item, PlanPoint p) =>
+        Math.Sqrt((p.X - item.X) * (p.X - item.X) + (p.Y - item.Y) * (p.Y - item.Y));
 
     private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
