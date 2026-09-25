@@ -11,7 +11,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 namespace C3DTools.Civil2021.Ui;
 
-/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Panel Thoát nước: Bảng cống (CTBANGCONG). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
+/// <summary>Tab C3DTools. Panel Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO). Panel Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Panel Trắc ngang: Bảng trắc ngang (CTTRACNGANG), Xếp trang (CTXEPTRANG). Panel Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Panel Thoát nước: Bảng cống (CTBANGCONG). Panel Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).</summary>
 public sealed class RibbonSetup : IExtensionApplication
 {
     private const string TabId = "C3DTOOLS_TAB";
@@ -68,6 +68,12 @@ public sealed class RibbonSetup : IExtensionApplication
         profileRow.Items.Add(Button("Cong đứng", "\u0003\u0003_CTCONGDUNG ", large: false));
         profilePanel.Items.Add(profileRow);
 
+        var sectionPanel = new RibbonPanelSource { Title = "Trắc ngang" };
+        sectionPanel.Items.Add(Button("Bảng trắc ngang", "\u0003\u0003_CTTRACNGANG ", large: true));
+        var sectionRow = new RibbonRowPanel();
+        sectionRow.Items.Add(Button("Xếp trang", "\u0003\u0003_CTXEPTRANG ", large: false));
+        sectionPanel.Items.Add(sectionRow);
+
         var terrainPanel = new RibbonPanelSource { Title = "Địa hình" };
         terrainPanel.Items.Add(Button("Mặt địa hình", "\u0003\u0003_CTMATDIA ", large: true));
         var terrainRow = new RibbonRowPanel();
@@ -86,6 +92,7 @@ public sealed class RibbonSetup : IExtensionApplication
         var tab = new RibbonTab { Id = TabId, Title = "C3DTools" };
         tab.Panels.Add(new RibbonPanel { Source = panelSource });
         tab.Panels.Add(new RibbonPanel { Source = profilePanel });
+        tab.Panels.Add(new RibbonPanel { Source = sectionPanel });
         tab.Panels.Add(new RibbonPanel { Source = terrainPanel });
         tab.Panels.Add(new RibbonPanel { Source = drainagePanel });
         tab.Panels.Add(new RibbonPanel { Source = drawingPanel });

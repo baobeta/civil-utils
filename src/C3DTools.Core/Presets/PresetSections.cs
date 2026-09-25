@@ -116,6 +116,9 @@ public sealed class SectionTableOptions
 
     public double RowHeight { get; set; } = 8;
     public double TextHeight { get; set; } = 2.5;
+
+    /// <summary>Per-offset values (cao độ, khoảng cách tim) written vertically along the offset tick.</summary>
+    public bool RotateOffsetText { get; set; } = true;
 }
 
 /// <summary>CTXEPTRANG: sheet size (mm, landscape), margins and how many views go on one sheet.</summary>
@@ -130,6 +133,12 @@ public sealed class SheetLayoutOptions
     public double MarginBottom { get; set; } = 10;
     public int Columns { get; set; } = 3;
     public int Rows { get; set; } = 2;
+
+    /// <summary>mm on paper between neighbouring views.</summary>
+    public double Gap { get; set; } = 10;
+
+    /// <summary>Plot scale 1:Scale; the drawing unit is the metre, so 1 mm on paper = Scale / 1000 drawing units.</summary>
+    public double Scale { get; set; } = 200;
 }
 
 /// <summary>CTVN2000: a province's central meridian (degrees + minutes).</summary>

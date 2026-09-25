@@ -28,6 +28,8 @@
         <Command Global="CTVN2000" Local="CTVN2000" />
         <Command Global="CTMATDIA" Local="CTMATDIA" />
         <Command Global="CTBANGCONG" Local="CTBANGCONG" />
+        <Command Global="CTTRACNGANG" Local="CTTRACNGANG" />
+        <Command Global="CTXEPTRANG" Local="CTXEPTRANG" />
       </Commands>
     </ComponentEntry>
   </Components>
