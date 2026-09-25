@@ -43,4 +43,17 @@ public static class PresetSerializer
             preset.Styles ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
         return preset;
     }
+
+    /// <summary>
+    /// The preset JSON with only the top-level key replaced by value (serialised like Save); every other key,
+    /// including ones this version does not know, stays as it is. Throws PresetException when json is not a valid preset.
+    /// </summary>
+    public static string ReplaceSection(string json, string key, object value)
+    {
+        if (string.IsNullOrEmpty(key)) throw new ArgumentNullException(nameof(key));
+        Load(json);   // same validation as reading it
+        var obj = JObject.Parse(json);
+        obj[key] = value == null ? JValue.CreateNull() : JToken.FromObject(value);
+        return obj.ToString(Formatting.Indented);
+    }
 }

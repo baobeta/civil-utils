@@ -114,7 +114,7 @@ public sealed class LayerMapRow : INotifyPropertyChanged
     private void TakeStyle(LayerMapRule rule)
     {
         ColorText = rule.Color.ToString(CultureInfo.InvariantCulture);
-        Linetype = string.IsNullOrWhiteSpace(rule.Linetype) ? "Continuous" : rule.Linetype.Trim();
+        Linetype = LayerMapSession.NormalizeLinetype(rule.Linetype);
     }
 
     private static bool TryColor(string text, out short color)
@@ -131,6 +131,7 @@ public sealed class LayerMapSession : INotifyPropertyChanged
 {
     private static readonly char[] InvalidNameChars = { '<', '>', '/', '\\', '"', ':', ';', '?', '*', '|', ',', '=', '`' };
 
+    private readonly List<string> _warnings = new List<string>();
     private List<LayerMapRule> _rules;
     private bool _applyToBlocks, _purgeEmpty;
     private LayerMapRow _selectedRow;
@@ -141,6 +142,9 @@ public sealed class LayerMapSession : INotifyPropertyChanged
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
+
+    /// <summary>Problems found in the preset rules (shown on the command line).</summary>
+    public IReadOnlyList<string> Warnings => _warnings;
 
     public ObservableCollection<LayerMapRow> Rows { get; } = new ObservableCollection<LayerMapRow>();
 
@@ -259,7 +263,7 @@ public sealed class LayerMapSession : INotifyPropertyChanged
                 target = row.Name;
             }
             else if (rule != null && string.Equals(rule.Layer.Trim(), target, StringComparison.OrdinalIgnoreCase)
-                     && rule.Color == row.Color && string.Equals(rule.Linetype ?? "", row.Linetype, StringComparison.OrdinalIgnoreCase))
+                     && rule.Color == row.Color && string.Equals(NormalizeLinetype(rule.Linetype), NormalizeLinetype(row.Linetype), StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -279,10 +283,29 @@ public sealed class LayerMapSession : INotifyPropertyChanged
         Raise(nameof(TargetNames));
     }
 
-    private static List<LayerMapRule> Usable(IEnumerable<LayerMapRule> rules) =>
-        (rules ?? Enumerable.Empty<LayerMapRule>())
-        .Where(r => r != null && !string.IsNullOrWhiteSpace(r.Pattern) && !string.IsNullOrWhiteSpace(r.Layer))
-        .ToList();
+    /// <summary>Empty or missing linetype means Continuous.</summary>
+    public static string NormalizeLinetype(string linetype) =>
+        string.IsNullOrWhiteSpace(linetype) ? "Continuous" : linetype.Trim();
+
+    /// <summary>Rules with a pattern and a target; a colour outside 1–255 becomes 7 with a warning.</summary>
+    private List<LayerMapRule> Usable(IEnumerable<LayerMapRule> rules)
+    {
+        var result = new List<LayerMapRule>();
+        foreach (var r in rules ?? Enumerable.Empty<LayerMapRule>())
+        {
+            if (r == null || string.IsNullOrWhiteSpace(r.Pattern) || string.IsNullOrWhiteSpace(r.Layer)) continue;
+            if (r.Color >= 1 && r.Color <= 255)
+            {
+                result.Add(r);
+                continue;
+            }
+
+            _warnings.Add($"Preset: màu {r.Color.ToString(CultureInfo.InvariantCulture)} của quy tắc {r.Pattern} → {r.Layer} không hợp lệ (1–255); dùng màu 7.");
+            result.Add(new LayerMapRule { Pattern = r.Pattern, Layer = r.Layer, Color = 7, Linetype = r.Linetype });
+        }
+
+        return result;
+    }
 
     private LayerMapRule PresetTarget(string layer) =>
         _rules.FirstOrDefault(r => string.Equals(r.Layer.Trim(), layer, StringComparison.OrdinalIgnoreCase));

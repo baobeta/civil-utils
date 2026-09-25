@@ -195,4 +195,30 @@ public class LayerMapSessionTests
         Assert.Equal(new[] { "B" }, s.TargetNames);
         Assert.Equal("B", s.Rows[0].Target);
     }
+
+    [Fact]
+    public void Empty_and_missing_linetypes_count_as_continuous_when_merging()
+    {
+        var s = Session(new[] { Rule("A*", "B", 7, null), Rule("C*", "D", 7, "") }, new LayerUsage("A1", 1), new LayerUsage("C1", 1));
+        Assert.Equal("Continuous", s.Rows[0].Linetype);
+
+        s.Rows[1].Linetype = "continuous";
+
+        Assert.Equal(new[] { "A*", "C*" }, s.MergedRules().Select(r => r.Pattern));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(256)]
+    [InlineData(-1)]
+    public void Preset_colours_outside_the_aci_range_become_7_with_a_warning(short color)
+    {
+        var s = Session(new[] { Rule("A*", "B", color) }, new LayerUsage("A1", 1));
+
+        Assert.Equal("7", s.Rows[0].ColorText);
+        Assert.True(s.Rows[0].IsValid);
+        Assert.True(s.CanApply);
+        Assert.Contains("không hợp lệ", Assert.Single(s.Warnings));
+        Assert.Equal(7, s.MergedRules().Single().Color);
+    }
 }

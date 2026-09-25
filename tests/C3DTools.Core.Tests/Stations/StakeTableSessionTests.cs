@@ -123,7 +123,7 @@ public class StakeTableSessionTests
         Assert.Equal(2, s.PreviewRows.Count);
         Assert.Equal("H1", s.PreviewRows[1].Name);
         Assert.Equal("0+100.00", s.PreviewRows[1].Station);
-        Assert.Equal("3.000", s.PreviewRows[1].X);
+        Assert.Equal("4.000", s.PreviewRows[1].X);   // X = Bắc (northing) by default
         Assert.Equal("", s.PreviewRows[1].Z);
         Assert.Equal(5, s.Table.Headers.Count);
         Assert.Equal("2 cọc", s.SummaryText);
@@ -174,5 +174,36 @@ public class StakeTableSessionTests
         Assert.Contains(nameof(StakeTableSession.IncludeCurveStakes), names);
         Assert.Contains(nameof(StakeTableSession.SummaryText), names);
         Assert.Contains(nameof(StakeTableSession.CanApply), names);
+    }
+
+    [Fact]
+    public void NorthingAsX_follows_the_preset_and_rebuilds_the_preview()
+    {
+        var s = new StakeTableSession(new ProjectPreset { StakeTable = new StakeTableOptions { NorthingAsX = false } });
+        s.SetSource("T1", 0, 100);
+        s.SetPreview(new[] { new StakePoint("Km0", 0, 1, 2, null) });
+        Assert.False(s.NorthingAsX);
+        Assert.Equal("1.000", s.PreviewRows[0].X);
+        Assert.Equal("X (Đông)", s.XHeader);
+
+        s.NorthingAsX = true;
+
+        Assert.Equal("2.000", s.PreviewRows[0].X);
+        Assert.Equal("1.000", s.PreviewRows[0].Y);
+        Assert.Equal("X (Bắc)", s.Table.Headers[3]);
+        Assert.Equal("Y (Đông)", s.YHeader);
+        Assert.False(s.IsStale);
+    }
+
+    [Fact]
+    public void MissingZ_counts_stakes_outside_the_surface()
+    {
+        var s = Loaded();
+        s.SetSurfaces(new[] { "TN" });
+        s.SurfaceIndex = 1;
+
+        s.SetPreview(new[] { new StakePoint("Km0", 0, 1, 2, null), new StakePoint("H1", 100, 3, 4, 1) });
+
+        Assert.Equal(1, s.MissingZ);
     }
 }

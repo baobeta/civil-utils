@@ -31,6 +31,12 @@ public sealed class StakeTableOptions
     public int YDecimals { get; set; } = 3;
     public int ZDecimals { get; set; } = 2;
     public bool IncludeZ { get; set; } = true;
+
+    /// <summary>
+    /// True (VN-2000 stake-out sheets): column X is the northing (drawing Y), column Y the easting (drawing X).
+    /// XDecimals / YDecimals stay with the drawing X / Y value whichever column it is printed in.
+    /// </summary>
+    public bool NorthingAsX { get; set; } = true;
 }
 
 /// <summary>One value per design speed (km/h).</summary>

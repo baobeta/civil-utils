@@ -59,7 +59,8 @@ internal class TaggedDrawing
         {
             if (keep != null && keep.Contains(id)) continue;
             if (shouldErase != null && !shouldErase(id, tag)) continue;
-            var obj = Transaction.GetObject(id, OpenMode.ForWrite);
+            // Old output on a locked layer must not abort the rerun.
+            var obj = Transaction.GetObject(id, OpenMode.ForWrite, false, true);
             beforeErase?.Invoke(obj);
             obj.Erase();
         }

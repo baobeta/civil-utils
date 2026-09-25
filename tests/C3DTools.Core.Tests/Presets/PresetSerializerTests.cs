@@ -197,4 +197,26 @@ public class PresetSerializerTests
     {
         Assert.Throws<PresetException>(() => PresetSerializer.Load("{ not json"));
     }
+
+    [Fact]
+    public void ReplaceSection_changes_one_key_and_keeps_unknown_ones()
+    {
+        var json = "{ \"SchemaVersion\": 1, \"Name\": \"Cty A\", \"CompanyExtra\": { \"Keep\": true }, \"LayerMap\": [] }";
+
+        var result = PresetSerializer.ReplaceSection(json, "LayerMap",
+            new List<LayerMapRule> { new LayerMapRule { Pattern = "*COC*", Layer = "TK_COC", Color = 1 } });
+
+        var obj = Newtonsoft.Json.Linq.JObject.Parse(result);
+        Assert.True((bool)obj["CompanyExtra"]["Keep"]);
+        Assert.Equal("Cty A", (string)obj["Name"]);
+        var preset = PresetSerializer.Load(result);
+        Assert.Equal("TK_COC", Assert.Single(preset.LayerMap).Layer);
+    }
+
+    [Fact]
+    public void ReplaceSection_rejects_an_invalid_preset()
+    {
+        Assert.Throws<PresetException>(() => PresetSerializer.ReplaceSection("{ \"Name\": \"x\" }", "LayerMap", new List<LayerMapRule>()));
+        Assert.Throws<PresetException>(() => PresetSerializer.ReplaceSection("not json", "LayerMap", new List<LayerMapRule>()));
+    }
 }

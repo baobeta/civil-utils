@@ -53,6 +53,7 @@ public class LayerCommand
             ApplyToBlocks = memory.Get(Command, "Blocks", false),
             PurgeEmpty = memory.Get(Command, "Purge", false),
         };
+        foreach (var w in session.Warnings) Prompts.Say(ed, w);
         session.Load(Scan(doc.Database));
         var presetName = string.IsNullOrWhiteSpace(preset.Name) ? "mặc định" : preset.Name;
 
@@ -106,7 +107,11 @@ public class LayerCommand
             foreach (var btr in Containers(tr, db, includeBlocks: true))
             {
                 var counts = btr.IsLayout ? inLayouts : inBlocks;
-                ForEachEntity(tr, btr, e => counts[e.LayerId] = (counts.TryGetValue(e.LayerId, out var n) ? n : 0) + 1);
+                ForEachEntity(tr, btr, e =>
+                {
+                    if (KeepsInsertLayer(btr, e, db)) return;
+                    counts[e.LayerId] = (counts.TryGetValue(e.LayerId, out var n) ? n : 0) + 1;
+                });
             }
 
             var layers = (LayerTable)tr.GetObject(db.LayerTableId, OpenMode.ForRead);
@@ -125,17 +130,37 @@ public class LayerCommand
         return result.OrderBy(u => u.Name, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    /// <summary>Model space and paper space layouts; with includeBlocks also block definitions (not xrefs, dependent or anonymous blocks).</summary>
+    /// <summary>
+    /// Model space and paper space layouts; with includeBlocks also block definitions: not xrefs or dependent blocks, and of
+    /// the anonymous ones only the *U representations of dynamic blocks (never *D dimension, *X hatch or other anonymous blocks).
+    /// </summary>
     private static IEnumerable<BlockTableRecord> Containers(Transaction tr, Database db, bool includeBlocks)
     {
         var blocks = (BlockTable)tr.GetObject(db.BlockTableId, OpenMode.ForRead);
+        var dynamicRepresentations = new HashSet<ObjectId>();
+        if (includeBlocks)
+        {
+            foreach (ObjectId id in blocks)
+            {
+                var btr = (BlockTableRecord)tr.GetObject(id, OpenMode.ForRead);
+                if (btr.IsLayout || btr.IsAnonymous || btr.IsFromExternalReference || !btr.IsDynamicBlock) continue;
+                foreach (ObjectId representation in btr.GetAnonymousBlockIds()) dynamicRepresentations.Add(representation);
+            }
+        }
+
         foreach (ObjectId id in blocks)
         {
             var btr = (BlockTableRecord)tr.GetObject(id, OpenMode.ForRead);
             if (btr.IsLayout) yield return btr;
-            else if (includeBlocks && !btr.IsFromExternalReference && !btr.IsDependent && !btr.IsAnonymous) yield return btr;
+            else if (includeBlocks && !btr.IsFromExternalReference && !btr.IsDependent
+                     && (!btr.IsAnonymous || (dynamicRepresentations.Contains(id) && btr.Name.StartsWith("*U", StringComparison.OrdinalIgnoreCase))))
+                yield return btr;
         }
     }
+
+    /// <summary>Layer-0 objects inside a block definition take the layer of each insert: they are never counted or moved.</summary>
+    private static bool KeepsInsertLayer(BlockTableRecord owner, AcEntity entity, Database db) =>
+        !owner.IsLayout && entity.LayerId == db.LayerZero;
 
     /// <summary>Each entity of the block and the attributes of its block references, opened for read.</summary>
     private static void ForEachEntity(Transaction tr, BlockTableRecord btr, Action<AcEntity> visit)
@@ -158,9 +183,9 @@ public class LayerCommand
         var ed = doc.Editor;
         var db = doc.Database;
         var moves = session.Moves();
-        int moved = 0, created = 0, purged = 0;
+        int moved = 0, created = 0, purged = 0, keptOnZero = 0;
         var notes = new List<string>();
-        bool keep;
+        bool keep, failed = false;
 
         using (doc.LockDocument())
         using (var tr = db.TransactionManager.StartTransaction())
@@ -188,6 +213,12 @@ public class LayerCommand
                         ForEachEntity(tr, btr, e =>
                         {
                             if (!map.TryGetValue(e.LayerId, out var target)) return;
+                            if (KeepsInsertLayer(btr, e, db))
+                            {
+                                keptOnZero++;
+                                return;
+                            }
+
                             // Objects on locked layers move too.
                             var entity = (AcEntity)tr.GetObject(e.ObjectId, OpenMode.ForWrite, false, true);
                             entity.LayerId = target;
@@ -196,6 +227,7 @@ public class LayerCommand
                     }
                 }
 
+                if (keptOnZero > 0) notes.Add($"{keptOnZero} đối tượng layer 0 trong định nghĩa block giữ nguyên layer 0 (theo layer của block chèn).");
                 if (session.PurgeEmpty) purged = PurgeEmptyLayers(tr, db, new HashSet<ObjectId>(targets.Values), notes);
 
                 tr.TransactionManager.QueueForGraphicsFlush();
@@ -206,14 +238,15 @@ public class LayerCommand
             catch (System.Exception ex)
             {
                 Prompts.Say(ed, $"Lỗi khi chuẩn hoá layer: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
-                return false;
+                keep = false;
+                failed = true;
             }
 
             if (keep) tr.Commit();
             else tr.Abort();
         }
 
-        if (!keep)
+        if (!keep || failed)
         {
             ed.Regen();
             return false;
@@ -293,6 +326,22 @@ public class LayerCommand
         return count;
     }
 
+    /// <summary>Writes a temporary file next to path, then swaps it in, so a failed write never leaves half a preset.</summary>
+    private static void WriteAtomically(string path, string text)
+    {
+        var temp = path + ".tmp";
+        File.WriteAllText(temp, text, new UTF8Encoding(false));
+        try
+        {
+            if (File.Exists(path)) File.Replace(temp, path, null);
+            else File.Move(temp, path);
+        }
+        finally
+        {
+            if (File.Exists(temp)) File.Delete(temp);
+        }
+    }
+
     /// <summary>
     /// "Lưu vào preset": the merged LayerMap goes into the drawing folder's preset (the single *.c3dtools.json there, else
     /// &lt;drawing name&gt;.c3dtools.json created from the preset in use). Returns the message for the dialog.
@@ -308,22 +357,27 @@ public class LayerCommand
             var drawingName = Path.GetFileNameWithoutExtension(Convert.ToString(AcCoreApp.GetSystemVariable("DWGNAME")));
             var path = found.Length == 1 ? found[0] : Path.Combine(folder, drawingName + ".c3dtools.json");
 
-            ProjectPreset target = current;
+            var rules = session.MergedRules();
+            string json;
             if (File.Exists(path))
             {
                 try
                 {
-                    target = PresetSerializer.Load(File.ReadAllText(path));
+                    // Only the LayerMap node changes: keys this version does not know survive.
+                    json = PresetSerializer.ReplaceSection(File.ReadAllText(path), nameof(ProjectPreset.LayerMap), rules);
                 }
                 catch (System.Exception ex)
                 {
                     return $"Không đọc được {Path.GetFileName(path)} ({ex.Message}); không ghi đè.";
                 }
             }
+            else
+            {
+                current.LayerMap = rules;
+                json = PresetSerializer.Save(current);
+            }
 
-            var rules = session.MergedRules();
-            target.LayerMap = rules;
-            File.WriteAllText(path, PresetSerializer.Save(target), new UTF8Encoding(false));
+            WriteAtomically(path, json);
             session.UseRules(rules);
             var warning = found.Length > 1 ? " Thư mục có nhiều file *.c3dtools.json: C3DTools chỉ tự dùng khi có đúng một file." : "";
             return $"Đã lưu {rules.Count} quy tắc vào {Path.GetFileName(path)}.{warning}";

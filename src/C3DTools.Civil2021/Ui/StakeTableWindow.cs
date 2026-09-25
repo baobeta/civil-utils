@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -40,6 +41,8 @@ internal sealed class StakeTableWindow : ToolWindow
         combo.SetBinding(ItemsControl.ItemsSourceProperty, new Binding(nameof(StakeTableSession.SurfaceNames)));
         combo.SetBinding(Selector.SelectedIndexProperty, new Binding(nameof(StakeTableSession.SurfaceIndex)) { Mode = BindingMode.TwoWay });
         surface.Children.Add(combo);
+        surface.Children.Add(new Border { Width = 12 });
+        surface.Children.Add(Check("X = Bắc (VN-2000)", nameof(StakeTableSession.NorthingAsX)));
         top.Children.Add(surface);
 
         var outputs = OutputOptions(
@@ -70,8 +73,18 @@ internal sealed class StakeTableWindow : ToolWindow
         grid.Columns.Add(Column("STT", nameof(StakePreviewRow.Number), 45, number: true));
         grid.Columns.Add(Column("Tên cọc", nameof(StakePreviewRow.Name), 90, number: false));
         grid.Columns.Add(Column("Lý trình", nameof(StakePreviewRow.Station), 100, number: true));
-        grid.Columns.Add(Column("X", nameof(StakePreviewRow.X), 0, number: true));
-        grid.Columns.Add(Column("Y", nameof(StakePreviewRow.Y), 0, number: true));
+        var x = Column(session.XHeader, nameof(StakePreviewRow.X), 0, number: true);
+        var y = Column(session.YHeader, nameof(StakePreviewRow.Y), 0, number: true);
+        grid.Columns.Add(x);
+        grid.Columns.Add(y);
+        PropertyChangedEventHandler headers = (s, e) =>
+        {
+            if (e.PropertyName != nameof(StakeTableSession.NorthingAsX)) return;
+            x.Header = session.XHeader;
+            y.Header = session.YHeader;
+        };
+        session.PropertyChanged += headers;
+        Closed += (s, e) => session.PropertyChanged -= headers;
         var z = Column("Z", nameof(StakePreviewRow.Z), 80, number: true);
         z.Visibility = session.HasZ ? Visibility.Visible : Visibility.Collapsed;
         grid.Columns.Add(z);

@@ -47,12 +47,14 @@ public sealed class StakeTableSession : INotifyPropertyChanged
     private int _surfaceIndex, _missingZ;
     private List<string> _surfaceNames = new List<string> { NoSurface };
     private List<double> _extras = new List<double>();
-    private bool _extrasValid = true;
+    private bool _extrasValid = true, _northingAsX;
+    private List<StakePoint> _points;
 
     public StakeTableSession(ProjectPreset preset)
     {
         _options = preset?.StakeTable ?? new StakeTableOptions();
         _stationDecimals = preset?.StationDecimals ?? 2;
+        _northingAsX = _options.NorthingAsX;
     }
 
     public event PropertyChangedEventHandler PropertyChanged;
@@ -137,6 +139,24 @@ public sealed class StakeTableSession : INotifyPropertyChanged
     /// <summary>"Điểm COGO": one COGO point per stake.</summary>
     public bool WriteCogo { get => _writeCogo; set => SetOutput(ref _writeCogo, value, nameof(WriteCogo)); }
 
+    /// <summary>"X = Bắc (VN-2000)": column X holds the northing. Rebuilds the preview table at once.</summary>
+    public bool NorthingAsX
+    {
+        get => _northingAsX;
+        set
+        {
+            if (_northingAsX == value) return;
+            _northingAsX = value;
+            Raise(nameof(NorthingAsX));
+            Raise(nameof(XHeader));
+            Raise(nameof(YHeader));
+            if (_points != null) Fill();
+        }
+    }
+
+    public string XHeader => StakeCoordinateTable.XHeader(_northingAsX);
+    public string YHeader => StakeCoordinateTable.YHeader(_northingAsX);
+
     /// <summary>The options changed since the last SetPreview.</summary>
     public bool IsStale => _stale;
 
@@ -204,13 +224,29 @@ public sealed class StakeTableSession : INotifyPropertyChanged
     /// <summary>The located stakes: builds the table with the preset decimals and fills the grid.</summary>
     public void SetPreview(IEnumerable<StakePoint> points)
     {
-        var list = (points ?? Enumerable.Empty<StakePoint>()).ToList();
-        Table = StakeCoordinateTable.Build(list, _options, _stationDecimals);
+        _points = (points ?? Enumerable.Empty<StakePoint>()).ToList();
+        _missingZ = Surface == null ? 0 : _points.Count(p => !p.Z.HasValue);
+        _stale = false;
+        Fill();
+    }
+
+    /// <summary>Stakes the surface gave no Z (outside it); 0 without a surface.</summary>
+    public int MissingZ => _missingZ;
+
+    private void Fill()
+    {
+        var options = new StakeTableOptions
+        {
+            XDecimals = _options.XDecimals,
+            YDecimals = _options.YDecimals,
+            ZDecimals = _options.ZDecimals,
+            IncludeZ = _options.IncludeZ,
+            NorthingAsX = _northingAsX,
+        };
+        Table = StakeCoordinateTable.Build(_points, options, _stationDecimals);
         HasZ = Table.Headers.Count == 6;
-        _missingZ = Surface == null ? 0 : list.Count(p => !p.Z.HasValue);
         PreviewRows.Clear();
         foreach (var row in Table.Rows) PreviewRows.Add(new StakePreviewRow(row, HasZ));
-        _stale = false;
         Raise(nameof(Table));
         Raise(nameof(HasZ));
         Raise(nameof(IsStale));

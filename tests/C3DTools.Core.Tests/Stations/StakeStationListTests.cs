@@ -71,4 +71,24 @@ public class StakeStationListTests
         Assert.Throws<ArgumentOutOfRangeException>(() => StakeStationList.Build(0, 100, 0, null, null));
         Assert.Throws<ArgumentException>(() => StakeStationList.Build(100, 100, 20, null, null));
     }
+
+    [Fact]
+    public void Extras_within_one_millimetre_of_each_other_give_one_stake()
+    {
+        var list = StakeStationList.Build(0, 100, 50, null, new[] { 25.0005, 25.0, 25.0009, 70.0 });
+
+        Assert.Equal(new[] { 0, 25, 50, 70, 100.0 }, list.Select(s => s.Station));
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "H1" }, list.Select(s => s.Name));
+    }
+
+    [Fact]
+    public void Curve_stakes_exactly_at_start_and_end_replace_them()
+    {
+        var list = StakeStationList.Build(0, 100, 50, new[] { Curve(0, "NĐ1"), Curve(100, "NC1") }, null);
+
+        Assert.Equal(new[] { "NĐ1", "C1", "NC1" }, list.Select(s => s.Name));
+        Assert.Equal(new[] { 0, 50, 100.0 }, list.Select(s => s.Station));
+        Assert.Equal(StakeOrigin.Curve, list[0].Origin);
+        Assert.Equal(StakeOrigin.Curve, list[2].Origin);
+    }
 }

@@ -330,11 +330,13 @@ public class StakeTableCommand
                         for (var i = 0; i < points.Count; i++)
                         {
                             var p = points[i];
+                            // COGO points keep drawing coordinates whatever the table's X/Y convention.
                             var pointId = civil.CogoPoints.Add(new Point3d(p.X, p.Y, p.Z ?? 0), p.Name, true);
                             var point = (CogoPoint)tr.GetObject(pointId, OpenMode.ForWrite);
                             try
                             {
-                                point.PointName = p.Name;
+                                // Names repeat on routes over 1 km (H1 of every km): the station makes them unique.
+                                point.PointName = p.Name + "@" + StationFormatter.Format(p.Station, 2, withKmPrefix: false);
                             }
                             catch (System.Exception)
                             {
@@ -360,6 +362,11 @@ public class StakeTableCommand
         if (session.WriteCsv) WriteFile(ed, table, "csv", "CSV", (t, path) => TableExport.WriteCsv(t, path));
         if (session.WriteXlsx) WriteFile(ed, table, "xlsx", "Excel", (t, path) => TableExport.WriteXlsx(t, path, "Toạ độ cọc"));
         if (unnamed > 0) Prompts.Say(ed, $"{unnamed} điểm COGO không đặt được tên (trùng tên điểm có sẵn); tên cọc nằm trong mô tả.");
+        if (session.MissingZ > 0)
+        {
+            var cogoZ = session.WriteCogo ? "; điểm COGO của các cọc này có Z = 0" : "";
+            Prompts.Say(ed, $"{session.MissingZ} cọc nằm ngoài mặt phủ {session.Surface}, không có Z{cogoZ}.");
+        }
         var cogoText = session.WriteCogo ? $", {cogoCount} điểm COGO" : "";
         Prompts.Say(ed, $"Hoàn thành: bảng toạ độ {table.Rows.Count} cọc{cogoText}.\n");
         return true;
@@ -373,7 +380,7 @@ public class StakeTableCommand
         {
             if (tag.Kind == TableKind && session.WriteTable)
             {
-                d.Transaction.GetObject(id, OpenMode.ForWrite).Erase();
+                d.Transaction.GetObject(id, OpenMode.ForWrite, false, true).Erase();
             }
             else if (tag.Kind == CogoKind && session.WriteCogo)
             {
@@ -383,7 +390,7 @@ public class StakeTableCommand
                 }
                 catch (System.Exception)
                 {
-                    d.Transaction.GetObject(id, OpenMode.ForWrite).Erase();
+                    d.Transaction.GetObject(id, OpenMode.ForWrite, false, true).Erase();
                 }
             }
         }
