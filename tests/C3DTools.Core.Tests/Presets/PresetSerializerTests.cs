@@ -66,6 +66,92 @@ public class PresetSerializerTests
     }
 
     [Fact]
+    public void Round_trips_the_0_3_sections()
+    {
+        var preset = new ProjectPreset();
+        preset.FontConversion.TargetFont = "Times New Roman";
+        preset.LayerMap.Add(new LayerMapRule { Pattern = "*COC*", Layer = "TK_COC", Color = 1, Linetype = "DASHED" });
+        preset.StakeTable.XDecimals = 4;
+        preset.StakeTable.IncludeZ = false;
+        preset.VerticalRules.Source = "TCVN 4054:2005";
+        preset.VerticalRules.MinRadiusCrest.Add(new SpeedValueRule { DesignSpeed = 60, Value = 2500 });
+        preset.VerticalRules.MaxGrade.Add(new SpeedValueRule { DesignSpeed = 60, Value = 7 });
+        preset.ProfileTable.Rows.RemoveAt(0);
+        preset.ProfileTable.RowHeight = 10;
+        preset.SectionTable.Rows.Add(new TableRowSpec("Note", "Ghi chú", 0));
+        preset.SheetLayout.Columns = 4;
+        preset.Vn2000.Provinces.Add(new Vn2000Province { Province = "Hà Nội", MeridianDeg = 105, MeridianMin = 0 });
+        preset.Surface.MaxEdgeLength = 80;
+        preset.Culvert.ElevationDecimals = 3;
+
+        var back = PresetSerializer.Load(PresetSerializer.Save(preset));
+
+        Assert.Equal(1, back.SchemaVersion);
+        Assert.Equal("Times New Roman", back.FontConversion.TargetFont);
+        var rule = Assert.Single(back.LayerMap);
+        Assert.Equal(("*COC*", "TK_COC", (short)1, "DASHED"), (rule.Pattern, rule.Layer, rule.Color, rule.Linetype));
+        Assert.Equal(4, back.StakeTable.XDecimals);
+        Assert.False(back.StakeTable.IncludeZ);
+        Assert.Equal("TCVN 4054:2005", back.VerticalRules.Source);
+        Assert.Equal(2500, Assert.Single(back.VerticalRules.MinRadiusCrest).Value);
+        Assert.Equal(7, Assert.Single(back.VerticalRules.MaxGrade).Value);
+        Assert.Empty(back.VerticalRules.MinRadiusSag);
+        Assert.Equal(7, back.ProfileTable.Rows.Count);   // replaced, not appended to the defaults
+        Assert.Equal("Distance", back.ProfileTable.Rows[0].Key);
+        Assert.Equal(10, back.ProfileTable.RowHeight);
+        Assert.Equal(6, back.SectionTable.Rows.Count);
+        Assert.Equal("Ghi chú", back.SectionTable.Rows[5].Label);
+        Assert.Equal(4, back.SheetLayout.Columns);
+        var province = Assert.Single(back.Vn2000.Provinces);
+        Assert.Equal(("Hà Nội", 105, 0), (province.Province, province.MeridianDeg, province.MeridianMin));
+        Assert.Equal(80, back.Surface.MaxEdgeLength);
+        Assert.Equal(3, back.Culvert.ElevationDecimals);
+    }
+
+    [Fact]
+    public void A_preset_without_the_0_3_sections_gets_their_defaults()
+    {
+        var preset = PresetSerializer.Load("{ \"SchemaVersion\": 1, \"Name\": \"A\" }");
+
+        Assert.Equal("Arial", preset.FontConversion.TargetFont);
+        Assert.Empty(preset.LayerMap);
+        Assert.Equal((3, 3, 2, true), (preset.StakeTable.XDecimals, preset.StakeTable.YDecimals, preset.StakeTable.ZDecimals, preset.StakeTable.IncludeZ));
+        Assert.Empty(preset.VerticalRules.MinRadiusCrest);
+        Assert.Empty(preset.VerticalRules.MinRadiusSag);
+        Assert.Empty(preset.VerticalRules.MinLength);
+        Assert.Empty(preset.VerticalRules.MaxGrade);
+        Assert.Equal(
+            new[] { "Tên cọc", "Khoảng cách lẻ", "Khoảng cách cộng dồn", "Lý trình", "Cao độ tự nhiên", "Cao độ thiết kế", "Chênh cao", "Độ dốc dọc" },
+            preset.ProfileTable.Rows.Select(r => r.Label));
+        Assert.Equal((8.0, 2.5), (preset.ProfileTable.RowHeight, preset.ProfileTable.TextHeight));
+        Assert.Equal(
+            new[] { "Cao độ tự nhiên", "Cao độ thiết kế", "Khoảng cách lẻ", "Diện tích đào", "Diện tích đắp" },
+            preset.SectionTable.Rows.Select(r => r.Label));
+        Assert.Equal((420.0, 297.0), (preset.SheetLayout.Width, preset.SheetLayout.Height));
+        Assert.Empty(preset.Vn2000.Provinces);
+        Assert.Equal(50, preset.Surface.MaxEdgeLength);
+        Assert.Equal(2, preset.Culvert.ElevationDecimals);
+    }
+
+    [Fact]
+    public void Default_table_rows_are_not_duplicated_by_a_round_trip()
+    {
+        var back = PresetSerializer.Load(PresetSerializer.Save(new ProjectPreset()));
+
+        Assert.Equal(8, back.ProfileTable.Rows.Count);
+        Assert.Equal(5, back.SectionTable.Rows.Count);
+    }
+
+    [Fact]
+    public void Loads_the_bundled_preset_with_default_sections()
+    {
+        var preset = PresetSerializer.Load(File.ReadAllText(Path.Combine("Resources", "tcvn4054.preset.json")));
+
+        Assert.Equal(8, preset.ProfileTable.Rows.Count);
+        Assert.Equal("Arial", preset.FontConversion.TargetFont);
+    }
+
+    [Fact]
     public void Style_keys_are_case_insensitive_after_load()
     {
         var json = "{ \"SchemaVersion\": 1, \"Name\": \"A\", \"Styles\": { \"Alignment\": \"Tim tuyến\" } }";

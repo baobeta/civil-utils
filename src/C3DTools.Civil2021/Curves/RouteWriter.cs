@@ -5,6 +5,7 @@ using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.Civil.DatabaseServices;
+using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Curves;
 using C3DTools.Core.Tables;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
@@ -81,7 +82,7 @@ internal static class RouteWriter
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
-                keep = !askToKeep || AskToKeep(ed);
+                keep = !askToKeep || Prompts.AskKeep(ed);
             }
             catch (Exception ex)
             {
@@ -123,15 +124,6 @@ internal static class RouteWriter
         }
 
         return placed;
-    }
-
-    internal static bool AskToKeep(Editor ed)
-    {
-        var options = new PromptKeywordOptions("\nGiữ kết quả? [Co/Khong]", "Co Khong") { AllowNone = true };
-        options.Keywords.Default = "Co";
-        var result = ed.GetKeywords(options);
-        if (result.Status == PromptStatus.None) return true;
-        return result.Status == PromptStatus.OK && result.StringResult == "Co";
     }
 
     /// <summary>ytc:csv: &lt;DWGPREFIX&gt;&lt;drawing name&gt;_YEUTOCONG.csv, UTF-8 with BOM.</summary>

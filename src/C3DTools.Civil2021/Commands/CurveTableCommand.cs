@@ -4,6 +4,7 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.DatabaseServices;
 using C3DTools.Civil2021.Curves;
+using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Curves;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
@@ -24,7 +25,7 @@ public class CurveTableCommand
         catch (System.Exception ex)
         {
             // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
-            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+            Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message}");
         }
     }
 
@@ -34,7 +35,7 @@ public class CurveTableCommand
         var ed = doc.Editor;
         var messages = new List<string>();
         var preset = PresetLocator.LoadForDrawing(messages);
-        foreach (var m in messages) ed.WriteMessage("\n" + m);
+        foreach (var m in messages) Prompts.Say(ed, m);
 
         var source = RouteSource.PickFirst(ed) ?? RouteSource.Prompt(ed);
         if (source == null) return;
@@ -43,7 +44,7 @@ public class CurveTableCommand
         if (design == null) return;
         if (design.Curves.Count == 0)
         {
-            ed.WriteMessage("\nTuyến không có đường cong nào: không có gì để lập bảng.");
+            Prompts.Say(ed, "Tuyến không có đường cong nào: không có gì để lập bảng.");
             return;
         }
 
@@ -60,14 +61,14 @@ public class CurveTableCommand
             {
                 var d = new RouteDrawing(tr, doc.Database, source.TagHandle);
                 CurveTableWriter.Write(d, source.Id, data, point.Value.TransformBy(ed.CurrentUserCoordinateSystem), h,
-                    m => ed.WriteMessage("\n" + m));
+                    m => Prompts.Say(ed, m));
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
-                keep = RouteWriter.AskToKeep(ed);
+                keep = Prompts.AskKeep(ed);
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage($"\nLỗi khi tạo bảng yếu tố cong: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
+                Prompts.Say(ed, $"Lỗi khi tạo bảng yếu tố cong: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
                 return;
             }
 
@@ -82,7 +83,7 @@ public class CurveTableCommand
         }
 
         RouteWriter.WriteCsv(ed, design);
-        ed.WriteMessage($"\nHoàn thành: bảng {design.Curves.Count} đường cong.\n");
+        Prompts.Say(ed, $"Hoàn thành: bảng {design.Curves.Count} đường cong.\n");
     }
 
     /// <summary>
@@ -97,7 +98,7 @@ public class CurveTableCommand
         }
         catch (System.InvalidOperationException ex)
         {
-            ed.WriteMessage("\n" + ex.Message);
+            Prompts.Say(ed, ex.Message);
             return null;
         }
 
@@ -112,7 +113,7 @@ public class CurveTableCommand
             }
             else if (YtcTag.ReadCurveInputs(tr, source.Document.Database, source.TagHandle).Count == 0)
             {
-                ed.WriteMessage("\nPolyline này chưa được CTYTC xử lý (không có thông số R, L đã lưu). Chạy CTYTC trước.");
+                Prompts.Say(ed, "Polyline này chưa được CTYTC xử lý (không có thông số R, L đã lưu). Chạy CTYTC trước.");
                 design = null;
             }
             else

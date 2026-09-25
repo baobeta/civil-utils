@@ -1,26 +1,16 @@
 using System;
 using System.ComponentModel;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Data;
-using System.Windows.Media;
 using C3DTools.Core.Curves;
-using C3DTools.Core.Tables;
 
 namespace C3DTools.Civil2021.Ui;
 
-/// <summary>What the dialog asks the command to do after it closes.</summary>
-internal enum DialogAction { Cancel, Pick, ZoomToPi, ReadWidening, Preview, Apply }
-
 /// <summary>The CTYTC grid dialog, built in code (no XAML) and bound to a CurveDesignSession.</summary>
-internal sealed class CurveDesignWindow : Window
+internal sealed class CurveDesignWindow : ToolWindow
 {
-    private static readonly Brush WarningBrush = Frozen(Color.FromRgb(0xFF, 0xF4, 0xC2));
-    private static readonly Brush ErrorBrush = Frozen(Color.FromRgb(0xFF, 0xD6, 0xD6));
-    private static readonly Brush ReadOnlyBrush = Frozen(Color.FromRgb(0xEE, 0xEE, 0xEE));
-
     private readonly CurveDesignSession _session;
     private readonly bool _isAlignment;
     private readonly DataGrid _grid;
@@ -30,28 +20,15 @@ internal sealed class CurveDesignWindow : Window
     private readonly Button _copyDown;
 
     public CurveDesignWindow(CurveDesignSession session, string sourceText, bool isAlignment, int selectedRow)
+        : base("CTYTC", "Yếu tố cong – TCVN 4054", 1100, 600, 800, 400)
     {
         _session = session ?? throw new ArgumentNullException(nameof(session));
         _isAlignment = isAlignment;
         DataContext = session;
 
-        Title = "Yếu tố cong – TCVN 4054";
-        FontFamily = new FontFamily("Segoe UI");
-        FontSize = 12;
-        Width = 1100;
-        Height = 600;
-        MinWidth = 800;
-        MinHeight = 400;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner;
-        ShowInTaskbar = false;
-
-        var root = new DockPanel { Margin = new Thickness(10) };
-
         // Top: source, start station, speed, Rmin, mode.
         var top = new StackPanel();
-        var sourceRow = Row();
-        sourceRow.Children.Add(new TextBlock { Text = "Tuyến: " + sourceText, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
-        sourceRow.Children.Add(ActionButton("Chọn trên bản vẽ…", DialogAction.Pick));
+        var sourceRow = BuildHeader("Tuyến: " + sourceText);
         sourceRow.Children.Add(Label("Lý trình đầu"));
         var start = new TextBox { Width = 90, IsReadOnly = isAlignment, VerticalContentAlignment = VerticalAlignment.Center };
         start.SetBinding(TextBox.TextProperty, NumberBinding(nameof(CurveDesignSession.StartStation), UpdateSourceTrigger.LostFocus));
@@ -81,9 +58,6 @@ internal sealed class CurveDesignWindow : Window
             mode.Children.Add(ActionButton("Đọc Wb/Wl từ Offset Alignment…", DialogAction.ReadWidening));
             top.Children.Add(mode);
         }
-
-        DockPanel.SetDock(top, Dock.Top);
-        root.Children.Add(top);
 
         // Bottom: selected row, row tools, outputs, actions.
         var bottom = new StackPanel { Margin = new Thickness(0, 6, 0, 0) };
@@ -121,35 +95,17 @@ internal sealed class CurveDesignWindow : Window
         tools.Children.Add(textHeight);
         bottom.Children.Add(tools);
 
-        var outputs = Row();
-        outputs.Children.Add(Check("Vẽ đường cong (ARC/clothoid)", nameof(CurveDesignSession.DrawCurves)));
-        _createAlignment = Check(isAlignment ? "Cập nhật Alignment Civil 3D" : "Tạo Alignment Civil 3D", nameof(CurveDesignSession.CreateAlignment));
-        outputs.Children.Add(_createAlignment);
-        outputs.Children.Add(Check("Khung", nameof(CurveDesignSession.DrawBoxes)));
-        outputs.Children.Add(Check("Cọc", nameof(CurveDesignSession.DrawStakes)));
-        outputs.Children.Add(Check("CSV", nameof(CurveDesignSession.WriteCsv)));
-        outputs.Children.Add(Check("Bảng", nameof(CurveDesignSession.WriteTable)));
+        var outputs = OutputOptions(
+            ("Vẽ đường cong (ARC/clothoid)", nameof(CurveDesignSession.DrawCurves)),
+            (isAlignment ? "Cập nhật Alignment Civil 3D" : "Tạo Alignment Civil 3D", nameof(CurveDesignSession.CreateAlignment)),
+            ("Khung", nameof(CurveDesignSession.DrawBoxes)),
+            ("Cọc", nameof(CurveDesignSession.DrawStakes)),
+            ("CSV", nameof(CurveDesignSession.WriteCsv)),
+            ("Bảng", nameof(CurveDesignSession.WriteTable)));
+        _createAlignment = (CheckBox)outputs.Children[1];
         bottom.Children.Add(outputs);
 
-        var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = false };
-        var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        summary.SetBinding(TextBlock.TextProperty, new Binding(nameof(CurveDesignSession.SummaryText)));
-        actions.Children.Add(summary);
-        var cancel = Button("Hủy", (s, e) => Finish(DialogAction.Cancel));
-        cancel.IsCancel = true;
-        var apply = ActionButton("Áp dụng", DialogAction.Apply);
-        apply.SetBinding(IsEnabledProperty, new Binding(nameof(CurveDesignSession.CanApply)));
-        var preview = ActionButton("Xem trước", DialogAction.Preview);
-        preview.SetBinding(IsEnabledProperty, new Binding(nameof(CurveDesignSession.CanApply)));
-        foreach (var b in new[] { cancel, apply, preview })
-        {
-            DockPanel.SetDock(b, Dock.Right);
-            actions.Children.Add(b);
-        }
-
-        bottom.Children.Add(actions);
-        DockPanel.SetDock(bottom, Dock.Bottom);
-        root.Children.Add(bottom);
+        bottom.Children.Add(BuildFooter(nameof(CurveDesignSession.SummaryText), nameof(CurveDesignSession.CanApply)));
 
         // Grid: one row per CurveRow.
         _grid.Columns.Add(TextColumn("Đỉnh", nameof(CurveRow.Name), false, 50));
@@ -171,9 +127,8 @@ internal sealed class CurveDesignWindow : Window
         issues.Width = new DataGridLength(1, DataGridLengthUnitType.Star);
         _grid.Columns.Add(issues);
         _grid.RowStyle = RowStyle();
-        root.Children.Add(_grid);
 
-        Content = root;
+        SetLayout(top, bottom, _grid);
 
         if (session.Rows.Count > 0) _grid.SelectedIndex = Math.Max(0, Math.Min(selectedRow, session.Rows.Count - 1));
         _session.PropertyChanged += OnSessionChanged;
@@ -181,9 +136,9 @@ internal sealed class CurveDesignWindow : Window
         UpdateMode();
     }
 
-    public DialogAction Action { get; private set; } = DialogAction.Cancel;
-
     public int SelectedRow => _grid.SelectedIndex;
+
+    protected override void CommitEdits() => CommitGrid();
 
     private void OnSessionChanged(object sender, PropertyChangedEventArgs e)
     {
@@ -209,42 +164,11 @@ internal sealed class CurveDesignWindow : Window
         _copyDown.IsEnabled = !readOnly;
     }
 
-    private void Finish(DialogAction action)
-    {
-        CommitGrid();
-        Action = action;
-        Close();
-    }
-
     private void CommitGrid()
     {
         _grid.CommitEdit(DataGridEditingUnit.Cell, true);
         _grid.CommitEdit(DataGridEditingUnit.Row, true);
     }
-
-    private Button ActionButton(string text, DialogAction action) => Button(text, (s, e) => Finish(action));
-
-    private static Button Button(string text, RoutedEventHandler click)
-    {
-        var b = new Button { Content = text, Padding = new Thickness(10, 3, 10, 3), Margin = new Thickness(0, 0, 8, 0), MinWidth = 80 };
-        b.Click += click;
-        return b;
-    }
-
-    private static StackPanel Row() => new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 2, 0, 2) };
-
-    private static TextBlock Label(string text) =>
-        new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 4, 0) };
-
-    private static CheckBox Check(string text, string path)
-    {
-        var c = new CheckBox { Content = text, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
-        c.SetBinding(ToggleButton.IsCheckedProperty, new Binding(path) { Mode = BindingMode.TwoWay });
-        return c;
-    }
-
-    private static Binding NumberBinding(string path, UpdateSourceTrigger trigger) =>
-        new Binding(path) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = trigger, Converter = NumberText.Instance };
 
     private static DataGridTextColumn TextColumn(string header, string path, bool editable, double width)
     {
@@ -269,41 +193,5 @@ internal sealed class CurveDesignWindow : Window
             style.Triggers.Add(trigger);
         }
         return style;
-    }
-
-    private static Style GreyCell()
-    {
-        var style = new Style(typeof(DataGridCell));
-        style.Setters.Add(new Setter(BackgroundProperty, ReadOnlyBrush));
-        style.Setters.Add(new Setter(ForegroundProperty, Brushes.DimGray));
-        return style;
-    }
-
-    private static Brush Frozen(Color color)
-    {
-        var brush = new SolidColorBrush(color);
-        brush.Freeze();
-        return brush;
-    }
-
-    /// <summary>double ⇄ text with InvariantCulture; accepts "2,5" like the grid does.</summary>
-    private sealed class NumberText : IValueConverter
-    {
-        public static readonly NumberText Instance = new NumberText();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
-            value is double d ? NumberFormat.Trimmed(d, 3) : "";
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) =>
-            NumberInput.TryParse(value as string, out var d) ? d : Binding.DoNothing;
-    }
-
-    private sealed class InverseBool : IValueConverter
-    {
-        public static readonly InverseBool Instance = new InverseBool();
-
-        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
-
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
     }
 }

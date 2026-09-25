@@ -3,6 +3,7 @@ using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 using C3DTools.Civil2021.Curves;
+using C3DTools.Civil2021.Ui;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
 [assembly: CommandClass(typeof(C3DTools.Civil2021.Commands.CurveStylesCommand))]
@@ -22,7 +23,7 @@ public class CurveStylesCommand
         catch (System.Exception ex)
         {
             // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
-            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage($"\nLỗi C3DTools: {ex.Message}");
+            Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message}");
         }
     }
 
@@ -35,11 +36,11 @@ public class CurveStylesCommand
         var existing = new List<string>();
         var missing = new List<string>();
         TcvnStyleImporter.Describe(CivilDocument.GetCivilDocument(db), existing, missing);
-        ed.WriteMessage(TcvnStyleImporter.TemplatePath() == null
-            ? "\nKhông có mẫu Resources\\C3DTools-TCVN.dwg: kiểu sẽ được tạo bằng mã."
-            : $"\nMẫu: {TcvnStyleImporter.TemplatePath()}");
-        ed.WriteMessage($"\nSẽ thêm: {List(missing)}; đã có (Ghi de sẽ ghi đè): {List(existing)}.");
-        ed.WriteMessage("\nViết tắt điểm hình học (PC=TĐ, PT=TC, TS=NĐ, ST=NC, SC=TĐ, CS=TC, PI=Đ, MP=P) được đặt ở cả hai lựa chọn.");
+        Prompts.Say(ed, TcvnStyleImporter.TemplatePath() == null
+            ? "Không có mẫu Resources\\C3DTools-TCVN.dwg: kiểu sẽ được tạo bằng mã."
+            : $"Mẫu: {TcvnStyleImporter.TemplatePath()}");
+        Prompts.Say(ed, $"Sẽ thêm: {List(missing)}; đã có (Ghi de sẽ ghi đè): {List(existing)}.");
+        Prompts.Say(ed, "Viết tắt điểm hình học (PC=TĐ, PT=TC, TS=NĐ, ST=NC, SC=TĐ, CS=TC, PI=Đ, MP=P) được đặt ở cả hai lựa chọn.");
 
         var options = new PromptKeywordOptions("\nNhập kiểu TCVN [ThemMoi/GhiDe/Huy]", "ThemMoi GhiDe Huy") { AllowNone = true };
         options.Keywords.Default = "ThemMoi";
@@ -53,9 +54,9 @@ public class CurveStylesCommand
         {
             try
             {
-                if (!TcvnStyleImporter.Import(tr, db, choice == "GhiDe", m => ed.WriteMessage("\n" + m)))
+                if (!TcvnStyleImporter.Import(tr, db, choice == "GhiDe", m => Prompts.Say(ed, m)))
                 {
-                    ed.WriteMessage("\nKhông nhập được kiểu TCVN. Bản vẽ không thay đổi.");
+                    Prompts.Say(ed, "Không nhập được kiểu TCVN. Bản vẽ không thay đổi.");
                     return;   // disposing without Commit aborts
                 }
 
@@ -63,12 +64,12 @@ public class CurveStylesCommand
             }
             catch (System.Exception ex)
             {
-                ed.WriteMessage($"\nLỗi khi nhập kiểu TCVN: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
+                Prompts.Say(ed, $"Lỗi khi nhập kiểu TCVN: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
                 return;
             }
         }
 
-        ed.WriteMessage("\nHoàn thành CTYTCMAU. Định dạng số (độ phút giây, 0.01) chỉnh thêm trong Label Style Composer nếu cần.\n");
+        Prompts.Say(ed, "Hoàn thành CTYTCMAU. Định dạng số (độ phút giây, 0.01) chỉnh thêm trong Label Style Composer nếu cần.\n");
     }
 
     private static string List(List<string> items) => items.Count == 0 ? "không có" : string.Join(", ", items);
