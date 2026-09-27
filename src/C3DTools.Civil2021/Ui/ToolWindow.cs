@@ -68,10 +68,54 @@ internal abstract class ToolWindow : Window
         }
     }
 
+    public static string ErrorLogPath =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "C3DTools", "error.log");
+
+    /// <summary>Appends the exception to %APPDATA%\C3DTools\error.log for bug reports. Never throws.</summary>
+    public static void LogError(string where, Exception ex)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ErrorLogPath));
+            File.AppendAllText(ErrorLogPath,
+                DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) + " " + where + Environment.NewLine + ex + Environment.NewLine + Environment.NewLine);
+        }
+        catch (Exception)
+        {
+            // Logging is a convenience.
+        }
+    }
+
     /// <summary>Shows the dialog modal to AutoCAD and returns what the user chose.</summary>
     public DialogAction ShowModal()
     {
-        AcCoreApp.ShowModalWindow(this);
+        // An exception in a handler or a binding would otherwise leave the dialog through AutoCAD's message loop.
+        System.Windows.Threading.DispatcherUnhandledExceptionEventHandler guard = (s, e) =>
+        {
+            e.Handled = true;
+            LogError(Command + " (hộp thoại)", e.Exception);
+            AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage(
+                $"\nLỗi C3DTools trong hộp thoại: {e.Exception.Message} Chi tiết: {ErrorLogPath}");
+            Action = DialogAction.Cancel;
+            try
+            {
+                Close();
+            }
+            catch (InvalidOperationException)
+            {
+                // Already closing.
+            }
+        };
+        Dispatcher.UnhandledException += guard;
+        try
+        {
+            AcCoreApp.ShowModalWindow(this);
+        }
+        finally
+        {
+            Dispatcher.UnhandledException -= guard;
+        }
+
         return Action;
     }
 

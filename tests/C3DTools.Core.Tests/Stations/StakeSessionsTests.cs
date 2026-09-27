@@ -52,6 +52,27 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void Default_range_is_valid_when_the_end_station_rounds_up()
+    {
+        var s = new StakeGenerationSession(new ProjectPreset());
+
+        s.SetSource("Alignment T1", 0.004, 4561.226, new[] { "G" });   // shown as Km0+000.00 … Km4+561.23
+
+        Assert.Equal("Km4+561.23", s.ToText);
+        Assert.True(s.IsRangeValid);
+        Assert.Equal(4561.226, s.To);
+        Assert.Equal(0.004, s.From);
+        var plan = s.Plan(null, null, null);
+        Assert.Equal(4561.226, plan[plan.Count - 1].Station);
+        Assert.All(plan, p => Assert.InRange(p.Station, 0.004, 4561.226));
+
+        s.InsertMode = true;
+        s.InsertStationsText = "Km4+561.23";
+        Assert.True(s.IsInsertValid);
+        Assert.Equal(4561.226, s.InsertStations[0]);
+    }
+
+    [Fact]
     public void New_group_needs_a_name()
     {
         var s = Loaded();

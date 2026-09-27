@@ -37,7 +37,8 @@ public class StakeCommands
         catch (System.Exception ex)
         {
             // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
-            Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message}");
+            ToolWindow.LogError("CTPHATCOC/CTDANHCOC", ex);
+            Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message} Chi tiết: {ToolWindow.ErrorLogPath}");
         }
     }
 
@@ -167,13 +168,14 @@ public class StakeCommands
                 var groupId = session.IsNewGroup
                     ? SampleLineStakes.CreateGroup(tr, alignment, session.NewGroupName)
                     : route.Groups.First(g => g.name == session.Group).id;
-                var result = SampleLineStakes.Write(tr, alignment, groupId, session.Planned, session.PlannedLabels, session.HalfWidth);
+                var result = SampleLineStakes.Write(tr, alignment, groupId, session.Planned, session.PlannedLabels, session.HalfWidth, m => Prompts.Say(ed, m));
                 tr.Commit();
                 Prompts.Say(ed, $"Hoàn thành: {SampleLineStakes.Summary(result)}. Một lệnh U hoàn tác toàn bộ.\n");
                 return true;
             }
             catch (System.Exception ex)
             {
+                ToolWindow.LogError("CTPHATCOC ghi cọc", ex);
                 Prompts.Say(ed, $"Lỗi khi phát sinh cọc: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
                 return false;
             }
@@ -195,11 +197,26 @@ public class StakeCommands
 
     private static double? PickStation(Document doc, Route route, string message)
     {
+        // Pick first, open the alignment after: no object stays open while the user pans, zooms or cancels.
+        var point = Prompts.PickPoint(doc.Editor, message);
+        if (point == null) return null;
         using (var tr = doc.TransactionManager.StartTransaction())
         {
-            var station = Prompts.PickStation(doc.Editor, (Alignment)tr.GetObject(route.Id, OpenMode.ForRead), message);
+            var alignment = (Alignment)tr.GetObject(route.Id, OpenMode.ForRead);
+            double? result = null;
+            try
+            {
+                double station = 0, offset = 0;
+                alignment.StationOffset(point.Value.X, point.Value.Y, ref station, ref offset);
+                result = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, station));
+            }
+            catch (System.Exception)
+            {
+                Prompts.Say(doc.Editor, "Điểm chọn nằm ngoài phạm vi alignment.");
+            }
+
             tr.Commit();
-            return station;
+            return result;
         }
     }
 
@@ -218,7 +235,7 @@ public class StakeCommands
                 {
                     double station = 0, offset = 0;
                     alignment.StationOffset(p.X, p.Y, ref station, ref offset);
-                    result.Add(station);
+                    result.Add(Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, station)));
                 }
                 catch (System.Exception)
                 {

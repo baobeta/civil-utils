@@ -49,7 +49,7 @@ internal sealed class AlignmentCurves
 internal static class SampleLineStakes
 {
     public static List<(ObjectId id, string name)> Groups(Transaction tr, Alignment alignment) =>
-        alignment.GetSampleLineGroupIds().Cast<ObjectId>()
+        alignment.GetSampleLineGroupIds().Cast<ObjectId>().ToList()
             .Select(id => (id, name: (tr.GetObject(id, OpenMode.ForRead) as SampleLineGroup)?.Name))
             .Where(g => g.name != null)
             .ToList();
@@ -67,16 +67,17 @@ internal static class SampleLineStakes
 
     /// <summary>
     /// Makes the group hold exactly the planned stakes: lines of removed stakes are erased, lines at kept stations are
-    /// renamed, new ones are created ±halfWidth across the alignment. Names are set in two passes so no two lines
-    /// share a name on the way.
+    /// renamed, new ones are created ±halfWidth across the alignment. Names are freed before they are reused: a line
+    /// to erase first takes a temporary name, and kept lines are renamed in two passes.
     /// </summary>
     public static (int created, int renamed, int erased, int viewsLost) Write(Transaction tr, Alignment alignment, ObjectId groupId,
-        IReadOnlyList<RouteStake> planned, IReadOnlyList<string> labels, double halfWidth)
+        IReadOnlyList<RouteStake> planned, IReadOnlyList<string> labels, double halfWidth, Action<string> warn = null)
     {
         var existing = Read(tr, groupId);
         var keep = new Dictionary<int, ObjectId>();   // planned index → line kept
         var erased = 0;
         var viewsLost = 0;
+        var stamp = DateTime.Now.Ticks.ToString(CultureInfo.InvariantCulture);
         foreach (var (id, stake) in existing)
         {
             var index = FindIndex(planned, stake.Station);
@@ -84,7 +85,8 @@ internal static class SampleLineStakes
             else
             {
                 var line = (SampleLine)tr.GetObject(id, OpenMode.ForWrite);
-                viewsLost += line.GetSectionViewIds().Count;   // erasing the line takes its section views with it
+                using (var views = line.GetSectionViewIds()) viewsLost += views.Count;   // erasing the line takes its section views with it
+                line.Name = "~x" + stamp + "-" + erased.ToString(CultureInfo.InvariantCulture);   // an erased line still holds its name until commit
                 line.Erase();
                 erased++;
             }
@@ -94,19 +96,31 @@ internal static class SampleLineStakes
         Rename(tr, keep.Values.ToList(), keep.Keys.Select(i => labels[i]).ToList());
 
         var created = 0;
+        var failed = 0;
         for (var i = 0; i < planned.Count; i++)
         {
             if (keep.ContainsKey(i)) continue;
-            var points = new Point2dCollection();
-            double x = 0, y = 0;
-            alignment.PointLocation(planned[i].Station, -halfWidth, ref x, ref y);
-            points.Add(new Point2d(x, y));
-            alignment.PointLocation(planned[i].Station, halfWidth, ref x, ref y);
-            points.Add(new Point2d(x, y));
-            SampleLine.Create(labels[i], groupId, points);
-            created++;
+            // A station a hair past the ends (rounding) would make PointLocation throw.
+            var station = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, planned[i].Station));
+            try
+            {
+                var points = new Point2dCollection();   // plain managed collection in 2021: nothing to dispose
+                double x = 0, y = 0;
+                alignment.PointLocation(station, -halfWidth, ref x, ref y);
+                points.Add(new Point2d(x, y));
+                alignment.PointLocation(station, halfWidth, ref x, ref y);
+                points.Add(new Point2d(x, y));
+                SampleLine.Create(labels[i], groupId, points);
+
+                created++;
+            }
+            catch (Exception ex)
+            {
+                if (failed++ < 5) warn?.Invoke($"Cọc {labels[i]} tại {NumberFormat.Fixed(planned[i].Station, 2)}: không tạo được ({ex.Message}); bỏ qua.");
+            }
         }
 
+        if (failed > 5) warn?.Invoke($"… và {failed - 5} cọc khác không tạo được.");
         return (created, renamed, erased, viewsLost);
     }
 

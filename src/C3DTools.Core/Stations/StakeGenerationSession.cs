@@ -61,8 +61,8 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     /// <summary>"Từ khoảng dồn": "Km0+000", "0+000" or "0".</summary>
     public string FromText { get => _fromText; set => SetText(ref _fromText, value, nameof(FromText), nameof(From), nameof(IsRangeValid)); }
     public string ToText { get => _toText; set => SetText(ref _toText, value, nameof(ToText), nameof(To), nameof(IsRangeValid)); }
-    public double From => ParseStation(_fromText);
-    public double To => ParseStation(_toText);
+    public double From => Snap(ParseStation(_fromText));
+    public double To => Snap(ParseStation(_toText));
     public bool IsRangeValid => !double.IsNaN(From) && !double.IsNaN(To) && To > From
         && From >= _start - StakePlanner.Tolerance && To <= _end + StakePlanner.Tolerance;
 
@@ -238,7 +238,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         _insertValid = true;
         foreach (var token in _insertText.Split(Separators, StringSplitOptions.RemoveEmptyEntries))
         {
-            var station = ParseStation(token);
+            var station = Snap(ParseStation(token));
             if (double.IsNaN(station) || (_hasSource && (station < _start - StakePlanner.Tolerance || station > _end + StakePlanner.Tolerance)))
             {
                 _insertValid = false;
@@ -259,6 +259,18 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         var t = text.Trim();
         if (t.IndexOf('+') >= 0) return StationFormatter.TryParse(t.Replace(',', '.'), out var s) ? s : double.NaN;
         return NumberInput.TryParse(t, out var v) ? v : double.NaN;
+    }
+
+    /// <summary>
+    /// The range fields show stations rounded to the preset decimals, so "Km4+561.23" can lie past an end at 4561.226.
+    /// A station within half a display unit of an alignment end is that end.
+    /// </summary>
+    private double Snap(double station)
+    {
+        if (double.IsNaN(station) || !_hasSource) return station;
+        var half = 0.5 * Math.Pow(10, -_stationDecimals) + 1e-9;
+        if (Math.Abs(station - _end) <= half) return _end;
+        return Math.Abs(station - _start) <= half ? _start : station;
     }
 
     private static double Positive(string text) => NumberInput.TryParse(text, out var v) && v > 0 ? v : double.NaN;
