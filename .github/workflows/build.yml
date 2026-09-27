@@ -42,8 +42,15 @@ jobs:
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create ${{ github.ref_name }}
-          artifacts/C3DTools-${{ steps.ver.outputs.version }}.zip
-          --title "C3DTools ${{ github.ref_name }}"
-          --generate-notes
+        shell: pwsh
+        # A release published from the GitHub UI creates the tag itself, so the
+        # release may already exist when this runs: attach the zip instead.
+        run: |
+          $tag = '${{ github.ref_name }}'
+          $zip = 'artifacts/C3DTools-${{ steps.ver.outputs.version }}.zip'
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            gh release upload $tag $zip --clobber
+          } else {
+            gh release create $tag $zip --title "C3DTools $tag" --generate-notes
+          }
