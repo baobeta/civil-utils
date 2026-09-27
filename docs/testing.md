@@ -165,7 +165,7 @@ Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của
   - **Cọc C bỏ qua vị trí cọc H** bật (mặc định): `C4 (80), H1 (100), C5 (120)`.
   - **Cọc C bỏ qua vị trí cọc H** tắt: vị trí cọc H vẫn được đếm, `C4 (80), H1 (100), C6 (120)`.
   - **Không tạo cọc H**: `C4 (80), C5 (100), C6 (120)`.
-- Trong đường cong, cọc theo **Khoảng cách trong đoạn cong**, cộng các cọc chủ yếu.
+- Từ 0.5.10: **Khoảng cách cọc C** là ô chọn (20, 100, hoặc gõ số khác). Cọc C chạy liên tục tới hết tuyến, **qua cả đường cong**. **Chêm thêm cọc trong đoạn cong** (mặc định tắt) thêm cọc ở các lý trình chẵn theo khoảng cách riêng giữa NĐ và NC; các cọc chủ yếu luôn có.
 
 ### Tên cọc trên bình đồ (từ 0.5.6)
 

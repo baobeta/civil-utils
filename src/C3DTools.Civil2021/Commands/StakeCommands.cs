@@ -75,6 +75,7 @@ public class StakeCommands
         {
             StraightSpacingText = memory.Get(command, "Straight", "20"),
             CurveSpacingText = memory.Get(command, "Curve", "10"),
+            DensifyCurves = memory.Get(command, "Densify", false),
             HalfWidthText = memory.Get(command, "HalfWidth", "60"),
             SubStakeStyle = memory.Get(command, "SubStake", false),
             NoHundreds = memory.Get(command, "NoH", false),
@@ -94,6 +95,7 @@ public class StakeCommands
             var action = new StakeGenerateWindow(session).ShowModal();
             memory.Set(command, "Straight", session.StraightSpacingText);
             memory.Set(command, "Curve", session.CurveSpacingText);
+            memory.Set(command, "Densify", session.DensifyCurves);
             memory.Set(command, "HalfWidth", session.HalfWidthText);
             memory.Set(command, "SubStake", session.SubStakeStyle);
             memory.Set(command, "NoH", session.NoHundreds);
@@ -170,7 +172,7 @@ public class StakeCommands
     {
         try
         {
-            ToolWindow.Trace($"CTPHATCOC: xem trước, nhóm '{session.Group ?? "(mới)"}', chèn={session.InsertMode}, từ {session.FromText} tới {session.ToText}, thẳng {session.StraightSpacingText}, cong {session.CurveSpacingText}");
+            ToolWindow.Trace($"CTPHATCOC: xem trước, nhóm '{session.Group ?? "(mới)"}', chèn={session.InsertMode}, từ {session.FromText} tới {session.ToText}, cọc C {session.StraightSpacingText} từ {session.DetailStartText}, chêm cong={session.DensifyCurves} {session.CurveSpacingText}");
             var existing = ExistingStakes(doc, route, session.Group);
             session.SetPreview(session.Plan(existing, route.Curves.Zones, route.Curves.Keys), existing);
             ToolWindow.Trace($"CTPHATCOC: xem trước xong, {session.Planned.Count} cọc ({existing.Count} cọc có sẵn)");

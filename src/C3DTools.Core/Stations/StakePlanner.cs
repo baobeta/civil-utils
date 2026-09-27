@@ -25,9 +25,9 @@ public static class StakePlanner
     private const int MaxStakes = 5000;
 
     /// <summary>
-    /// "Phát sinh": stakes on from…to. Detail stakes (C) at detailStart, detailStart + straightSpacing, … on tangents
-    /// and at round multiples of curveSpacing inside curve zones; every H (100 m) and Km; every curve key stake; the
-    /// two ends. Within 1 mm only the most important stake stays (curve key &gt; Km &gt; H &gt; detail), so no C or H
+    /// "Phát sinh": stakes on from…to. Detail stakes (C) at detailStart, detailStart + straightSpacing, … along the
+    /// whole route, curves included; every H (100 m) and Km; every curve key stake; the two ends. curveZones (optional,
+    /// "Chêm thêm cọc trong đoạn cong") adds stakes at round multiples of curveSpacing inside each zone. Within 1 mm only the most important stake stays (curve key &gt; Km &gt; H &gt; detail), so no C or H
     /// stake lies on a Km stake. Names are empty.
     /// </summary>
     /// <param name="detailStart">Station of the first C stake; null = DefaultDetailStart(straightSpacing).</param>
@@ -36,16 +36,17 @@ public static class StakePlanner
     {
         if (!(to > from)) throw new ArgumentException("Lý trình cuối phải lớn hơn lý trình đầu.", nameof(to));
         if (!(straightSpacing > 0)) throw new ArgumentOutOfRangeException(nameof(straightSpacing), "Khoảng cách trong đoạn thẳng phải lớn hơn 0.");
-        if (!(curveSpacing > 0)) throw new ArgumentOutOfRangeException(nameof(curveSpacing), "Khoảng cách trong đoạn cong phải lớn hơn 0.");
         var zones = (curveZones ?? Enumerable.Empty<StationZone>()).ToList();
-        var estimate = (to - from) / Math.Min(straightSpacing, curveSpacing);
+        if (zones.Count > 0 && !(curveSpacing > 0))
+            throw new ArgumentOutOfRangeException(nameof(curveSpacing), "Khoảng cách trong đoạn cong phải lớn hơn 0.");
+        var estimate = (to - from) / (zones.Count > 0 ? Math.Min(straightSpacing, curveSpacing) : straightSpacing);
         if (estimate > MaxStakes) throw new ArgumentException($"Quá nhiều cọc (khoảng {estimate:0}); hãy tăng khoảng cách.", nameof(straightSpacing));
 
         var candidates = new List<RouteStake> { new RouteStake(from, RoleOf(from)), new RouteStake(to, RoleOf(to)) };
         foreach (var s in Multiples(from, to, 1000)) candidates.Add(new RouteStake(s, StakeRole.Km));
         foreach (var s in Multiples(from, to, 100)) candidates.Add(new RouteStake(s, RoleOf(s)));
         var first = detailStart ?? DefaultDetailStart(straightSpacing);
-        foreach (var s in From(first, from, to, straightSpacing).Where(s => !zones.Any(z => z.Contains(s))))
+        foreach (var s in From(first, from, to, straightSpacing))
             candidates.Add(new RouteStake(s, RoleOf(s)));
         foreach (var z in zones)
             foreach (var s in Multiples(Math.Max(from, z.From), Math.Min(to, z.To), curveSpacing))

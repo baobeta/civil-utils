@@ -97,6 +97,27 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void Curve_stakes_are_off_by_default_and_need_a_spacing_when_on()
+    {
+        var s = Loaded("G");
+        var zone = new[] { new StationZone(100, 160) };
+        Assert.False(s.DensifyCurves);
+        Assert.Contains("20", StakeGenerationSession.SpacingChoices);
+        Assert.Contains("100", StakeGenerationSession.SpacingChoices);
+
+        s.CurveSpacingText = "abc";   // ignored while the option is off
+        Assert.True(s.CanApply);
+        Assert.DoesNotContain(110.0, s.Plan(null, zone, null).Select(p => p.Station));
+        Assert.Contains(120.0, s.Plan(null, zone, null).Select(p => p.Station));   // the C stake inside the curve
+
+        s.DensifyCurves = true;
+        Assert.False(s.CanApply);
+        s.CurveSpacingText = "10";
+        Assert.True(s.CanApply);
+        Assert.Contains(110.0, s.Plan(null, zone, null).Select(p => p.Station));
+    }
+
+    [Fact]
     public void H_options_change_the_generated_names()
     {
         var s = Loaded("G");

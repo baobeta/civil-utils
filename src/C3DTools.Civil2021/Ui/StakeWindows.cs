@@ -41,10 +41,11 @@ internal sealed class StakeGenerateWindow : ToolWindow
         generateBox.Children.Add(Range("Từ khoảng dồn", nameof(StakeGenerationSession.FromText), DialogAction.PickFrom));
         generateBox.Children.Add(Range("Tới khoảng dồn", nameof(StakeGenerationSession.ToText), DialogAction.PickTo));
         var spacing = Row();
-        spacing.Children.Add(Caption("Khoảng cách trong đoạn thẳng", 190));
-        spacing.Children.Add(StakeInputs.Text(nameof(StakeGenerationSession.StraightSpacingText), nameof(StakeGenerationSession.IsSpacingValid), 70));
-        spacing.Children.Add(Label("trong đoạn cong"));
-        spacing.Children.Add(StakeInputs.Text(nameof(StakeGenerationSession.CurveSpacingText), nameof(StakeGenerationSession.IsSpacingValid), 70));
+        spacing.Children.Add(Caption("Khoảng cách cọc C (m)", 190));
+        var choice = new ComboBox { Width = 90, IsEditable = true, VerticalContentAlignment = VerticalAlignment.Center, ItemsSource = StakeGenerationSession.SpacingChoices };
+        choice.SetBinding(ComboBox.TextProperty, new Binding(nameof(StakeGenerationSession.StraightSpacingText)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+        choice.ToolTip = "Chọn 20 hoặc 100, hoặc gõ khoảng cách khác. Cọc C chạy liên tục tới hết tuyến, qua cả đường cong.";
+        spacing.Children.Add(choice);
         generateBox.Children.Add(spacing);
         var start = Row();
         start.Children.Add(Caption("Cọc C bắt đầu từ lý trình", 190));
@@ -52,6 +53,14 @@ internal sealed class StakeGenerateWindow : ToolWindow
         startBox.ToolTip = "Để trống: theo khoảng cách (20 m → Km0+020, 100 m → Km0+050)";
         start.Children.Add(startBox);
         generateBox.Children.Add(start);
+        var curves = Row();
+        var densify = Check("Chêm thêm cọc trong đoạn cong, khoảng cách (m)", nameof(StakeGenerationSession.DensifyCurves));
+        densify.ToolTip = "Thêm cọc ở các lý trình chẵn theo khoảng cách này giữa NĐ và NC, ngoài các cọc C";
+        curves.Children.Add(densify);
+        var curveBox = StakeInputs.Text(nameof(StakeGenerationSession.CurveSpacingText), nameof(StakeGenerationSession.IsCurveSpacingValid), 70);
+        curveBox.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.DensifyCurves)));
+        curves.Children.Add(curveBox);
+        generateBox.Children.Add(curves);
         var hundreds = Row();
         hundreds.Children.Add(StakeInputs.SkipHundreds(nameof(StakeGenerationSession.SkipHundredPositions)));
         var noH = Check("Không tạo cọc H", nameof(StakeGenerationSession.NoHundreds));
@@ -81,7 +90,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
-                   "đánh số liên tục tới hết tuyến; cọc C, H không đặt trùng cọc Km; thêm cọc chủ yếu (NĐ, TĐ, P, TC, NC). " +
+                   "chạy và đánh số liên tục tới hết tuyến, qua cả đường cong; cọc C, H không đặt trùng cọc Km; thêm cọc chủ yếu (NĐ, TĐ, P, TC, NC). " +
                    "Dùng CTDANHCOC để đặt tên theo quy tắc khác.",
             TextWrapping = TextWrapping.Wrap,
             Foreground = System.Windows.Media.Brushes.DimGray,

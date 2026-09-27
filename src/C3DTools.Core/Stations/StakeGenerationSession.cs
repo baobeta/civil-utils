@@ -79,7 +79,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
             // Until the user types a start station it follows the spacing: 20 → 20, 100 → 50.
             if (!_detailStartEdited && !double.IsNaN(StraightSpacing))
                 _detailStartText = Tables.NumberFormat.Trimmed(StakePlanner.DefaultDetailStart(StraightSpacing), 3);
-            foreach (var n in new[] { nameof(StraightSpacingText), nameof(StraightSpacing), nameof(IsSpacingValid), nameof(DetailStartText), nameof(DetailStart), nameof(IsDetailStartValid) })
+            foreach (var n in new[] { nameof(StraightSpacingText), nameof(StraightSpacing), nameof(IsSpacingValid), nameof(IsStraightSpacingValid), nameof(DetailStartText), nameof(DetailStart), nameof(IsDetailStartValid) })
                 Raise(n);
             Stale();
         }
@@ -106,10 +106,33 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
 
     public double DetailStart => ParseStation(_detailStartText);
     public bool IsDetailStartValid => !double.IsNaN(DetailStart) && DetailStart >= 0;
-    public string CurveSpacingText { get => _curveText; set => SetText(ref _curveText, value, nameof(CurveSpacingText), nameof(CurveSpacing), nameof(IsSpacingValid)); }
+    /// <summary>Choices offered for "Khoảng cách cọc C"; any other positive number can be typed.</summary>
+    public static IReadOnlyList<string> SpacingChoices { get; } = new[] { "20", "100", "10", "25", "50" };
+
+    private bool _densifyCurves;
+
+    /// <summary>"Chêm thêm cọc trong đoạn cong": extra stakes every CurveSpacing between NĐ and NC, on top of the C stakes.</summary>
+    public bool DensifyCurves
+    {
+        get => _densifyCurves;
+        set
+        {
+            if (_densifyCurves == value) return;
+            _densifyCurves = value;
+            Raise(nameof(DensifyCurves));
+            Raise(nameof(IsSpacingValid));
+            Raise(nameof(IsCurveSpacingValid));
+            Stale();
+        }
+    }
+
+    public bool IsCurveSpacingValid => !_densifyCurves || !double.IsNaN(CurveSpacing);
+    public bool IsStraightSpacingValid => !double.IsNaN(StraightSpacing);
+
+    public string CurveSpacingText { get => _curveText; set => SetText(ref _curveText, value, nameof(CurveSpacingText), nameof(CurveSpacing), nameof(IsSpacingValid), nameof(IsCurveSpacingValid)); }
     public double StraightSpacing => Positive(_straightText);
     public double CurveSpacing => Positive(_curveText);
-    public bool IsSpacingValid => !double.IsNaN(StraightSpacing) && !double.IsNaN(CurveSpacing);
+    public bool IsSpacingValid => IsStraightSpacingValid && IsCurveSpacingValid;
 
     /// <summary>"Bề rộng nửa dải xác định trắc ngang": sample line length each side of the alignment.</summary>
     public string HalfWidthText { get => _halfWidthText; set => SetText(ref _halfWidthText, value, nameof(HalfWidthText), nameof(HalfWidth), nameof(IsHalfWidthValid)); }
@@ -304,7 +327,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         existing ??= new RouteStake[0];
         if (_insertMode) return StakePlanner.Insert(existing, _insertStations, _subStakeStyle, _stationDecimals, out _);
 
-        var generated = StakePlanner.Generate(From, To, StraightSpacing, CurveSpacing, zones, keys, DetailStart);
+        var generated = StakePlanner.Generate(From, To, StraightSpacing, _densifyCurves ? CurveSpacing : 0, _densifyCurves ? zones : null, keys, DetailStart);
         var merged = StakePlanner.Replace(existing, generated, From, To);
         var names = StakeNamer.Name(merged, NamingOptions);
         return merged.Select((s, i) => s.WithName(names[i])).ToList();

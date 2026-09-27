@@ -48,6 +48,21 @@ public class StakePlannerTests
     }
 
     [Fact]
+    public void C_stakes_run_through_curves_and_curve_stakes_are_only_added_when_asked()
+    {
+        var keys = new[] { Key(830, StakeKind.Td, 1), Key(1100, StakeKind.Tc, 1) };
+        var zone = new[] { new StationZone(830, 1100) };
+
+        var plain = StakePlanner.Generate(700, 1200, 100, 0, null, keys, detailStart: 20);
+        var dense = StakePlanner.Generate(700, 1200, 100, 50, zone, keys, detailStart: 20);
+
+        // C at 720, 820, 920, 1020, 1120: the ones inside the curve stay.
+        Assert.Equal(new[] { 700.0, 720, 800, 820, 830, 900, 920, 1000, 1020, 1100, 1120, 1200 }, plain.Select(s => s.Station));
+        Assert.Equal(new[] { "H7", "C1", "H8", "C2", "TĐ1", "H9", "C3", "Km1", "C4", "TC1", "C5", "H2" }, StakeNamer.Name(plain, new StakeNamingOptions()));
+        Assert.Equal(new[] { 850.0, 950, 1050 }, dense.Select(s => s.Station).Except(plain.Select(s => s.Station)));
+    }
+
+    [Fact]
     public void A_chosen_start_station_shifts_the_C_stakes()
     {
         var stakes = StakePlanner.Generate(0, 100, 20, 10, null, null, detailStart: 5);
@@ -99,7 +114,7 @@ public class StakePlannerTests
     [InlineData(10, 20, -5)]
     public void Invalid_input_throws(double straight, double curve, double to)
     {
-        Assert.ThrowsAny<ArgumentException>(() => StakePlanner.Generate(0, to == 0 ? 100 : to, straight, curve, null, null));
+        Assert.ThrowsAny<ArgumentException>(() => StakePlanner.Generate(0, to == 0 ? 100 : to, straight, curve, new[] { new StationZone(1, 5) }, null));
     }
 
     [Fact]
