@@ -97,6 +97,34 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
     public IReadOnlyList<string> NewNames { get; private set; } = new string[0];
     public int ChangedCount { get; private set; }
 
+    private bool _alternateSides = true, _labelStations;
+
+    /// <summary>"Tên cọc xen kẽ trái phải".</summary>
+    public bool AlternateSides
+    {
+        get => _alternateSides;
+        set
+        {
+            if (_alternateSides == value) return;
+            _alternateSides = value;
+            Raise(nameof(AlternateSides));
+        }
+    }
+
+    /// <summary>"Ghi kèm lý trình".</summary>
+    public bool LabelStations
+    {
+        get => _labelStations;
+        set
+        {
+            if (_labelStations == value) return;
+            _labelStations = value;
+            Raise(nameof(LabelStations));
+        }
+    }
+
+    public StakeLabelOptions LabelOptions => new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations };
+
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake of the group.</summary>
     public bool WriteLabels
     {

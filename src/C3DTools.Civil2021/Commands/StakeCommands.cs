@@ -78,6 +78,8 @@ public class StakeCommands
             HalfWidthText = memory.Get(command, "HalfWidth", "60"),
             SubStakeStyle = memory.Get(command, "SubStake", false),
             WriteLabels = memory.Get(command, "Labels", true),
+            AlternateSides = memory.Get(command, "Alternate", true),
+            LabelStations = memory.Get(command, "LabelStations", false),
         };
 
         Route route = null;
@@ -92,6 +94,8 @@ public class StakeCommands
             memory.Set(command, "HalfWidth", session.HalfWidthText);
             memory.Set(command, "SubStake", session.SubStakeStyle);
             memory.Set(command, "Labels", session.WriteLabels);
+            memory.Set(command, "Alternate", session.AlternateSides);
+            memory.Set(command, "LabelStations", session.LabelStations);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -191,7 +195,7 @@ public class StakeCommands
                 {
                     ToolWindow.Trace("CTPHATCOC: ghi tên cọc");
                     var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, groupId, session.Planned, session.PlannedLabels,
-                        StakeLabelWriter.TextHeight(alignment, preset), m => Prompts.Say(ed, m));
+                        StakeLabelWriter.TextHeight(alignment, preset), session.LabelOptions, m => Prompts.Say(ed, m));
                     Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
                 }
 
@@ -298,6 +302,8 @@ public class StakeCommands
             RestartPerKm = memory.Get(command, "RestartKm", true),
             NoRestartFrom100 = memory.Get(command, "No100", true),
             WriteLabels = memory.Get(command, "Labels", true),
+            AlternateSides = memory.Get(command, "Alternate", true),
+            LabelStations = memory.Get(command, "LabelStations", false),
         };
 
         StakeGroup ids = null;
@@ -316,6 +322,8 @@ public class StakeCommands
             memory.Set(command, "RestartKm", session.RestartPerKm);
             memory.Set(command, "No100", session.NoRestartFrom100);
             memory.Set(command, "Labels", session.WriteLabels);
+            memory.Set(command, "Alternate", session.AlternateSides);
+            memory.Set(command, "LabelStations", session.LabelStations);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -411,7 +419,7 @@ public class StakeCommands
                     ToolWindow.Trace("CTDANHCOC: ghi tên cọc");
                     var alignment = (Alignment)tr.GetObject(group.AlignmentId, OpenMode.ForRead);
                     var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, group.GroupId, session.Stakes, session.NewNames,
-                        StakeLabelWriter.TextHeight(alignment, preset), m => Prompts.Say(ed, m));
+                        StakeLabelWriter.TextHeight(alignment, preset), session.LabelOptions, m => Prompts.Say(ed, m));
                     Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
                 }
 

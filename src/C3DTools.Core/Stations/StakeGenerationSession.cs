@@ -98,6 +98,34 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     /// <summary>"Kiểu cọc phụ": inserted stakes are named after the stake before them (C5a).</summary>
     public bool SubStakeStyle { get => _subStakeStyle; set => SetOption(ref _subStakeStyle, value, nameof(SubStakeStyle)); }
 
+    private bool _alternateSides = true, _labelStations;
+
+    /// <summary>"Tên cọc xen kẽ trái phải".</summary>
+    public bool AlternateSides
+    {
+        get => _alternateSides;
+        set
+        {
+            if (_alternateSides == value) return;
+            _alternateSides = value;
+            Raise(nameof(AlternateSides));
+        }
+    }
+
+    /// <summary>"Ghi kèm lý trình".</summary>
+    public bool LabelStations
+    {
+        get => _labelStations;
+        set
+        {
+            if (_labelStations == value) return;
+            _labelStations = value;
+            Raise(nameof(LabelStations));
+        }
+    }
+
+    public StakeLabelOptions LabelOptions => new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations };
+
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake.</summary>
     public bool WriteLabels
     {

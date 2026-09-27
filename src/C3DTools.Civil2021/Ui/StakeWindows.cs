@@ -64,7 +64,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         insertBox.Children.Add(Check("Kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle)));
         top.Children.Add(insertBox);
 
-        top.Children.Add(Check("Ghi tên cọc lên bình đồ (vạch cọc, tên, lý trình)", nameof(StakeGenerationSession.WriteLabels)));
+        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides), nameof(StakeGenerationSession.LabelStations)));
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc chi tiết tại lý trình chẵn theo khoảng cách, thêm mọi cọc H, Km và cọc chủ yếu (NĐ, TĐ, P, TC, NC); " +
@@ -149,8 +149,8 @@ internal sealed class StakeRenameWindow : ToolWindow
         Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
         Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)));
         Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
-        Line(Check("Ghi tên cọc lên bình đồ (vạch cọc, tên, lý trình)", nameof(StakeRenameSession.WriteLabels)));
         top.Children.Add(form);
+        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides), nameof(StakeRenameSession.LabelStations)));
 
         var grid = StakeInputs.Grid(nameof(StakeRenameSession.PreviewRows),
             ("Lý trình", nameof(StakeRenameLine.Station), 120), ("Tên cũ", nameof(StakeRenameLine.OldName), 130), ("Tên mới", nameof(StakeRenameLine.NewName), 0));
@@ -176,6 +176,29 @@ internal sealed class StakeRenameWindow : ToolWindow
 /// <summary>Inputs shared by the stake dialogs.</summary>
 internal static class StakeInputs
 {
+    /// <summary>"Ghi tên cọc lên bình đồ" with its two options, which are enabled only while it is ticked.</summary>
+    public static StackPanel LabelOptions(string writePath, string alternatePath, string stationPath)
+    {
+        var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
+        var write = Box("Ghi tên cọc lên bình đồ", writePath);
+        row.Children.Add(write);
+        foreach (var (text, path) in new[] { ("Tên cọc xen kẽ trái phải", alternatePath), ("Ghi kèm lý trình", stationPath) })
+        {
+            var option = Box(text, path);
+            option.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
+            row.Children.Add(option);
+        }
+
+        return row;
+    }
+
+    private static CheckBox Box(string text, string path)
+    {
+        var box = new CheckBox { Content = text, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
+        box.SetBinding(ToggleButton.IsCheckedProperty, new Binding(path) { Mode = BindingMode.TwoWay });
+        return box;
+    }
+
     /// <summary>A text box bound as the user types; red while validPath is false.</summary>
     public static TextBox Text(string path, string validPath, double width)
     {

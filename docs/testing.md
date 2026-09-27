@@ -158,7 +158,7 @@ Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của
 
 ### Tên cọc trên bình đồ (từ 0.5.6)
 
-`CTPHATCOC` và `CTDANHCOC` có ô **Ghi tên cọc lên bình đồ** (mặc định bật): mỗi cọc có một vạch ngang tim tuyến, tên cọc và lý trình, trên layer `COC_TEN`, cỡ chữ 2.5 mm theo tỉ lệ bình đồ đã nhập ở `CTTUYEN`. Chạy lại sẽ thay chữ cũ của nhóm cọc đó. Tên ghi trên bình đồ không có hậu tố "(Km1)"; hậu tố chỉ có trong tên Sample Line, vì Civil 3D cần tên không trùng. Nếu tuyến đã có cọc chủ yếu do `CTYTC` vẽ (ô **Cọc**), các cọc NĐ, TĐ, P, TC, NC không được ghi lại để khỏi chồng chữ. Với nhóm cọc đã đánh tên từ bản cũ, chạy `CTDANHCOC` rồi **Áp dụng** để ghi tên, kể cả khi không tên nào đổi.
+`CTPHATCOC` và `CTDANHCOC` có ô **Ghi tên cọc lên bình đồ** (mặc định bật): mỗi cọc có một vạch ngang tim tuyến và tên cọc, trên layer `COC_TEN`. **Tên cọc xen kẽ trái phải** (mặc định bật, từ 0.5.7) đặt tên cọc lần lượt bên trái rồi bên phải tim tuyến; **Ghi kèm lý trình** (mặc định tắt) ghi thêm lý trình cạnh tên, dùng khi alignment không có nhãn lý trình. Chữ có cỡ chữ 2.5 mm theo tỉ lệ bình đồ đã nhập ở `CTTUYEN`. Chạy lại sẽ thay chữ cũ của nhóm cọc đó. Tên ghi trên bình đồ không có hậu tố "(Km1)"; hậu tố chỉ có trong tên Sample Line, vì Civil 3D cần tên không trùng. Nếu tuyến đã có cọc chủ yếu do `CTYTC` vẽ (ô **Cọc**), các cọc NĐ, TĐ, P, TC, NC không được ghi lại để khỏi chồng chữ. Với nhóm cọc đã đánh tên từ bản cũ, chạy `CTDANHCOC` rồi **Áp dụng** để ghi tên, kể cả khi không tên nào đổi.
 
 - [ ] Chưa kiểm tra trên Windows: vị trí, góc xoay và cỡ chữ của tên cọc; `U` một lần xoá cả chữ lẫn thay đổi Sample Line.
 

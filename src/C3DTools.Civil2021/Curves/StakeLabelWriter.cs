@@ -34,7 +34,7 @@ internal static class StakeLabelWriter
     /// (they would lie on top of each other). Returns how many stakes were labelled.
     /// </summary>
     public static int Write(Transaction tr, Database db, Alignment alignment, ObjectId groupId,
-        IReadOnlyList<RouteStake> stakes, IReadOnlyList<string> labels, double textHeight, Action<string> warn)
+        IReadOnlyList<RouteStake> stakes, IReadOnlyList<string> labels, double textHeight, StakeLabelOptions options, Action<string> warn)
     {
         var group = tr.GetObject(groupId, OpenMode.ForRead);
         var d = new TaggedDrawing(tr, db, Tool, group.Handle.ToString());
@@ -51,19 +51,13 @@ internal static class StakeLabelWriter
             try
             {
                 var station = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, stakes[i].Station));
-                var layout = RouteStakes.Layout(new Stake
-                {
-                    Kind = StakeKind.Start,
-                    Station = station,
-                    Point = MeasuredElements.Point(alignment, station),
-                    Direction = MeasuredElements.Direction(alignment, station),
-                    Side = 1,
-                }, textHeight);
+                // count, not i: skipped stakes must not break the left/right alternation.
+                var layout = StakeLabelLayout.Build(count, MeasuredElements.Point(alignment, station), MeasuredElements.Direction(alignment, station),
+                    station, StakeNamer.DisplayName(labels[i]), textHeight, options);
                 var tag = new ToolTag(Tool) { Kind = 1, Number = i + 1 };
                 d.Add(new AcLine(P3(layout.TickStart), P3(layout.TickEnd)), Layer, tag);
-                AddText(d, layout.StationText, layout.StationTextPoint, layout.Rotation, textHeight, i + 1);
-                var name = StakeNamer.DisplayName(labels[i]);
-                if (name.Length > 0) AddText(d, name, layout.NameTextPoint, layout.Rotation, textHeight, i + 1);
+                if (layout.StationText.Length > 0) AddText(d, layout.StationText, layout.StationTextPoint, layout.Rotation, textHeight, i + 1);
+                if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NameTextPoint, layout.Rotation, textHeight, i + 1);
                 count++;
             }
             catch (Exception ex)
