@@ -29,6 +29,12 @@ public sealed class StakeNamingOptions
     /// <summary>"Cọc H liên tục": detail numbers run on past H stakes (C1, C2, H1, C3). Off: C1, C2, H1, C1.</summary>
     public bool DetailContinuousThroughH { get; set; } = true;
 
+    /// <summary>
+    /// Off = "Cọc C bỏ qua vị trí cọc H" (default): an H stake takes no C number (C4, H1, C5). On: the H position is
+    /// counted, so the C number after it jumps (C4, H1, C6).
+    /// </summary>
+    public bool CountHundredPositions { get; set; }
+
     /// <summary>Off = "Không tạo cọc H": 100 m stakes are named as detail stakes.</summary>
     public bool CreateHundreds { get; set; } = true;
 
@@ -91,6 +97,7 @@ public static class StakeNamer
                 case StakeRole.Hundred when options.CreateHundreds:
                     names[i] = HundredName(s.Station);
                     if (!options.DetailContinuousThroughH) next = 1;
+                    else if (options.CountHundredPositions) next++;
                     break;
                 default:
                     names[i] = options.NameByStation

@@ -56,7 +56,7 @@ internal static class StakeLabelWriter
                 Ends((SampleLine)tr.GetObject(lineId, OpenMode.ForRead), out var a, out var b);
                 // count, not i: skipped stakes must not break the left/right alternation.
                 var layout = StakeLabelLayout.AtEnds(count, a, b, MeasuredElements.Direction(alignment, station), stakes[i].Station,
-                    StakeNamer.DisplayName(labels[i]), textHeight, options);
+                    StakeNamer.DisplayName(labels[i]), textHeight, options, stakes[i].Role);
                 if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NamePoint, layout.Rotation, textHeight, i + 1);
                 if (layout.StationText.Length > 0) AddText(d, layout.StationText, layout.StationPoint, layout.Rotation, textHeight, i + 1);
                 count++;

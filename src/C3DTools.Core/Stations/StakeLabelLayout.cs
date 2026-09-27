@@ -12,7 +12,12 @@ public sealed class StakeLabelOptions
     /// <summary>"Ghi lý trình ở đầu kia": the station at the other end of the cross-section line.</summary>
     public bool WithStation { get; set; } = true;
 
+    /// <summary>"Chỉ tại cọc Km": the station is written at Km stakes only, not at C, H or curve stakes.</summary>
+    public bool StationOnlyAtKm { get; set; } = true;
+
     public int StationDecimals { get; set; } = 2;
+
+    public bool WritesStation(StakeRole role) => WithStation && (!StationOnlyAtKm || role == StakeRole.Km);
 }
 
 /// <summary>The two texts of a stake drawn at the ends of its cross-section line, parallel to the route.</summary>
@@ -42,7 +47,7 @@ public static class StakeLabelLayout
     /// <param name="endA">One end of the cross-section line.</param>
     /// <param name="endB">The other end; which one is left is worked out from the direction.</param>
     public static StakeEndLabels AtEnds(int index, PlanPoint endA, PlanPoint endB, PlanPoint direction, double station, string name,
-        double textHeight, StakeLabelOptions options)
+        double textHeight, StakeLabelOptions options, StakeRole role = StakeRole.Km)
     {
         if (!(textHeight > 0)) throw new ArgumentOutOfRangeException(nameof(textHeight));
         options ??= new StakeLabelOptions();
@@ -65,7 +70,7 @@ public static class StakeLabelLayout
         {
             NameText = name ?? "",
             NamePoint = swap ? beyondRight : beyondLeft,
-            StationText = options.WithStation
+            StationText = options.WritesStation(role)
                 ? StationFormatter.Format(station, Math.Max(0, Math.Min(6, options.StationDecimals)), withKmPrefix: false)
                 : "",
             StationPoint = swap ? beyondLeft : beyondRight,

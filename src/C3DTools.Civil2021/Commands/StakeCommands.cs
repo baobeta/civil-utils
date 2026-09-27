@@ -77,9 +77,12 @@ public class StakeCommands
             CurveSpacingText = memory.Get(command, "Curve", "10"),
             HalfWidthText = memory.Get(command, "HalfWidth", "60"),
             SubStakeStyle = memory.Get(command, "SubStake", false),
+            NoHundreds = memory.Get(command, "NoH", false),
             WriteLabels = memory.Get(command, "Labels", true),
             AlternateSides = memory.Get(command, "AlternateEnds", false),
             LabelStations = memory.Get(command, "StationAtEnd", true),
+            StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
+            SkipHundredPositions = memory.Get(command, "SkipH", true),
         };
 
         Route route = null;
@@ -93,9 +96,12 @@ public class StakeCommands
             memory.Set(command, "Curve", session.CurveSpacingText);
             memory.Set(command, "HalfWidth", session.HalfWidthText);
             memory.Set(command, "SubStake", session.SubStakeStyle);
+            memory.Set(command, "NoH", session.NoHundreds);
             memory.Set(command, "Labels", session.WriteLabels);
             memory.Set(command, "AlternateEnds", session.AlternateSides);
             memory.Set(command, "StationAtEnd", session.LabelStations);
+            memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
+            memory.Set(command, "SkipH", session.SkipHundredPositions);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -304,6 +310,8 @@ public class StakeCommands
             WriteLabels = memory.Get(command, "Labels", true),
             AlternateSides = memory.Get(command, "AlternateEnds", false),
             LabelStations = memory.Get(command, "StationAtEnd", true),
+            StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
+            SkipHundredPositions = memory.Get(command, "SkipH", true),
         };
 
         StakeGroup ids = null;
@@ -324,6 +332,8 @@ public class StakeCommands
             memory.Set(command, "Labels", session.WriteLabels);
             memory.Set(command, "AlternateEnds", session.AlternateSides);
             memory.Set(command, "StationAtEnd", session.LabelStations);
+            memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
+            memory.Set(command, "SkipH", session.SkipHundredPositions);
             ToolWindow.SaveOptions();
 
             switch (action)

@@ -75,6 +75,14 @@ public class StakeNamerTests
     }
 
     [Fact]
+    public void Counting_H_positions_makes_the_C_number_jump_over_each_H()
+    {
+        var names = StakeNamer.Name(Straight(240), new StakeNamingOptions { CountHundredPositions = true });
+
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "H1", "C6", "C7", "C8", "C9", "H2", "C11", "C12" }, names);
+    }
+
+    [Fact]
     public void Prefix_and_first_number_apply_and_the_first_Km_keeps_them()
     {
         var names = StakeNamer.Name(Straight(60), new StakeNamingOptions { DetailPrefix = "D", FirstDetailNumber = 7 });

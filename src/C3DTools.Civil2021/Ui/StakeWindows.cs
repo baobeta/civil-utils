@@ -52,6 +52,12 @@ internal sealed class StakeGenerateWindow : ToolWindow
         startBox.ToolTip = "Để trống: theo khoảng cách (20 m → Km0+020, 100 m → Km0+050)";
         start.Children.Add(startBox);
         generateBox.Children.Add(start);
+        var hundreds = Row();
+        hundreds.Children.Add(StakeInputs.SkipHundreds(nameof(StakeGenerationSession.SkipHundredPositions)));
+        var noH = Check("Không tạo cọc H", nameof(StakeGenerationSession.NoHundreds));
+        noH.ToolTip = "Cọc tại lý trình chẵn trăm cũng là cọc C: C4 (80), C5 (100), C6 (120)";
+        hundreds.Children.Add(noH);
+        generateBox.Children.Add(hundreds);
         top.Children.Add(generateBox);
 
         var insert = new RadioButton { Content = "Chèn", GroupName = "Mode", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
@@ -70,7 +76,8 @@ internal sealed class StakeGenerateWindow : ToolWindow
         insertBox.Children.Add(Check("Kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle)));
         top.Children.Add(insertBox);
 
-        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides), nameof(StakeGenerationSession.LabelStations)));
+        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides),
+            nameof(StakeGenerationSession.LabelStations), nameof(StakeGenerationSession.StationOnlyAtKm)));
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
@@ -154,10 +161,12 @@ internal sealed class StakeRenameWindow : ToolWindow
             Text("Tiếp đầu của cọc"), StakeInputs.Text(nameof(StakeRenameSession.DetailPrefix), null, 60));
         Line(Text("Số thứ tự cọc đầu"), StakeInputs.Text(nameof(StakeRenameSession.FirstDetailNumberText), nameof(StakeRenameSession.IsFirstDetailValid), 60));
         Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
+        Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)));
         Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)));
         Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
         top.Children.Add(form);
-        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides), nameof(StakeRenameSession.LabelStations)));
+        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides),
+            nameof(StakeRenameSession.LabelStations), nameof(StakeRenameSession.StationOnlyAtKm)));
 
         var grid = StakeInputs.Grid(nameof(StakeRenameSession.PreviewRows),
             ("Lý trình", nameof(StakeRenameLine.Station), 120), ("Tên cũ", nameof(StakeRenameLine.OldName), 130), ("Tên mới", nameof(StakeRenameLine.NewName), 0));
@@ -184,20 +193,50 @@ internal sealed class StakeRenameWindow : ToolWindow
 internal static class StakeInputs
 {
     /// <summary>"Ghi tên cọc lên bình đồ" with its two options, which are enabled only while it is ticked.</summary>
-    public static StackPanel LabelOptions(string writePath, string alternatePath, string stationPath)
+    /// <summary>"Cọc C bỏ qua vị trí cọc H", with what each state gives in the tooltip.</summary>
+    public static CheckBox SkipHundreds(string path)
+    {
+        var box = Box("Cọc C bỏ qua vị trí cọc H", path);
+        box.ToolTip = "Bật: cọc H không chiếm số của cọc C — C4 (80), H1 (100), C5 (120).\nTắt: vị trí cọc H vẫn được đếm — C4 (80), H1 (100), C6 (120).";
+        return box;
+    }
+
+    public static StackPanel LabelOptions(string writePath, string alternatePath, string stationPath, string kmOnlyPath)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
         var write = Box("Ghi tên cọc lên bình đồ", writePath);
         row.Children.Add(write);
         write.ToolTip = "Tên cọc ở đầu trái trắc ngang, lý trình ở đầu phải, chữ viết dọc theo tuyến";
-        foreach (var (text, path) in new[] { ("Ghi lý trình ở đầu kia", stationPath), ("Tên cọc xen kẽ trái phải", alternatePath) })
-        {
-            var option = Box(text, path);
-            option.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
-            row.Children.Add(option);
-        }
+        var station = Box("Ghi lý trình ở đầu kia", stationPath);
+        station.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
+        row.Children.Add(station);
+        var kmOnly = Box("chỉ tại cọc Km", kmOnlyPath);
+        kmOnly.ToolTip = "Bật: chỉ cọc Km có lý trình; cọc C, H và cọc chủ yếu chỉ có tên.";
+        var both = new MultiBinding { Converter = AllTrue.Instance };
+        both.Bindings.Add(new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
+        both.Bindings.Add(new Binding(nameof(ToggleButton.IsChecked)) { Source = station });
+        kmOnly.SetBinding(UIElement.IsEnabledProperty, both);
+        row.Children.Add(kmOnly);
+        var alternate = Box("Tên cọc xen kẽ trái phải", alternatePath);
+        alternate.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
+        row.Children.Add(alternate);
 
         return row;
+    }
+
+    private sealed class AllTrue : IMultiValueConverter
+    {
+        public static readonly AllTrue Instance = new AllTrue();
+
+        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+        {
+            foreach (var v in values)
+                if (!(v is bool b && b)) return false;
+            return true;
+        }
+
+        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture) =>
+            throw new NotSupportedException();
     }
 
     private static CheckBox Box(string text, string path)

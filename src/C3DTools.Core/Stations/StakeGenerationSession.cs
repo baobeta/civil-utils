@@ -163,8 +163,38 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         }
     }
 
-    public StakeLabelOptions LabelOptions =>
-        new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations, StationDecimals = _stationDecimals };
+    private bool _stationOnlyAtKm = true;
+
+    /// <summary>"Chỉ tại cọc Km": no station at C, H and curve stakes.</summary>
+    public bool StationOnlyAtKm
+    {
+        get => _stationOnlyAtKm;
+        set
+        {
+            if (_stationOnlyAtKm == value) return;
+            _stationOnlyAtKm = value;
+            Raise(nameof(StationOnlyAtKm));
+        }
+    }
+
+    public StakeLabelOptions LabelOptions => new StakeLabelOptions
+    {
+        AlternateSides = _alternateSides, WithStation = _labelStations, StationOnlyAtKm = _stationOnlyAtKm, StationDecimals = _stationDecimals,
+    };
+
+    private bool _skipHundredPositions = true, _noHundreds;
+
+    /// <summary>"Cọc C bỏ qua vị trí cọc H": an H stake takes no C number (C4, H1, C5). Off: C4, H1, C6.</summary>
+    public bool SkipHundredPositions { get => _skipHundredPositions; set => SetOption(ref _skipHundredPositions, value, nameof(SkipHundredPositions)); }
+
+    /// <summary>"Không tạo cọc H": the 100 m stakes are C stakes (C4, C5, C6).</summary>
+    public bool NoHundreds { get => _noHundreds; set => SetOption(ref _noHundreds, value, nameof(NoHundreds)); }
+
+    /// <summary>The naming rules "Phát sinh" applies to the whole group.</summary>
+    public StakeNamingOptions NamingOptions => new StakeNamingOptions
+    {
+        StationDecimals = _stationDecimals, CountHundredPositions = !_skipHundredPositions, CreateHundreds = !_noHundreds,
+    };
 
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake.</summary>
     public bool WriteLabels
@@ -276,7 +306,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
 
         var generated = StakePlanner.Generate(From, To, StraightSpacing, CurveSpacing, zones, keys, DetailStart);
         var merged = StakePlanner.Replace(existing, generated, From, To);
-        var names = StakeNamer.Name(merged, new StakeNamingOptions { StationDecimals = _stationDecimals });
+        var names = StakeNamer.Name(merged, NamingOptions);
         return merged.Select((s, i) => s.WithName(names[i])).ToList();
     }
 

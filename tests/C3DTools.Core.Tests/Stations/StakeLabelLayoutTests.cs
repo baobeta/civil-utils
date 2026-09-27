@@ -73,6 +73,21 @@ public class StakeLabelLayoutTests
     }
 
     [Fact]
+    public void By_default_only_Km_stakes_get_a_station()
+    {
+        var options = new StakeLabelOptions();
+
+        Assert.Equal("1+000.00", StakeLabelLayout.AtEnds(0, Left, Right, East, 1000, "Km1", 2, options, StakeRole.Km).StationText);
+        Assert.Equal("", StakeLabelLayout.AtEnds(0, Left, Right, East, 100, "H1", 2, options, StakeRole.Hundred).StationText);
+        Assert.Equal("", StakeLabelLayout.AtEnds(0, Left, Right, East, 20, "C1", 2, options, StakeRole.Detail).StationText);
+        Assert.Equal("", StakeLabelLayout.AtEnds(0, Left, Right, East, 31, "TĐ1", 2, options, StakeRole.CurveKey).StationText);
+        Assert.Equal("H1", StakeLabelLayout.AtEnds(0, Left, Right, East, 100, "H1", 2, options, StakeRole.Hundred).NameText);
+
+        options.StationOnlyAtKm = false;
+        Assert.Equal("0+020.00", StakeLabelLayout.AtEnds(0, Left, Right, East, 20, "C1", 2, options, StakeRole.Detail).StationText);
+    }
+
+    [Fact]
     public void Station_can_be_left_out_and_follows_the_decimals()
     {
         Assert.Equal("", StakeLabelLayout.AtEnds(0, Left, Right, East, 100, "H1", 2, new StakeLabelOptions { WithStation = false }).StationText);

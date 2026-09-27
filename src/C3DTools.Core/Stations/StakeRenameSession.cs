@@ -123,8 +123,29 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         }
     }
 
-    public StakeLabelOptions LabelOptions =>
-        new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations, StationDecimals = _stationDecimals };
+    private bool _stationOnlyAtKm = true;
+
+    /// <summary>"Chỉ tại cọc Km": no station at C, H and curve stakes.</summary>
+    public bool StationOnlyAtKm
+    {
+        get => _stationOnlyAtKm;
+        set
+        {
+            if (_stationOnlyAtKm == value) return;
+            _stationOnlyAtKm = value;
+            Raise(nameof(StationOnlyAtKm));
+        }
+    }
+
+    public StakeLabelOptions LabelOptions => new StakeLabelOptions
+    {
+        AlternateSides = _alternateSides, WithStation = _labelStations, StationOnlyAtKm = _stationOnlyAtKm, StationDecimals = _stationDecimals,
+    };
+
+    private bool _skipHundredPositions = true;
+
+    /// <summary>"Cọc C bỏ qua vị trí cọc H": an H stake takes no C number (C4, H1, C5). Off: C4, H1, C6.</summary>
+    public bool SkipHundredPositions { get => _skipHundredPositions; set => SetFlag(ref _skipHundredPositions, value, nameof(SkipHundredPositions)); }
 
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake of the group.</summary>
     public bool WriteLabels
@@ -164,6 +185,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         NoRestartFrom100 = _noRestartFrom100,
         DetailContinuousThroughH = _continuousH,
         CreateHundreds = !_noHundreds,
+        CountHundredPositions = !_skipHundredPositions,
         NameByStation = _nameByStation,
         RenameCurveKeys = _renameCurveKeys,
         FirstPiNumber = Math.Max(1, PositiveInt(_firstPiText)),

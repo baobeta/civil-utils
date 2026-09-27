@@ -97,6 +97,22 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void H_options_change_the_generated_names()
+    {
+        var s = Loaded("G");
+        s.ToText = "140";
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "H1", "C5", "C6" }, s.Plan(null, null, null).Select(p => p.Name));
+
+        s.SkipHundredPositions = false;
+        Assert.True(s.IsStale);
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "H1", "C6", "C7" }, s.Plan(null, null, null).Select(p => p.Name));
+
+        s.NoHundreds = true;
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "C5", "C6", "C7" }, s.Plan(null, null, null).Select(p => p.Name));
+        Assert.True(s.LabelOptions.StationOnlyAtKm);
+    }
+
+    [Fact]
     public void New_group_needs_a_name()
     {
         var s = Loaded();
@@ -213,6 +229,16 @@ public class StakeRenameSessionTests
         s.ToIndex = 1;
         Assert.False(s.CanApply);
         Assert.Equal("Cọc đầu phải đứng trước cọc cuối", s.SummaryText);
+    }
+
+    [Fact]
+    public void Counting_H_positions_in_the_rename_dialog()
+    {
+        var s = Loaded();
+        s.SkipHundredPositions = false;
+        s.SetStakes("G", new List<RouteStake> { new RouteStake(80, StakeRole.Detail, "a"), new RouteStake(100, StakeRole.Hundred, "b"), new RouteStake(120, StakeRole.Detail, "c") });
+
+        Assert.Equal(new[] { "C1", "H1", "C3" }, s.NewNames);
     }
 
     [Fact]
