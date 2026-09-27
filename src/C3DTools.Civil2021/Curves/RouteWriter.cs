@@ -66,7 +66,7 @@ internal static class RouteWriter
                     if (session.PisEdited && !source.IsAlignment) MovePolylineVertices(tr, source.Id, pis);
                     // Before an update, the alignment's own curves: where its stations were, for "Dồn dịch đỉnh trắc dọc".
                     var oldCurves = source.IsAlignment && session.CreateAlignment && session.ShiftProfiles
-                        ? AsBuiltDesign.Read((Alignment)tr.GetObject(source.Id, OpenMode.ForRead), (AlignmentSource)source, design, new List<BoxSite>(), ed).Curves
+                        ? OldCurves((Alignment)tr.GetObject(source.Id, OpenMode.ForRead), (AlignmentSource)source, design)
                         : null;
                     var alignmentDone = false;
                     if (session.CreateAlignment)
@@ -139,6 +139,34 @@ internal static class RouteWriter
             WriteSuperelevationFiles(ed, SuperelevationPlanner.Table(SuperelevationPlan(session, written), session.StationDecimals), session.WriteCsv, session.WriteXlsx);
         ed.WriteMessage($"\nHoàn thành: {session.SummaryText}.\n");
         return true;
+    }
+
+    /// <summary>
+    /// The alignment's curves before an update, by PI, with measured T1/T2: what StationShift needs. Quiet, unlike
+    /// AsBuiltDesign.Read, which would compare the old alignment with the new design and warn about every difference.
+    /// </summary>
+    private static List<DesignedCurve> OldCurves(Alignment alignment, AlignmentSource source, RouteDesign design)
+    {
+        var old = new List<DesignedCurve>();
+        foreach (var c in design.Curves)
+        {
+            var g = source.GroupFor(c);
+            if (g == null) continue;
+            var m = MeasuredElements.Measure(alignment, g.StartStation, g.EndStation, g.ArcMidStation);
+            old.Add(new DesignedCurve
+            {
+                PiIndex = c.PiIndex,
+                Number = c.Number,
+                Input = c.Input,
+                Elements = new CurveElements { T1 = m.T1, T2 = m.T2, P = m.P, K = g.EndStation - g.StartStation },
+                StationStart = g.StartStation,
+                StationArcStart = g.ArcStartStation,
+                StationArcEnd = g.ArcEndStation,
+                StationEnd = g.EndStation,
+            });
+        }
+
+        return old;
     }
 
     /// <summary>Critical stations of the curves as written (measured ones in "Chỉ cắm cọc + khung").</summary>

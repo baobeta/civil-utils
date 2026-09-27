@@ -14,17 +14,31 @@ public sealed class StationShift
 {
     private readonly List<(double start, double end, double before, double after)> _spans = new List<(double, double, double, double)>();
 
-    /// <summary>Old and new curves are matched by PI index; curves without elements on either side are ignored.</summary>
+    /// <summary>
+    /// Old and new curves are matched by PI index. A curve only in the old design (removed) straightens its PI; a curve
+    /// only in the new design (added) bends a PI the old route ran straight through, at that PI's old station.
+    /// </summary>
     public StationShift(IEnumerable<DesignedCurve> oldCurves, IEnumerable<DesignedCurve> newCurves)
     {
+        var old = (oldCurves ?? Enumerable.Empty<DesignedCurve>()).Where(c => c.Elements != null).ToDictionary(c => c.PiIndex);
         var fresh = (newCurves ?? Enumerable.Empty<DesignedCurve>()).Where(c => c.Elements != null).ToDictionary(c => c.PiIndex);
         var shift = 0.0;
-        foreach (var old in (oldCurves ?? Enumerable.Empty<DesignedCurve>()).Where(c => c.Elements != null).OrderBy(c => c.StationStart))
+        foreach (var pi in old.Keys.Union(fresh.Keys).OrderBy(i => i))
         {
-            if (!fresh.TryGetValue(old.PiIndex, out var now)) continue;
+            old.TryGetValue(pi, out var was);
+            fresh.TryGetValue(pi, out var now);
             var before = shift;
-            shift += Gain(now) - Gain(old);
-            _spans.Add((old.StationStart, old.StationEnd, before, shift));
+            shift += (now == null ? 0 : Gain(now)) - (was == null ? 0 : Gain(was));
+            if (was != null)
+            {
+                _spans.Add((was.StationStart, was.StationEnd, before, shift));
+            }
+            else
+            {
+                // The new PI station minus the shift so far is where the old route passed this PI.
+                var oldPi = now.StationStart + now.Elements.T1 - before;
+                _spans.Add((oldPi, oldPi, before, shift));
+            }
         }
     }
 

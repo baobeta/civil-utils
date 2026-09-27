@@ -108,6 +108,12 @@ public class TcvnTablesTests
         Assert.Null(s.SuggestSuperelevation(0));
         Assert.False(s.Inputs[0].Superelevated);   // beyond R không siêu cao: "Không bố trí"
 
+        s.Rows[0].RadiusText = "1000";   // V60, (300, 1500]: isc = 2 % is still superelevation (mui ngược)
+        Assert.Null(s.SuggestSuperelevation(0));
+        Assert.True(s.Inputs[0].Superelevated);
+        Assert.Equal(2, s.Inputs[0].SuperRate);
+        Assert.Equal(new[] { -2.0, 2.0 }, new[] { s.SuperelevationPoints[3].LeftSlope, s.SuperelevationPoints[3].RightSlope });   // left turn: outside lane on the right
+
         s.Rows[0].SpeedText = "80";
         s.Rows[0].RadiusText = "260";
         Assert.Null(s.SuggestSuperelevation(0));

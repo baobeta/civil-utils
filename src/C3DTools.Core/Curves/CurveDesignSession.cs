@@ -237,7 +237,8 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
         if (rate == null)
             return $"Preset chưa có độ dốc siêu cao cho R = {NumberFormat.Trimmed(input.Radius, 2)} m, V = {NumberFormat.Trimmed(speed, 0)} km/h.";
 
-        input.Superelevated = rate.Value > _crossSlope;
+        // Bảng 13 lists isc = 2 % as superelevation (the outside lane is reversed); only "không làm siêu cao" (0) turns it off.
+        input.Superelevated = rate.Value > 0;
         input.SuperRate = rate.Value;
         input.RunoffOnSpiral = input.SpiralIn > 0 || input.SpiralOut > 0;
         var runoff = CurveRuleChecker.Find(_rules.MinSpiral, input.Radius, speed)?.Value;

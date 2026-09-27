@@ -125,6 +125,44 @@ public class RouteGeometryTests
         Assert.Throws<ArgumentOutOfRangeException>(() => PiEditor.SetDeflection(pis, 1, Math.PI));
     }
 
+    [Theory]
+    [InlineData(true, 40, 10)]
+    [InlineData(false, 40, 10)]
+    [InlineData(true, 0, 30)]
+    public void Direction_is_continuous_at_TD_and_TC(bool left, double l1, double l2)
+    {
+        var pis = left ? Left : Right;
+        var design = RouteDesigner.Design(pis, 0, new[] { new CurveInput { Radius = 100, SpiralIn = l1, SpiralOut = l2 } }, 60, null);
+        var route = new RouteGeometry(pis, 0, design);
+        var c = design.Curves[0];
+
+        foreach (var station in new[] { c.StationStart, c.StationArcStart, c.StationArcEnd, c.StationEnd })
+        {
+            var justBefore = route.DirectionAt(station - 1e-6);
+            var justAfter = route.DirectionAt(station + 1e-6);
+            Assert.True(Dist(justBefore, justAfter) < 1e-4, $"hướng gãy tại {station}: {Dist(justBefore, justAfter)}");
+        }
+    }
+
+    [Fact]
+    public void Station_shift_handles_a_removed_and_an_added_curve()
+    {
+        var pis = new[] { P(0, 0), P(300, 0), P(300, 300), P(600, 300) };
+        var both = RouteDesigner.Design(pis, 0, new[] { new CurveInput { Radius = 50 }, new CurveInput { Radius = 50 } }, 60, null);
+        var firstOnly = RouteDesigner.Design(pis, 0, new[] { new CurveInput { Radius = 50 }, new CurveInput { NoCurve = true } }, 60, null);
+
+        // Đ2 removed: a point 100 m before the last PI keeps its place on the ground.
+        var removed = new StationShift(both.Curves, firstOnly.Curves);
+        var oldStation = both.Curves[1].StationEnd + (300 - both.Curves[1].Elements.T2) - 100;
+        Assert.Equal(firstOnly.EndStation - 100, removed.Map(oldStation), 6);
+        Assert.Equal(firstOnly.EndStation, removed.Map(both.EndStation), 6);
+
+        // Đ2 added: the reverse mapping.
+        var added = new StationShift(firstOnly.Curves, both.Curves);
+        Assert.Equal(both.EndStation - 100, added.Map(firstOnly.EndStation - 100), 6);
+        Assert.Equal(firstOnly.Curves[0].StationEnd + 10, added.Map(firstOnly.Curves[0].StationEnd + 10), 6);   // before Đ2 nothing moves
+    }
+
     [Fact]
     public void Station_shift_moves_later_stations_by_the_chainage_change()
     {

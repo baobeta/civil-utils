@@ -94,6 +94,7 @@ public class RouteCreateCommand
                     if (created.IsNull) continue;   // not kept or failed: back to the dialog
                     if (session.OpenCurveDesign)
                     {
+                        // Runs after this command returns; the implied selection survives until then and CTYTC's PickFirst takes it.
                         ed.SetImpliedSelection(new[] { created });
                         doc.SendStringToExecute("_CTYTC ", true, false, false);
                     }
@@ -173,6 +174,8 @@ public class RouteCreateCommand
         var db = doc.Database;
         ObjectId id;
         bool keep;
+        // The section-file database outlives the transaction: ImportAssembly's clones must not point at a disposed source.
+        using (var side = OpenSectionFile(session, ed))
         using (doc.LockDocument())
         using (var tr = db.TransactionManager.StartTransaction())
         {
@@ -194,7 +197,7 @@ public class RouteCreateCommand
                     alignment.UseDesignSpeed = true;
                 });
 
-                ImportAssemblies(civil, session, alignment, ed);
+                ImportAssemblies(civil, session, alignment, side, ed);
                 RouteTag.Write(tr, db, alignment, session.Scale, session.DesignSpeed, session.Assembly);
                 if (session.Surface != null) CreateGroundProfile(tr, civil, alignment, session.Surface, layerId, ed);
 
@@ -263,38 +266,47 @@ public class RouteCreateCommand
         return styles.Count > 0 ? styles[0] : throw new InvalidOperationException("Bản vẽ thiếu Alignment Style hoặc Label Set.");
     }
 
-    /// <summary>"Tệp mặt cắt": imports the assemblies to use, below the route start. A failure only warns.</summary>
-    private static void ImportAssemblies(CivilDocument civil, RouteCreationSession session, Alignment alignment, Editor ed)
+    /// <summary>"Tệp mặt cắt" opened for reading, or null when none is needed or it cannot be read (with a message).</summary>
+    private static Database OpenSectionFile(RouteCreationSession session, Editor ed)
     {
-        var names = session.AssembliesToImport;
-        if (names.Count == 0 || string.IsNullOrEmpty(session.SectionFile)) return;
+        if (session.AssembliesToImport.Count == 0 || string.IsNullOrEmpty(session.SectionFile)) return null;
+        var side = new Database(false, true);
         try
         {
-            using (var side = new Database(false, true))
-            {
-                side.ReadDwgFile(session.SectionFile, FileOpenMode.OpenForReadAndAllShare, true, "");
-                double x = 0, y = 0;
-                alignment.PointLocation(alignment.StartingStation, 0, ref x, ref y);
-                var step = 30 * session.Scale / 1000;
-                for (var i = 0; i < names.Count; i++)
-                {
-                    try
-                    {
-                        civil.AssemblyCollection.ImportAssembly(names[i], side, names[i], new Point3d(x, y - step * (i + 2), 0));
-                    }
-                    catch (System.Exception ex)
-                    {
-                        Prompts.Say(ed, $"Không nhập được mặt cắt {names[i]}: {ex.Message}");
-                    }
-                }
-            }
-
-            Prompts.Say(ed, $"Đã nhập {names.Count} mặt cắt từ {session.SectionFile}.");
+            side.ReadDwgFile(session.SectionFile, FileOpenMode.OpenForReadAndAllShare, true, "");
+            return side;
         }
         catch (System.Exception ex)
         {
+            side.Dispose();
             Prompts.Say(ed, $"Không đọc được tệp mặt cắt: {ex.Message}");
+            return null;
         }
+    }
+
+    /// <summary>Imports the assemblies to use from the section file, below the route start. A failure only warns.</summary>
+    private static void ImportAssemblies(CivilDocument civil, RouteCreationSession session, Alignment alignment, Database side, Editor ed)
+    {
+        if (side == null) return;
+        var names = session.AssembliesToImport;
+        double x = 0, y = 0;
+        alignment.PointLocation(alignment.StartingStation, 0, ref x, ref y);
+        var step = 30 * session.Scale / 1000;
+        var done = 0;
+        for (var i = 0; i < names.Count; i++)
+        {
+            try
+            {
+                civil.AssemblyCollection.ImportAssembly(names[i], side, names[i], new Point3d(x, y - step * (i + 2), 0));
+                done++;
+            }
+            catch (System.Exception ex)
+            {
+                Prompts.Say(ed, $"Không nhập được mặt cắt {names[i]}: {ex.Message}");
+            }
+        }
+
+        if (done > 0) Prompts.Say(ed, $"Đã nhập {done} mặt cắt từ {session.SectionFile}.");
     }
 
     /// <summary>"Trắc dọc tự nhiên": a surface profile named &lt;tuyến&gt;-TN.</summary>

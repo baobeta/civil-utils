@@ -56,6 +56,7 @@ internal static class SuperelevationWriter
     public static bool Write(Transaction tr, ObjectId alignmentId, IReadOnlyList<SuperelevationPoint> points, Editor ed)
     {
         if (points.Count == 0) return true;
+        // tr comes from db.TransactionManager with the document locked (RouteWriter), so a nested transaction on the same manager is valid.
         using (var nested = tr.TransactionManager.StartTransaction())
         {
             try
@@ -134,12 +135,16 @@ internal static class ProfileShifter
                     var profile = (Profile)nested.GetObject(id, OpenMode.ForRead);
                     if (profile.ProfileType != ProfileType.FG) continue;   // surface profiles follow the alignment by themselves
                     profile.UpgradeOpen();
-                    var pvis = new List<ProfilePVI>();
-                    foreach (ProfilePVI pvi in profile.PVIs) pvis.Add(pvi);
-                    var targets = pvis.ToDictionary(p => p, p => Math.Min(alignment.EndingStation, shift.Map(p.Station)));
+                    // Read every PVI first, then move each one after re-fetching it by station/elevation, so no cached
+                    // ProfilePVI wrapper is used after the collection may have been reindexed by an earlier move.
+                    var moves = new List<(double station, double elevation, double target)>();
+                    foreach (ProfilePVI pvi in profile.PVIs)
+                        moves.Add((pvi.Station, pvi.Elevation, Math.Min(alignment.EndingStation, shift.Map(pvi.Station))));
                     // Forward moves from the last PVI back, backward moves from the first on: PVIs never pass each other.
-                    foreach (var pvi in pvis.Where(p => targets[p] > p.Station).OrderByDescending(p => p.Station)) pvi.Station = targets[pvi];
-                    foreach (var pvi in pvis.Where(p => targets[p] < p.Station).OrderBy(p => p.Station)) pvi.Station = targets[pvi];
+                    foreach (var m in moves.Where(m => m.target > m.station).OrderByDescending(m => m.station))
+                        profile.PVIs.GetPVIAt(m.station, m.elevation).Station = m.target;
+                    foreach (var m in moves.Where(m => m.target < m.station).OrderBy(m => m.station))
+                        profile.PVIs.GetPVIAt(m.station, m.elevation).Station = m.target;
                     nested.Commit();
                     moved++;
                 }

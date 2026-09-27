@@ -43,7 +43,7 @@
 | T7 | Host: tag extras, `RouteTag`, `EdgeWriter`, `SuperelevationWriter`, `ProfileShifter`, `RouteWriter` wiring, `CurveDesignWindow` detail panel | Host | done |
 | T8 | Host: `CTTUYEN` window + command, `Prompts.PickPoints/PickStation` | Host | done |
 | T9 | Host: `SampleLineStakes`, `AlignmentCurves`, `CTPHATCOC` / `CTDANHCOC` windows + commands; ribbon, `PackageContents.xml`, preset, version 0.5.0, `docs/testing.md` | Host + docs | done |
-| T10 | Independent code review and fixes | — | done (2026-09-27, no blockers; left-turn tests added) |
+| T10 | Independent code review and fixes | — | done: two rounds 2026-09-27 (fixed: isc = 2 % treated as superelevation, StationShift with added/removed curves, section-file DB lifetime, PVI re-fetch, section-view count on erase) |
 | T11 | TCVN tables for superelevation (Bảng 13) and runoff length (Bảng 14) in the preset | preset | entered from memory 2026-09-27 (`TcvnTablesTests`); engineer review of the values still open |
 | T12 | Windows verification on Civil 3D 2021 (checklist in `docs/testing.md`) | testers | open — zip published as release v0.5.0 |
 

@@ -70,19 +70,22 @@ internal static class SampleLineStakes
     /// renamed, new ones are created ±halfWidth across the alignment. Names are set in two passes so no two lines
     /// share a name on the way.
     /// </summary>
-    public static (int created, int renamed, int erased) Write(Transaction tr, Alignment alignment, ObjectId groupId,
+    public static (int created, int renamed, int erased, int viewsLost) Write(Transaction tr, Alignment alignment, ObjectId groupId,
         IReadOnlyList<RouteStake> planned, IReadOnlyList<string> labels, double halfWidth)
     {
         var existing = Read(tr, groupId);
         var keep = new Dictionary<int, ObjectId>();   // planned index → line kept
         var erased = 0;
+        var viewsLost = 0;
         foreach (var (id, stake) in existing)
         {
             var index = FindIndex(planned, stake.Station);
             if (index >= 0 && !keep.ContainsKey(index)) keep[index] = id;
             else
             {
-                tr.GetObject(id, OpenMode.ForWrite).Erase();
+                var line = (SampleLine)tr.GetObject(id, OpenMode.ForWrite);
+                viewsLost += line.GetSectionViewIds().Count;   // erasing the line takes its section views with it
+                line.Erase();
                 erased++;
             }
         }
@@ -104,7 +107,7 @@ internal static class SampleLineStakes
             created++;
         }
 
-        return (created, renamed, erased);
+        return (created, renamed, erased, viewsLost);
     }
 
     /// <summary>Renames the lines: first to temporary unique names, then to the final ones.</summary>
@@ -127,8 +130,8 @@ internal static class SampleLineStakes
         return SampleLineGroup.Create(final, alignment.ObjectId);
     }
 
-    public static string Summary((int created, int renamed, int erased) r) =>
-        $"{r.created} cọc mới, {r.renamed} cọc đổi tên, {r.erased} cọc xoá";
+    public static string Summary((int created, int renamed, int erased, int viewsLost) r) =>
+        $"{r.created} cọc mới, {r.renamed} cọc đổi tên, {r.erased} cọc xoá" + (r.viewsLost > 0 ? $" (kèm {r.viewsLost} trắc ngang đã vẽ của các cọc đó)" : "");
 
     private static int FindIndex(IReadOnlyList<RouteStake> planned, double station)
     {
