@@ -43,9 +43,9 @@
 | T7 | Host: tag extras, `RouteTag`, `EdgeWriter`, `SuperelevationWriter`, `ProfileShifter`, `RouteWriter` wiring, `CurveDesignWindow` detail panel | Host | done |
 | T8 | Host: `CTTUYEN` window + command, `Prompts.PickPoints/PickStation` | Host | done |
 | T9 | Host: `SampleLineStakes`, `AlignmentCurves`, `CTPHATCOC` / `CTDANHCOC` windows + commands; ribbon, `PackageContents.xml`, preset, version 0.5.0, `docs/testing.md` | Host + docs | done |
-| T10 | Independent code review and fixes | — | open |
-| T11 | TCVN tables for superelevation (Bảng 13) and runoff length (Bảng 14) in the preset | preset | open — needs the user |
-| T12 | Windows verification on Civil 3D 2021 (checklist in `docs/testing.md`) | testers | open |
+| T10 | Independent code review and fixes | — | done (2026-09-27, no blockers; left-turn tests added) |
+| T11 | TCVN tables for superelevation (Bảng 13) and runoff length (Bảng 14) in the preset | preset | entered from memory 2026-09-27 (`TcvnTablesTests`); engineer review of the values still open |
+| T12 | Windows verification on Civil 3D 2021 (checklist in `docs/testing.md`) | testers | open — zip published as release v0.5.0 |
 
 Each task: Core tests first; host compiles on macOS at 0 warnings (`dotnet build src/C3DTools.Civil2021 -c Release`); `dotnet test C3DTools.Core.slnf` green; commit per task `feat(core|host): …`.
 
@@ -146,7 +146,7 @@ Dispatch `code-reviewer` on `git diff main...feat/and-design-route-workflow`; fi
 
 ### Task 11: TCVN tables (open — needs the user)
 
-Enter TCVN 4054:2005 Bảng 13 (isc by V and R) into `CurveRules.Superelevation` and Bảng 14 (Lct / đoạn nối by V and R) into `CurveRules.MinSpiral` in `bundle/Resources/tcvn4054.preset.json`, reviewed by a second engineer as the Rmin table was. Until then "Tra siêu cao" reports "Preset chưa có độ dốc siêu cao …".
+Bảng 13 (isc by V and R) is in `CurveRules.Superelevation` and Bảng 14 (L by V and R) in `CurveRules.MinSpiral` of `bundle/Resources/tcvn4054.preset.json`, entered from memory and marked so in `CurveRules.Source`. `tests/C3DTools.Core.Tests/Presets/TcvnTablesTests.cs` checks completeness and consistency (contiguous ranges from 0 to R không siêu cao of Bảng 11, isc and L falling with R, isc ≤ 8 % / 7 %, lookups at Rmin). **Open:** a second engineer compares every value with the printed standard, as the Rmin table was.
 
 ### Task 12: Windows verification (open — testers)
 

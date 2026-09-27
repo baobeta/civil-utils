@@ -160,7 +160,7 @@ Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của
 
 - [ ] **Không đánh số quay lại khi TT>=100**: đang hiểu là "khi số C trong Km đã tới 100 thì Km sau đánh tiếp, không về C1". Nếu AND Design làm khác, báo lại.
 - [ ] **Tuyến kênh** (AND Design) chưa làm: cần biết quy tắc đặt tên cọc tuyến kênh.
-- [ ] Bảng **siêu cao** (TCVN 4054 Bảng 13) và **Lct / đoạn nối** (Bảng 14) trong preset đang trống: cần nhập và một kỹ sư khác soát lại, như bảng Rmin.
+- [ ] Bảng **siêu cao** (TCVN 4054 Bảng 13) và **L nối siêu cao** (Bảng 14) trong `bundle/Resources/tcvn4054.preset.json` được nhập theo trí nhớ, **chưa đối chiếu văn bản gốc**: một kỹ sư cần soát từng dải R, isc và L trước khi dùng cho hồ sơ. Từ 0.5, **Gợi ý R, L theo TCVN** cũng điền L1 = L2 từ bảng này.
 
 ### Chưa kiểm tra trên Windows (0.5)
 
