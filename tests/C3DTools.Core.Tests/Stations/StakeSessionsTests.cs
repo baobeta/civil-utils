@@ -210,6 +210,10 @@ public class StakeRenameSessionTests
 
         var unchanged = new StakeRenameSession(new ProjectPreset());
         unchanged.SetStakes("G", new[] { new RouteStake(0, StakeRole.Km, "Km0"), D(20, "C1") });
+        Assert.True(unchanged.WriteLabels);
+        Assert.True(unchanged.CanApply);   // nothing to rename, but the names can still be drawn
+        Assert.Equal("Không có tên nào thay đổi; Áp dụng sẽ ghi tên cọc lên bình đồ", unchanged.SummaryText);
+        unchanged.WriteLabels = false;
         Assert.False(unchanged.CanApply);
         Assert.Equal("Không có tên nào thay đổi", unchanged.SummaryText);
     }

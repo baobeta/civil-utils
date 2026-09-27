@@ -64,6 +64,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         insertBox.Children.Add(Check("Kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle)));
         top.Children.Add(insertBox);
 
+        top.Children.Add(Check("Ghi tên cọc lên bình đồ (vạch cọc, tên, lý trình)", nameof(StakeGenerationSession.WriteLabels)));
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc chi tiết tại lý trình chẵn theo khoảng cách, thêm mọi cọc H, Km và cọc chủ yếu (NĐ, TĐ, P, TC, NC); " +
@@ -148,6 +149,7 @@ internal sealed class StakeRenameWindow : ToolWindow
         Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
         Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)));
         Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
+        Line(Check("Ghi tên cọc lên bình đồ (vạch cọc, tên, lý trình)", nameof(StakeRenameSession.WriteLabels)));
         top.Children.Add(form);
 
         var grid = StakeInputs.Grid(nameof(StakeRenameSession.PreviewRows),

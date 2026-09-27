@@ -136,6 +136,16 @@ public class StakeNamerTests
     [InlineData(100.0004, "H1")]
     public void Hundred_names_use_the_hundreds_digit(double station, string name) => Assert.Equal(name, StakeNamer.HundredName(station));
 
+    [Theory]
+    [InlineData("H1 (Km1)", "H1")]
+    [InlineData("C3 (Km0)-2", "C3")]
+    [InlineData("TĐ5", "TĐ5")]
+    [InlineData("Km0+125.50", "Km0+125.50")]
+    [InlineData("Cầu (Km2) cũ", "Cầu (Km2) cũ")]
+    [InlineData("X (Kma)", "X (Kma)")]
+    [InlineData("", "")]
+    public void Display_name_drops_the_uniqueness_suffix(string label, string shown) => Assert.Equal(shown, StakeNamer.DisplayName(label));
+
     [Fact]
     public void Unique_labels_add_the_km_then_a_counter()
     {

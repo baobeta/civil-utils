@@ -38,6 +38,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
     private string _sourceText = "";
     private int _fromIndex, _toIndex;
     private string _keepText = "", _detailPrefix = "C", _firstDetailText = "1", _firstPiText = "1";
+    private bool _writeLabels = true;
     private bool _renameCurveKeys = true, _nameByStation, _noHundreds, _continuousH = true, _restartPerKm = true, _noRestartFrom100 = true;
 
     public StakeRenameSession(ProjectPreset preset)
@@ -96,7 +97,22 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
     public IReadOnlyList<string> NewNames { get; private set; } = new string[0];
     public int ChangedCount { get; private set; }
 
-    public bool CanApply => IsRangeValid && IsFirstPiValid && IsFirstDetailValid && ChangedCount > 0;
+    /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake of the group.</summary>
+    public bool WriteLabels
+    {
+        get => _writeLabels;
+        set
+        {
+            if (_writeLabels == value) return;
+            _writeLabels = value;
+            Raise(nameof(WriteLabels));
+            Raise(nameof(CanApply));
+            Raise(nameof(SummaryText));
+        }
+    }
+
+    /// <summary>With WriteLabels, applying is useful even when no name changes: the names get drawn.</summary>
+    public bool CanApply => IsRangeValid && IsFirstPiValid && IsFirstDetailValid && (ChangedCount > 0 || _writeLabels);
 
     public string SummaryText
     {
@@ -105,7 +121,8 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
             if (_stakes.Count == 0) return "Chưa chọn nhóm cọc";
             if (!IsRangeValid) return "Cọc đầu phải đứng trước cọc cuối";
             if (!IsFirstPiValid || !IsFirstDetailValid) return "Số thứ tự phải là số nguyên dương";
-            return ChangedCount == 0 ? "Không có tên nào thay đổi" : $"{ChangedCount} / {_stakes.Count} cọc đổi tên";
+            if (ChangedCount > 0) return $"{ChangedCount} / {_stakes.Count} cọc đổi tên";
+            return _writeLabels ? "Không có tên nào thay đổi; Áp dụng sẽ ghi tên cọc lên bình đồ" : "Không có tên nào thay đổi";
         }
     }
 

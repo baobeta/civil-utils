@@ -128,6 +128,23 @@ public static class StakeNamer
     }
 
     // AwayFromZero: Math.Round(9.5) is 10 under banker's rounding, which would turn station 950 into "H0".
+    /// <summary>
+    /// The name to print on the plan: a sample line name without the suffix UniqueLabels added ("H1 (Km1)" → "H1",
+    /// "C3 (Km0)-2" → "C3").
+    /// </summary>
+    public static string DisplayName(string label)
+    {
+        var name = (label ?? "").Trim();
+        var at = name.LastIndexOf(" (Km", StringComparison.Ordinal);
+        if (at <= 0) return name;
+        var close = name.IndexOf(')', at);
+        if (close < 0) return name;
+        var number = name.Substring(at + 4, close - at - 4);
+        var rest = name.Substring(close + 1);
+        var restOk = rest.Length == 0 || (rest[0] == '-' && rest.Length > 1 && rest.Skip(1).All(char.IsDigit));
+        return number.Length > 0 && number.All(char.IsDigit) && restOk ? name.Substring(0, at) : name;
+    }
+
     public static string KmName(double station) => "Km" + ((long)Math.Round(station / 1000.0, MidpointRounding.AwayFromZero)).ToString(CultureInfo.InvariantCulture);
 
     public static string HundredName(double station) => "H" + ((long)Math.Round(station / 100.0, MidpointRounding.AwayFromZero) % 10).ToString(CultureInfo.InvariantCulture);

@@ -45,6 +45,14 @@ public class StakeCommands
         }
     }
 
+    /// <summary>The sample line group CTDANHCOC works on: its lines in the session's order, and its alignment.</summary>
+    private sealed class StakeGroup
+    {
+        public ObjectId GroupId { get; set; }
+        public ObjectId AlignmentId { get; set; }
+        public List<ObjectId> Lines { get; set; }
+    }
+
     /// <summary>The picked alignment, its sample line groups and its curves.</summary>
     private sealed class Route
     {
@@ -69,6 +77,7 @@ public class StakeCommands
             CurveSpacingText = memory.Get(command, "Curve", "10"),
             HalfWidthText = memory.Get(command, "HalfWidth", "60"),
             SubStakeStyle = memory.Get(command, "SubStake", false),
+            WriteLabels = memory.Get(command, "Labels", true),
         };
 
         Route route = null;
@@ -82,6 +91,7 @@ public class StakeCommands
             memory.Set(command, "Curve", session.CurveSpacingText);
             memory.Set(command, "HalfWidth", session.HalfWidthText);
             memory.Set(command, "SubStake", session.SubStakeStyle);
+            memory.Set(command, "Labels", session.WriteLabels);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -107,7 +117,7 @@ public class StakeCommands
                     continue;
                 case DialogAction.Apply:
                     if (route == null || !session.CanApply || !PreviewGenerate(doc, route, session)) continue;
-                    if (WriteGenerate(doc, route, session)) return;
+                    if (WriteGenerate(doc, route, session, preset)) return;
                     continue;
                 default:
                     return;
@@ -163,7 +173,7 @@ public class StakeCommands
         }
     }
 
-    private static bool WriteGenerate(Document doc, Route route, StakeGenerationSession session)
+    private static bool WriteGenerate(Document doc, Route route, StakeGenerationSession session, ProjectPreset preset)
     {
         var ed = doc.Editor;
         ToolWindow.Trace("CTPHATCOC: bắt đầu ghi cọc");
@@ -177,6 +187,14 @@ public class StakeCommands
                     ? SampleLineStakes.CreateGroup(tr, alignment, session.NewGroupName)
                     : route.Groups.First(g => g.name == session.Group).id;
                 var result = SampleLineStakes.Write(tr, alignment, groupId, session.Planned, session.PlannedLabels, session.HalfWidth, m => Prompts.Say(ed, m));
+                if (session.WriteLabels)
+                {
+                    ToolWindow.Trace("CTPHATCOC: ghi tên cọc");
+                    var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, groupId, session.Planned, session.PlannedLabels,
+                        StakeLabelWriter.TextHeight(alignment, preset), m => Prompts.Say(ed, m));
+                    Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
+                }
+
                 ToolWindow.Trace("CTPHATCOC: commit");
                 tr.Commit();
                 ToolWindow.Trace("CTPHATCOC: commit xong, " + SampleLineStakes.Summary(result));
@@ -279,9 +297,10 @@ public class StakeCommands
             ContinuousThroughH = memory.Get(command, "ContinuousH", true),
             RestartPerKm = memory.Get(command, "RestartKm", true),
             NoRestartFrom100 = memory.Get(command, "No100", true),
+            WriteLabels = memory.Get(command, "Labels", true),
         };
 
-        List<ObjectId> ids = null;
+        StakeGroup ids = null;
         var first = PickFirst<Autodesk.AutoCAD.DatabaseServices.Entity>(ed);
         if (!first.IsNull) ids = LoadGroup(doc, preset, first, session) ?? ids;
 
@@ -296,6 +315,7 @@ public class StakeCommands
             memory.Set(command, "ContinuousH", session.ContinuousThroughH);
             memory.Set(command, "RestartKm", session.RestartPerKm);
             memory.Set(command, "No100", session.NoRestartFrom100);
+            memory.Set(command, "Labels", session.WriteLabels);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -307,7 +327,7 @@ public class StakeCommands
                 case DialogAction.Preview:
                 case DialogAction.Apply:
                     if (ids == null || !session.CanApply) continue;
-                    if (WriteRename(doc, ids, session, askToKeep: action == DialogAction.Preview)) return;
+                    if (WriteRename(doc, ids, session, preset, askToKeep: action == DialogAction.Preview)) return;
                     continue;
                 default:
                     return;
@@ -329,7 +349,7 @@ public class StakeCommands
     /// The group of a picked sample line, or of a picked alignment (asked on the command line when it has several).
     /// Fills the session; returns the sample lines in the session's order, or null with a message.
     /// </summary>
-    private static List<ObjectId> LoadGroup(Document doc, ProjectPreset preset, ObjectId picked, StakeRenameSession session)
+    private static StakeGroup LoadGroup(Document doc, ProjectPreset preset, ObjectId picked, StakeRenameSession session)
     {
         var ed = doc.Editor;
         try
@@ -365,7 +385,7 @@ public class StakeCommands
                 var curves = AlignmentCurves.Read(doc, preset, alignment);
                 tr.Commit();
                 session.SetStakes($"{groupName} ({alignment.Name}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
-                return lines.Select(l => l.id).ToList();
+                return new StakeGroup { GroupId = groupId, AlignmentId = alignment.ObjectId, Lines = lines.Select(l => l.id).ToList() };
             }
         }
         catch (System.Exception ex)
@@ -375,16 +395,26 @@ public class StakeCommands
         }
     }
 
-    private static bool WriteRename(Document doc, List<ObjectId> ids, StakeRenameSession session, bool askToKeep)
+    private static bool WriteRename(Document doc, StakeGroup group, StakeRenameSession session, ProjectPreset preset, bool askToKeep)
     {
         var ed = doc.Editor;
         bool keep;
+        ToolWindow.Trace("CTDANHCOC: bắt đầu đổi tên");
         using (doc.LockDocument())
         using (var tr = doc.Database.TransactionManager.StartTransaction())
         {
             try
             {
-                SampleLineStakes.Rename(tr, ids, session.NewNames);
+                SampleLineStakes.Rename(tr, group.Lines, session.NewNames);
+                if (session.WriteLabels)
+                {
+                    ToolWindow.Trace("CTDANHCOC: ghi tên cọc");
+                    var alignment = (Alignment)tr.GetObject(group.AlignmentId, OpenMode.ForRead);
+                    var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, group.GroupId, session.Stakes, session.NewNames,
+                        StakeLabelWriter.TextHeight(alignment, preset), m => Prompts.Say(ed, m));
+                    Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
+                }
+
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
                 keep = !askToKeep || Prompts.AskKeep(ed);

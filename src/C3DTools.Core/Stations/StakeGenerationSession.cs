@@ -34,7 +34,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
 
     private readonly int _stationDecimals;
     private string _sourceText = "";
-    private bool _hasSource, _insertMode, _subStakeStyle, _stale = true;
+    private bool _hasSource, _insertMode, _subStakeStyle, _stale = true, _writeLabels = true;
     private double _start, _end;
     private string _fromText = "", _toText = "", _straightText = "20", _curveText = "10", _halfWidthText = "60", _insertText = "", _newGroupName = "";
     private List<string> _groupNames = new List<string> { NewGroup };
@@ -97,6 +97,18 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
 
     /// <summary>"Kiểu cọc phụ": inserted stakes are named after the stake before them (C5a).</summary>
     public bool SubStakeStyle { get => _subStakeStyle; set => SetOption(ref _subStakeStyle, value, nameof(SubStakeStyle)); }
+
+    /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake.</summary>
+    public bool WriteLabels
+    {
+        get => _writeLabels;
+        set
+        {
+            if (_writeLabels == value) return;
+            _writeLabels = value;
+            Raise(nameof(WriteLabels));
+        }
+    }
 
     /// <summary>NewGroup first, then the alignment's sample line groups.</summary>
     public IReadOnlyList<string> GroupNames => _groupNames;
