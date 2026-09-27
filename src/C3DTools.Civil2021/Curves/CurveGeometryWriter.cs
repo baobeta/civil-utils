@@ -42,9 +42,10 @@ internal static class CurveGeometryWriter
     /// Tangents from the polyline, then one free curve per PI, in a nested transaction: either the whole alignment
     /// is created or nothing is. False (with a message) when it fails, so the caller draws plain geometry.
     /// </summary>
-    public static bool CreateAlignment(RouteDrawing d, ObjectId polylineId, CurveDesignSession session, Editor ed)
+    public static bool CreateAlignment(RouteDrawing d, ObjectId polylineId, CurveDesignSession session, Editor ed, out ObjectId alignmentId)
     {
         const string failed = "Không tạo được Alignment";
+        alignmentId = ObjectId.Null;
         if (!Supported(session, ed, failed)) return false;
 
         var layerId = d.LayerId(RouteDrawing.CurveLayer);
@@ -81,6 +82,7 @@ internal static class CurveGeometryWriter
         }
 
         var created = (Alignment)d.Transaction.GetObject(id, OpenMode.ForRead);
+        alignmentId = id;
         ed.WriteMessage($"\nĐã tạo Alignment {created.Name}.");
         SelfCheck(created, session.Design, ed);
         return true;
@@ -90,8 +92,9 @@ internal static class CurveGeometryWriter
     /// "Thiết kế lại cong" on an existing alignment: removes its curves and adds the designed ones between the same
     /// tangents. Everything is checked first and done in a nested transaction, so a failure leaves the alignment as it was.
     /// </summary>
-    public static bool UpdateAlignment(RouteDrawing d, ObjectId alignmentId, CurveDesignSession session, Editor ed)
+    public static bool UpdateAlignment(RouteDrawing d, ObjectId alignmentId, CurveDesignSession session, Editor ed, out ObjectId updatedId)
     {
+        updatedId = alignmentId;
         const string failed = "Không cập nhật được Alignment";
         if (!Supported(session, ed, failed)) return false;
         try

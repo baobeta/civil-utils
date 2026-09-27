@@ -211,23 +211,8 @@ public class StakeTableCommand
     /// <summary>NĐ/TĐ/P/TC/NC of the alignment's own curves (as CTYTC "Chỉ cắm cọc" reads them). A failure leaves only interval stakes.</summary>
     private static void ReadCurveStakes(Document doc, ProjectPreset preset, Alignment alignment, Route route)
     {
-        try
-        {
-            var source = new AlignmentSource(doc, route.Id, route.Handle, route.Name);
-            var curves = new CurveDesignSession(preset);
-            source.LoadInto(curves);
-            if (curves.Design == null) return;
-            var asBuilt = AsBuiltDesign.Read(alignment, source, curves.Design, new List<BoxSite>(), doc.Editor);
-            foreach (var stake in RouteStakes.FromStations(asBuilt, route.Start, route.End))
-            {
-                if (stake.Kind != StakeKind.Start && stake.Kind != StakeKind.End)
-                    route.CurveStakes.Add(new StakeStation(stake.Station, stake.Name, StakeOrigin.Curve));
-            }
-        }
-        catch (System.Exception ex)
-        {
-            Prompts.Say(doc.Editor, $"Không đọc được đường cong của tuyến ({ex.Message}); chỉ có cọc chi tiết.");
-        }
+        foreach (var key in AlignmentCurves.Read(doc, preset, alignment).Keys)
+            route.CurveStakes.Add(new StakeStation(key.Station, key.Name, StakeOrigin.Curve));
     }
 
     /// <summary>Locates the stations of the current options and puts the table in the dialog. Null when nothing could be located.</summary>

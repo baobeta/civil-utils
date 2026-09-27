@@ -68,7 +68,7 @@ internal abstract class RouteSource
             var obj = tr.GetObject(id, OpenMode.ForRead);
             RouteSource source = null;
             if (obj is AcPolyline) source = new PolylineSource(doc, id, obj.Handle.ToString());
-            else if (obj is Alignment alignment) source = new AlignmentSource(doc, id, obj.Handle.ToString(), alignment.Name);
+            else if (obj is Alignment alignment) source = new AlignmentSource(doc, id, obj.Handle.ToString(), alignment.Name) { DesignBareAlignment = true };
             tr.Commit();
             return source;
         }
@@ -127,6 +127,7 @@ internal abstract class RouteSource
             var input = inputs[row.PiIndex - 1];
             input.Wb = tag.Wb;
             input.Wl = tag.Wl;
+            CurveInputText.TryApply(tag.Extras, input);
             if (withGeometry && tag.Radius > 0)
             {
                 input.Radius = tag.Radius;
@@ -172,6 +173,7 @@ internal sealed class PolylineSource : RouteSource
             session.ReadOnlyGeometry = false;
             session.CreateAlignment = false;
             session.DrawCurves = true;
+            session.CanEditDeflection = true;
             session.Load(pis, null);
             ApplyTags(session, YtcTag.ReadCurveInputs(tr, Document.Database, TagHandle), withGeometry: true);
             tr.Commit();
@@ -193,6 +195,9 @@ internal sealed class AlignmentSource : RouteSource
 
     public override bool IsAlignment => true;
     public override string Description => $"Alignment {_name} ({_piCount} đỉnh)";
+
+    /// <summary>CTYTC: an alignment without curves opens in "Thiết kế lại cong". Off for readers (CTTOADO, CTPHATCOC).</summary>
+    public bool DesignBareAlignment { get; set; }
 
     public override void LoadInto(CurveDesignSession session)
     {
@@ -245,10 +250,26 @@ internal sealed class AlignmentSource : RouteSource
             foreach (var w in warnings) Warn(w);
             _piCount = pis.Count;
 
+            session.CanEditDeflection = false;
+            session.StartStation = alignment.StartingStation;
+            if (RouteTag.TryRead(alignment, out var scale, out _, out _) && scale > 0)
+                session.TextHeight = RouteCreationSession.PaperTextHeight * scale / 1000;
+
+            if (DesignBareAlignment && pis.Count > 2 && inputs.All(i => i.NoCurve))
+            {
+                // A bare alignment (CTTUYEN, CTALIGN): nothing to stake, so start designing its curves at once.
+                Warn("Alignment chưa có đường cong: chuyển sang Thiết kế lại cong, Áp dụng sẽ thêm đường cong vào Alignment.");
+                session.ReadOnlyGeometry = false;
+                session.CreateAlignment = true;
+                session.DrawCurves = false;
+                session.Load(pis, null);
+                tr.Commit();
+                return;
+            }
+
             session.ReadOnlyGeometry = true;   // "Chỉ cắm cọc + khung" by default, like YTCA
             session.CreateAlignment = false;
             session.DrawCurves = false;
-            session.StartStation = alignment.StartingStation;
             session.Load(pis, inputs);
             ApplyTags(session, YtcTag.ReadCurveInputs(tr, Document.Database, TagHandle), withGeometry: false);
             tr.Commit();

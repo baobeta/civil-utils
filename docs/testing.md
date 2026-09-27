@@ -120,3 +120,53 @@ Kiểm tra: chữ đúng dấu sau khi chuyển; ký hiệu như `Ø600`, `2×3`
 Liệt kê mọi layer với số đối tượng; nhập **Layer đích** (hoặc lấy từ `LayerMap` của preset) để chuyển đối tượng sang layer chuẩn, tạo layer mới với **Màu** đã nhập. Tuỳ chọn **Áp dụng cho block**, **Xoá layer rỗng**; nút **Lưu vào preset** ghi bảng vào `*.c3dtools.json` cạnh bản vẽ.
 
 Kiểm tra: đối tượng chuyển đúng layer (kể cả trên layer khoá), layer 0 trong block giữ nguyên. `U` một lần hoàn tác.
+
+## Các lệnh mới trong 0.5 — làm tuyến kiểu AND Design
+
+Bốn lệnh dưới đây đi theo trình tự làm tuyến quen thuộc: tạo tuyến → bố trí cong, siêu cao → phát sinh cọc → đánh tên cọc. Tất cả nằm ở panel **Tuyến**.
+
+### Tạo tuyến — `CTTUYEN`
+
+1. Gõ `CTTUYEN`. Nhập **Tên đường tuyến**, **Tỉ lệ bình đồ 1/…** (chiều cao chữ cọc, khung cong sẽ là 2.5 mm theo tỉ lệ này), **Mô tả**, **Lý trình đầu**, **Vận tốc thiết kế**.
+2. Chọn **Kiểu Alignment**, **Bộ nhãn**, **Layer**; chọn mặt phủ ở **Trắc dọc tự nhiên từ** nếu muốn có trắc dọc tự nhiên `<tên tuyến>-TN`.
+3. **Tệp mặt cắt (DWG)** `…`: chọn một bản vẽ có sẵn các Assembly (mặt cắt ngang mẫu). **Tải toàn bộ mặt cắt trong tệp** nhập tất cả; bỏ chọn thì chỉ nhập mặt cắt chọn ở **Mặt cắt cho tuyến**.
+4. Có tim tuyến bằng **Theo polyline…** (chọn polyline) hoặc **Chỉ điểm…** (bấm lần lượt các đỉnh, `Lui` để bỏ đỉnh vừa chọn, Enter để kết thúc).
+5. **Xem trước** → `Giữ kết quả? [Co/Khong]`, hoặc **Áp dụng**. Nếu để **Bố trí cong ngay sau khi tạo**, `CTYTC` mở ngay trên alignment mới ở chế độ **Thiết kế lại cong**.
+
+### Yếu tố cong, siêu cao, mở rộng — `CTYTC` (bổ sung)
+
+Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của tuyến) và **SC** (độ dốc siêu cao). Bên phải là khung chi tiết của dòng đang chọn, giống hộp "Hiệu chỉnh yếu tố cong và thông số siêu cao":
+
+- **< Trước / Tiếp >** chuyển đỉnh. **Góc chuyển hướng**: sửa góc tại đỉnh, phần tuyến phía sau xoay theo (chỉ khi thiết kế từ polyline; Áp dụng sẽ dời các đỉnh của polyline).
+- **Rmin tối thiểu / Rmin thông thường** + **Tra yếu tố cong**: lấy R, L, W theo bảng TCVN trong preset cho riêng đỉnh này. **A1/A2**: nhập thông số clothoid thay cho L. **Rmax / Lmax**: bán kính / chiều dài chuyển tiếp lớn nhất còn vừa giữa hai đường cong bên cạnh.
+- **Không bố trí / Siêu cao**, **i max**, **Bố trí theo chuyển tiếp**, **Mở rộng bụng / lưng**, **Nối đầu / Nối cuối** (chiều dài nối, lệch ngoài), **Tra siêu cao** (lấy isc từ bảng siêu cao của preset và chiều dài nối từ bảng Lct, một nửa đặt trên đường thẳng).
+- Ô đầu ra mới: **Polyline các đoạn nối** (mép mặt đường mở rộng trên layer `YTC_MEP`), **Siêu cao → Alignment**, **Dồn dịch đỉnh trắc dọc phía sau** (chỉ khi thiết kế lại cong trên alignment). Khi có siêu cao, ô **CSV/Excel** xuất thêm `<tên bản vẽ>_SIEUCAO.csv/.xlsx`.
+- Ô **B/2** (bề rộng nửa mặt đường) và **in (%)** (dốc ngang thường) ở hàng công cụ.
+
+### Phát sinh cọc — `CTPHATCOC`
+
+1. Gõ `CTPHATCOC`, chọn alignment. Chọn **Nhóm cọc** có sẵn hoặc **(Nhóm mới)** và đặt tên.
+2. **Phát sinh**: nhập **Từ / Tới khoảng dồn** (hoặc bấm `…` để chỉ điểm trên tuyến), **Khoảng cách trong đoạn thẳng** và **trong đoạn cong**. Cọc chi tiết đặt ở lý trình chẵn theo khoảng cách; luôn có cọc H, Km, NĐ/TĐ/P/TC/NC. Cọc ngoài khoảng giữ nguyên; tên toàn nhóm được đánh lại theo quy tắc mặc định.
+3. **Chèn**: nhập danh sách lý trình hoặc **Chỉ điểm…**; **Kiểu cọc phụ** đặt tên C5a, C5b theo cọc đứng trước, bỏ chọn thì tên là lý trình.
+4. **Xem trước** hiện danh sách cọc (mới / đổi tên / giữ); **Áp dụng** ghi Sample Line trong một bước undo.
+
+### Đánh lại tên cọc — `CTDANHCOC`
+
+1. Gõ `CTDANHCOC`, chọn một cọc (Sample Line) hoặc alignment (nếu có nhiều nhóm cọc, chọn nhóm trên dòng lệnh).
+2. Các tuỳ chọn giống AND Design: **Từ / Tới cọc**, **Để lại các cọc có tiếp đầu**, **Đánh lại cọc cắm cong, siêu cao** + **Số thứ tự đỉnh đầu**, **Tên cọc theo kiểu lý trình**, **Tiếp đầu của cọc**, **Số thứ tự cọc đầu**, **Không tạo cọc H**, **Cọc H liên tục** (số C đánh liền qua cọc H), **Thứ tự cọc quay lại theo KM**, **Không đánh số quay lại khi TT>=100**.
+3. Bảng bên dưới cập nhật ngay khi đổi tuỳ chọn (dòng vàng = đổi tên). **Xem trước** / **Áp dụng** như các lệnh khác.
+
+### Cần xác nhận khi thử
+
+- [ ] **Không đánh số quay lại khi TT>=100**: đang hiểu là "khi số C trong Km đã tới 100 thì Km sau đánh tiếp, không về C1". Nếu AND Design làm khác, báo lại.
+- [ ] **Tuyến kênh** (AND Design) chưa làm: cần biết quy tắc đặt tên cọc tuyến kênh.
+- [ ] Bảng **siêu cao** (TCVN 4054 Bảng 13) và **Lct / đoạn nối** (Bảng 14) trong preset đang trống: cần nhập và một kỹ sư khác soát lại, như bảng Rmin.
+
+### Chưa kiểm tra trên Windows (0.5)
+
+- [ ] `CTTUYEN`: tạo alignment từ điểm chỉ, đặt lý trình đầu, ghi vận tốc thiết kế, trắc dọc tự nhiên, nhập Assembly từ DWG (`ImportAssembly`)
+- [ ] `CTTUYEN` → `CTYTC` tự mở với alignment mới được chọn sẵn
+- [ ] `CTYTC` **Siêu cao → Alignment**: điểm tới hạn và độ dốc ngang trong Superelevation của alignment (xem bằng Superelevation Tabular Editor)
+- [ ] `CTYTC` **Dồn dịch đỉnh trắc dọc phía sau**: PVI của trắc dọc thiết kế dời đúng khi R thay đổi
+- [ ] `CTYTC` **Góc chuyển hướng** trên polyline: đỉnh polyline dời theo
+- [ ] `CTPHATCOC` / `CTDANHCOC`: tạo, đổi tên, xoá Sample Line trong một bước undo; tên trùng giữa các Km có hậu tố "(Km1)"

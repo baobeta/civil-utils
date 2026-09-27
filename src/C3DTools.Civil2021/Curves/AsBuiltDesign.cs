@@ -59,7 +59,7 @@ internal static class AsBuiltDesign
                 Number = c.Number,
                 Turn = g.Turn,
                 DeltaRadians = g.DeltaRadians,
-                Input = new CurveInput { Radius = g.Radius, SpiralIn = g.SpiralIn, SpiralOut = g.SpiralOut, Wb = c.Input.Wb, Wl = c.Input.Wl },
+                Input = AsBuilt(c.Input, g),
                 Elements = new CurveElements
                 {
                     T1 = m.T1,
@@ -86,6 +86,16 @@ internal static class AsBuiltDesign
         }
 
         return asBuilt;
+    }
+
+    /// <summary>The user's inputs (W, superelevation, runoffs) with R, L1, L2 as the alignment has them.</summary>
+    private static CurveInput AsBuilt(CurveInput input, CurveGroup g)
+    {
+        var copy = input.Clone();
+        copy.Radius = g.Radius;
+        copy.SpiralIn = g.SpiralIn;
+        copy.SpiralOut = g.SpiralOut;
+        return copy;
     }
 
     private static void Check(DesignedCurve computed, DesignedCurve measured, Editor ed)

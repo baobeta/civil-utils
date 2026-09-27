@@ -25,6 +25,8 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     private double _startStation;
     private bool _readOnlyGeometry, _createAlignment, _drawCurves = true, _drawBoxes = true, _drawStakes = true, _writeCsv = true, _writeXlsx, _writeTable;
     private double _textHeight;
+    private double _crossSlope, _halfWidth, _edgeStep;
+    private bool _drawEdges, _splitWidening, _suggestNormalRadius = true, _canEditDeflection, _pisEdited, _shiftProfiles, _writeSuperelevation;
 
     public CurveDesignSession(ProjectPreset preset)
     {
@@ -32,6 +34,9 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
         _rules = preset.CurveRules;
         _designSpeed = preset.DesignSpeed ?? 60;
         _textHeight = preset.CurveBox?.TextHeight ?? 2.5;
+        _crossSlope = preset.RoadSection?.CrossSlope ?? 2;
+        _halfWidth = preset.RoadSection?.PavementHalfWidth ?? 3.5;
+        _edgeStep = preset.RoadSection?.EdgeStep > 0 ? preset.RoadSection.EdgeStep : 1;
         var speeds = _rules != null && _rules.MinRadius.Count > 0
             ? _rules.MinRadius.Select(r => r.DesignSpeed)
             : FallbackSpeeds;
@@ -92,6 +97,51 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     /// <summary>Curve summary AutoCAD Table (CTYTCBANG) next to the route's last PI.</summary>
     public bool WriteTable { get => _writeTable; set => Set(ref _writeTable, value, nameof(WriteTable)); }
 
+    /// <summary>"Tạo polyline các đoạn nối": the widened pavement edges of every widened curve.</summary>
+    public bool DrawEdges { get => _drawEdges; set => Set(ref _drawEdges, value, nameof(DrawEdges)); }
+
+    /// <summary>"Siêu cao → Alignment": write the critical stations into the Civil 3D alignment (only when it is created or updated).</summary>
+    public bool WriteSuperelevation { get => _writeSuperelevation; set => Set(ref _writeSuperelevation, value, nameof(WriteSuperelevation)); }
+
+    /// <summary>"Dồn dịch đỉnh trắc dọc phía sau": move the PVIs of the alignment's layout profiles with the new stations.</summary>
+    public bool ShiftProfiles { get => _shiftProfiles; set => Set(ref _shiftProfiles, value, nameof(ShiftProfiles)); }
+
+    /// <summary>"Mở rộng phân đều khi tra": the table's widening goes half inside, half outside. Off (default, as YTC.lsp): all inside.</summary>
+    public bool SplitWidening { get => _splitWidening; set => Set(ref _splitWidening, value, nameof(SplitWidening)); }
+
+    /// <summary>"Rmin thông thường" (true) or "Rmin tối thiểu" for "Tra yếu tố cong".</summary>
+    public bool SuggestNormalRadius { get => _suggestNormalRadius; set => Set(ref _suggestNormalRadius, value, nameof(SuggestNormalRadius)); }
+
+    /// <summary>%, normal crown slope (in).</summary>
+    public double CrossSlope
+    {
+        get => _crossSlope;
+        set
+        {
+            if (_crossSlope == value || value < 0) return;
+            _crossSlope = value;
+            Raise(nameof(CrossSlope));
+            Recalculate();
+        }
+    }
+
+    /// <summary>m, B/2 for the edge polylines.</summary>
+    public double PavementHalfWidth { get => _halfWidth; set { if (value > 0) Set(ref _halfWidth, value, nameof(PavementHalfWidth)); } }
+
+    public double EdgeStep => _edgeStep;
+
+    /// <summary>Set by the host: the source is a polyline being designed, so a PI angle can be changed.</summary>
+    public bool CanEditDeflection { get => _canEditDeflection; set => Set(ref _canEditDeflection, value, nameof(CanEditDeflection)); }
+
+    /// <summary>A PI angle was changed: Áp dụng moves the polyline's vertices.</summary>
+    public bool PisEdited => _pisEdited;
+
+    /// <summary>Critical stations of every superelevated curve, in station order.</summary>
+    public List<SuperelevationPoint> SuperelevationPoints =>
+        Design == null ? new List<SuperelevationPoint>() : Design.Curves.SelectMany(c => SuperelevationPlanner.Plan(c, _crossSlope)).OrderBy(p => p.Station).ToList();
+
+    public bool HasSuperelevation => Design != null && Design.Curves.Any(c => c.Elements != null && c.Input.Superelevated);
+
     public ObservableCollection<CurveRow> Rows { get; } = new ObservableCollection<CurveRow>();
     public RouteDesign Design { get; private set; }
     public IReadOnlyList<PlanPoint> Pis => _pis;
@@ -105,7 +155,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     public string SummaryText =>
         $"{Design?.Curves.Count(c => c.Elements != null) ?? 0} đường cong, chiều dài tuyến = {NumberFormat.Trimmed(EndStation - _startStation, 2)} m";
 
-    internal int StationDecimals => _preset.StationDecimals;
+    public int StationDecimals => _preset.StationDecimals;
     internal int AngleSecondDecimals => _preset.CurveBox?.AngleSecondDecimals ?? 0;
 
     /// <summary>pis must already be de-duplicated. existingInputs: null, or one per interior PI (null entries get defaults).</summary>
@@ -117,6 +167,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
             throw new ArgumentException($"Cần {pis.Count - 2} bộ thông số cong.", nameof(existingInputs));
 
         _pis = pis.ToList();
+        _pisEdited = false;
         _inputs.Clear();
         CurveInput previous = null;
         for (var i = 1; i < pis.Count - 1; i++)
@@ -155,32 +206,94 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
     public void SuggestAll()
     {
         if (_rules != null)
-        {
-            var speedRule = SpeedRule();
             foreach (var row in Rows)
             {
-                var input = row.Input;
-                if (speedRule != null) input.Radius = speedRule.NormalRadius;
-                var spiral = CurveRuleChecker.Find(_rules.MinSpiral, input.Radius, _designSpeed);
-                if (spiral != null) input.SpiralIn = input.SpiralOut = spiral.Value;
-                input.Wb = CurveRuleChecker.Find(_rules.Widening, input.Radius, _designSpeed)?.Value ?? input.Wb;
+                Suggest(row.Input, _suggestNormalRadius);
                 row.ClearInputErrors();
             }
-        }
 
         Recalculate();
+    }
+
+    /// <summary>"Tra yếu tố cong" for one row: R from the TCVN radius table (Rmin tối thiểu or thông thường), then L and W.</summary>
+    public void SuggestRow(int rowIndex)
+    {
+        if (_rules == null || rowIndex < 0 || rowIndex >= Rows.Count) return;
+        Suggest(Rows[rowIndex].Input, _suggestNormalRadius);
+        Rows[rowIndex].ClearInputErrors();
+        Recalculate();
+    }
+
+    /// <summary>
+    /// "Tra siêu cao" for one row: isc from the table (Bảng 13) and the runoff (the spiral, or Bảng 14 length with half of
+    /// it on the tangent). Returns a message when the table has no value, else null.
+    /// </summary>
+    public string SuggestSuperelevation(int rowIndex)
+    {
+        if (rowIndex < 0 || rowIndex >= Rows.Count) return null;
+        var input = Rows[rowIndex].Input;
+        var speed = input.DesignSpeed ?? _designSpeed;
+        var rate = _rules == null ? null : CurveRuleChecker.Find(_rules.Superelevation, input.Radius, speed);
+        if (rate == null)
+            return $"Preset chưa có độ dốc siêu cao cho R = {NumberFormat.Trimmed(input.Radius, 2)} m, V = {NumberFormat.Trimmed(speed, 0)} km/h.";
+
+        input.Superelevated = rate.Value > _crossSlope;
+        input.SuperRate = rate.Value;
+        input.RunoffOnSpiral = input.SpiralIn > 0 || input.SpiralOut > 0;
+        var runoff = CurveRuleChecker.Find(_rules.MinSpiral, input.Radius, speed)?.Value;
+        if (runoff > 0)
+        {
+            input.RunoffIn = input.RunoffOut = runoff.Value;
+            input.OffsetIn = input.OffsetOut = runoff.Value / 2;
+        }
+
+        Rows[rowIndex].ClearInputErrors();
+        Recalculate();
+        return null;
+    }
+
+    /// <summary>"Hiệu chỉnh góc chuyển hướng": turns everything after the row's PI so its angle becomes degrees.</summary>
+    public void SetDeflection(int rowIndex, double degrees)
+    {
+        if (!_canEditDeflection || _readOnlyGeometry) throw new InvalidOperationException("Chỉ sửa được góc chuyển hướng khi thiết kế từ polyline.");
+        if (rowIndex < 0 || rowIndex >= Rows.Count) throw new ArgumentOutOfRangeException(nameof(rowIndex));
+        _pis = PiEditor.SetDeflection(_pis, Rows[rowIndex].PiIndex, degrees * Math.PI / 180);
+        _pisEdited = true;
+        Raise(nameof(Pis));
+        Raise(nameof(PisEdited));
+        Recalculate();
+    }
+
+    private void Suggest(CurveInput input, bool normal)
+    {
+        var speed = input.DesignSpeed ?? _designSpeed;
+        var speedRule = _rules.MinRadius.FirstOrDefault(r => r.DesignSpeed == speed);
+        if (speedRule != null) input.Radius = normal ? speedRule.NormalRadius : speedRule.MinRadius;
+        var spiral = CurveRuleChecker.Find(_rules.MinSpiral, input.Radius, speed);
+        if (spiral != null) input.SpiralIn = input.SpiralOut = spiral.Value;
+        var widening = CurveRuleChecker.Find(_rules.Widening, input.Radius, speed)?.Value;
+        if (widening != null)
+        {
+            input.Wb = _splitWidening ? widening.Value / 2 : widening.Value;
+            if (_splitWidening) input.Wl = widening.Value / 2;
+        }
     }
 
     public void Recalculate()
     {
         if (_pis.Count < 2) return;
         Design = RouteDesigner.Design(_pis, _startStation, _inputs, _designSpeed, _rules);
+        SuperelevationPlanner.Check(Design.Curves, _startStation, Design.EndStation);
         foreach (var row in Rows) row.Refresh();
         Raise(nameof(Design));
         Raise(nameof(CanApply));
         Raise(nameof(EndStation));
         Raise(nameof(SummaryText));
+        Raise(nameof(HasSuperelevation));
     }
+
+    internal double RouteSpeed => _designSpeed;
+    internal double CrossSlopeValue => _crossSlope;
 
     internal DesignedCurve CurveFor(CurveRow row) => Design.Curves[row.Index];
     internal CurveInput InputFor(CurveRow row) => _inputs[row.PiIndex - 1];
@@ -223,6 +336,9 @@ public sealed class CurveRow : INotifyPropertyChanged
         nameof(AText), nameof(Turn), nameof(RadiusText), nameof(SpiralInText), nameof(SpiralOutText),
         nameof(WbText), nameof(WlText), nameof(T1Text), nameof(T2Text), nameof(PText), nameof(KText),
         nameof(StationsText), nameof(IssueText), nameof(Severity), nameof(HasInputError),
+        nameof(SpeedText), nameof(DeflectionText), nameof(A1Text), nameof(A2Text), nameof(RmaxText), nameof(LmaxText),
+        nameof(Superelevated), nameof(SuperRateText), nameof(RunoffOnSpiral), nameof(RunoffInText), nameof(RunoffOutText),
+        nameof(OffsetInText), nameof(OffsetOutText), nameof(SuperelevationText), nameof(HeaderText),
     };
 
     private readonly CurveDesignSession _session;
@@ -280,6 +396,107 @@ public sealed class CurveRow : INotifyPropertyChanged
 
     public string IssueText => string.Join("\n", Curve.Issues.Select(i => i.Message));
 
+    // The detail panel ("Hiệu chỉnh yếu tố cong và thông số siêu cao"), bound to the selected row.
+
+    /// <summary>"Đỉnh: 1 · Đoạn trước 270.17 · Đoạn sau 252.21".</summary>
+    public string HeaderText
+    {
+        get
+        {
+            var pis = _session.Pis;
+            return $"{Name} · A = {AText} · đoạn trước {NumberFormat.Fixed(Distance(pis[PiIndex - 1], pis[PiIndex]), 2)} m · đoạn sau {NumberFormat.Fixed(Distance(pis[PiIndex], pis[PiIndex + 1]), 2)} m";
+        }
+    }
+
+    /// <summary>"Tốc độ tại đỉnh": empty = the route's speed.</summary>
+    public string SpeedText
+    {
+        get => _badText.TryGetValue(nameof(SpeedText), out var bad) ? bad : Input.DesignSpeed.HasValue ? NumberFormat.Trimmed(Input.DesignSpeed.Value, 0) : "";
+        set
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                _badText.Remove(nameof(SpeedText));
+                Input.DesignSpeed = null;
+                _session.Recalculate();
+                return;
+            }
+
+            Set(nameof(SpeedText), value, v => Input.DesignSpeed = v, v => v > 0);
+        }
+    }
+
+    /// <summary>"Hiệu chỉnh góc chuyển hướng": the deflection in decimal degrees; setting it turns the route after this PI.</summary>
+    public string DeflectionText
+    {
+        get => _badText.TryGetValue(nameof(DeflectionText), out var bad) ? bad : NumberFormat.Trimmed(Curve.DeltaRadians * 180 / Math.PI, 6);
+        set => Set(nameof(DeflectionText), value, v => _session.SetDeflection(Index, v), v => v > 0 && v < 180 && _session.CanEditDeflection && !_session.ReadOnlyGeometry);
+    }
+
+    /// <summary>"Nhập thông số A": A = √(R·L); typing A sets L = A²/R.</summary>
+    public string A1Text { get => Text(nameof(A1Text), CurveLimits.SpiralParameter(Input.Radius, Input.SpiralIn)); set => Set(nameof(A1Text), value, v => Input.SpiralIn = CurveLimits.SpiralLength(Input.Radius, v)); }
+    public string A2Text { get => Text(nameof(A2Text), CurveLimits.SpiralParameter(Input.Radius, Input.SpiralOut)); set => Set(nameof(A2Text), value, v => Input.SpiralOut = CurveLimits.SpiralLength(Input.Radius, v)); }
+
+    /// <summary>"Rmax…": the largest R whose tangents fit between the neighbours with the current L1, L2.</summary>
+    public string RmaxText
+    {
+        get
+        {
+            if (_session.Design == null) return "";
+            CurveLimits.Available(_session.Pis, _session.Design, Curve, out var before, out var after);
+            var r = CurveLimits.MaxRadius(Curve.DeltaRadians, Input.SpiralIn, Input.SpiralOut, before, after);
+            return r == null ? "Rmax = – (không đủ chỗ)" : "Rmax = " + NumberFormat.Fixed(r.Value, 2);
+        }
+    }
+
+    /// <summary>"Lmax…": the largest L1 = L2 whose tangents fit at the current R.</summary>
+    public string LmaxText
+    {
+        get
+        {
+            if (_session.Design == null) return "";
+            CurveLimits.Available(_session.Pis, _session.Design, Curve, out var before, out var after);
+            var l = CurveLimits.MaxSpiral(Input.Radius, Curve.DeltaRadians, before, after);
+            return l == null ? "Lmax = – (không đủ chỗ)" : "Lmax = " + NumberFormat.Fixed(l.Value, 2);
+        }
+    }
+
+    /// <summary>"Siêu cao" (true) / "Không bố trí".</summary>
+    public bool Superelevated
+    {
+        get => Input.Superelevated;
+        set
+        {
+            if (Input.Superelevated == value) return;
+            Input.Superelevated = value;
+            _session.Recalculate();
+        }
+    }
+
+    /// <summary>"Bố trí theo chuyển tiếp".</summary>
+    public bool RunoffOnSpiral
+    {
+        get => Input.RunoffOnSpiral;
+        set
+        {
+            if (Input.RunoffOnSpiral == value) return;
+            Input.RunoffOnSpiral = value;
+            _session.Recalculate();
+        }
+    }
+
+    /// <summary>"i max" (isc, %).</summary>
+    public string SuperRateText { get => Text(nameof(SuperRateText), Input.SuperRate); set => Set(nameof(SuperRateText), value, v => Input.SuperRate = v, v => v >= 0 && v <= 20); }
+
+    /// <summary>"Chiều dài nối" / "Lệch ngoài" at the start (Nối đầu) and end (Nối cuối).</summary>
+    public string RunoffInText { get => Text(nameof(RunoffInText), Input.RunoffIn); set => Set(nameof(RunoffInText), value, v => Input.RunoffIn = v, v => v >= 0); }
+    public string RunoffOutText { get => Text(nameof(RunoffOutText), Input.RunoffOut); set => Set(nameof(RunoffOutText), value, v => Input.RunoffOut = v, v => v >= 0); }
+    public string OffsetInText { get => Text(nameof(OffsetInText), Input.OffsetIn); set => Set(nameof(OffsetInText), value, v => Input.OffsetIn = v, v => v >= 0); }
+    public string OffsetOutText { get => Text(nameof(OffsetOutText), Input.OffsetOut); set => Set(nameof(OffsetOutText), value, v => Input.OffsetOut = v, v => v >= 0); }
+
+    /// <summary>Grid column "Siêu cao": "6%" or empty.</summary>
+    public string SuperelevationText => Input.Superelevated ? NumberFormat.Trimmed(Math.Max(Input.SuperRate, _session.CrossSlopeValue), 2) + "%" : "";
+
     public CurveRowSeverity Severity =>
         HasInputError || Curve.Issues.Any(i => i.IsError) ? CurveRowSeverity.Error
         : Curve.Issues.Count > 0 ? CurveRowSeverity.Warning
@@ -297,9 +514,11 @@ public sealed class CurveRow : INotifyPropertyChanged
         foreach (var name in Derived) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 
-    private void Set(string field, string text, Action<double> apply)
+    private void Set(string field, string text, Action<double> apply) => Set(field, text, apply, null);
+
+    private void Set(string field, string text, Action<double> apply, Func<double, bool> valid)
     {
-        if (NumberInput.TryParse(text, out var value))
+        if (NumberInput.TryParse(text, out var value) && (valid == null || valid(value)))
         {
             _badText.Remove(field);
             _typedText[field] = text.Trim();
@@ -312,6 +531,8 @@ public sealed class CurveRow : INotifyPropertyChanged
 
         _session.Recalculate();
     }
+
+    private static double Distance(PlanPoint a, PlanPoint b) => Math.Sqrt((b.X - a.X) * (b.X - a.X) + (b.Y - a.Y) * (b.Y - a.Y));
 
     private string Element(Func<CurveElements, double> pick) =>
         Curve.Elements == null ? "?" : NumberFormat.Trimmed(pick(Curve.Elements), 2);

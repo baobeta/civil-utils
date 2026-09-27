@@ -3,7 +3,7 @@
                     AutodeskProduct="AutoCAD"
                     ProductType="Application"
                     Name="C3DTools"
-                    AppVersion="0.3.0"
+                    AppVersion="0.5.0"
                     Description="Công cụ tăng năng suất cho Civil 3D 2021"
                     Author="Bao Le"
                     ProductCode="{51A60CF3-C8AC-48ED-8988-5886BF0F851A}"
@@ -20,6 +20,9 @@
         <Command Global="CTYTC" Local="CTYTC" />
         <Command Global="CTYTCMAU" Local="CTYTCMAU" />
         <Command Global="CTYTCBANG" Local="CTYTCBANG" />
+        <Command Global="CTTUYEN" Local="CTTUYEN" />
+        <Command Global="CTPHATCOC" Local="CTPHATCOC" />
+        <Command Global="CTDANHCOC" Local="CTDANHCOC" />
         <Command Global="CTFONT" Local="CTFONT" />
         <Command Global="CTLAYER" Local="CTLAYER" />
         <Command Global="CTTOADO" Local="CTTOADO" />

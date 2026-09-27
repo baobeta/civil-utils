@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.Civil.DatabaseServices;
 using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Curves;
+using C3DTools.Core.Profiles;
 using C3DTools.Core.Tables;
 using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 
@@ -44,12 +46,13 @@ internal static class RouteWriter
                 // "Chỉ cắm cọc + khung" replaces only boxes and stakes; curves of an earlier run stay.
                 // The table (CTYTCBANG / "Bảng") is replaced only when a new one is written.
                 var kinds = stakesOnly
-                    ? new HashSet<YtcKind> { YtcKind.Box, YtcKind.Stake }
-                    : new HashSet<YtcKind> { YtcKind.Unknown, YtcKind.Curve, YtcKind.Box, YtcKind.Stake, YtcKind.Alignment };
+                    ? new HashSet<YtcKind> { YtcKind.Box, YtcKind.Stake, YtcKind.Edge }
+                    : new HashSet<YtcKind> { YtcKind.Unknown, YtcKind.Curve, YtcKind.Box, YtcKind.Stake, YtcKind.Alignment, YtcKind.Edge };
                 d.EraseTagged(new HashSet<ObjectId> { source.Id }, kinds, recreateAlignment, m => ed.WriteMessage("\n" + m));
 
                 List<BoxSite> sites;
                 List<Stake> stakes;
+                var alignmentId = source.IsAlignment ? source.Id : ObjectId.Null;
                 if (stakesOnly)
                 {
                     // The alignment is only read: its own curve groups give stations, points and measured T, P.
@@ -60,15 +63,45 @@ internal static class RouteWriter
                 }
                 else
                 {
+                    if (session.PisEdited && !source.IsAlignment) MovePolylineVertices(tr, source.Id, pis);
+                    // Before an update, the alignment's own curves: where its stations were, for "Dồn dịch đỉnh trắc dọc".
+                    var oldCurves = source.IsAlignment && session.CreateAlignment && session.ShiftProfiles
+                        ? AsBuiltDesign.Read((Alignment)tr.GetObject(source.Id, OpenMode.ForRead), (AlignmentSource)source, design, new List<BoxSite>(), ed).Curves
+                        : null;
                     var alignmentDone = false;
                     if (session.CreateAlignment)
                         alignmentDone = source.IsAlignment
-                            ? CurveGeometryWriter.UpdateAlignment(d, source.Id, session, ed)
-                            : CurveGeometryWriter.CreateAlignment(d, source.Id, session, ed);
+                            ? CurveGeometryWriter.UpdateAlignment(d, source.Id, session, ed, out alignmentId)
+                            : CurveGeometryWriter.CreateAlignment(d, source.Id, session, ed, out alignmentId);
+                    if (alignmentDone && oldCurves != null)
+                        ProfileShifter.Shift(tr, (Alignment)tr.GetObject(alignmentId, OpenMode.ForRead), new StationShift(oldCurves, design.Curves), ed);
                     if (session.DrawCurves || (session.CreateAlignment && !alignmentDone))
                         CurveGeometryWriter.WritePlain(d, pis, design);
                     sites = CurveBoxWriter.SitesFromGeometry(pis, design);
                     stakes = RouteStakes.Build(pis, session.StartStation, design);
+                }
+
+                if (session.DrawEdges)
+                {
+                    List<EdgeLine> lines;
+                    if (stakesOnly)
+                    {
+                        var alignment = (Alignment)tr.GetObject(source.Id, OpenMode.ForRead);
+                        lines = EdgeLineBuilder.Build(EdgeWriter.OnAlignment(alignment), alignment.StartingStation, alignment.EndingStation,
+                            written, session.PavementHalfWidth, session.EdgeStep);
+                    }
+                    else
+                    {
+                        lines = EdgeLineBuilder.Build(new RouteGeometry(pis, session.StartStation, design), design, session.PavementHalfWidth, session.EdgeStep);
+                    }
+
+                    if (EdgeWriter.Write(d, lines) == 0) ed.WriteMessage("\nKhông có đường cong nào có mở rộng (Wb, Wl): không vẽ polyline đoạn nối.");
+                }
+
+                if (session.WriteSuperelevation && session.HasSuperelevation)
+                {
+                    if (alignmentId.IsNull) ed.WriteMessage("\nSiêu cao chỉ ghi được vào Alignment: chọn Tạo/Cập nhật Alignment, hoặc chạy trên Alignment.");
+                    else SuperelevationWriter.Write(tr, alignmentId, SuperelevationPlan(session, written), ed);
                 }
 
                 if (session.DrawBoxes) CurveBoxWriter.Write(d, sites, boxOptions ?? new CurveBoxOptions(), h);
@@ -102,8 +135,51 @@ internal static class RouteWriter
 
         if (session.WriteCsv) WriteCsv(ed, written);
         if (session.WriteXlsx) WriteXlsx(ed, written);
+        if ((session.WriteCsv || session.WriteXlsx) && session.HasSuperelevation)
+            WriteSuperelevationFiles(ed, SuperelevationPlanner.Table(SuperelevationPlan(session, written), session.StationDecimals), session.WriteCsv, session.WriteXlsx);
         ed.WriteMessage($"\nHoàn thành: {session.SummaryText}.\n");
         return true;
+    }
+
+    /// <summary>Critical stations of the curves as written (measured ones in "Chỉ cắm cọc + khung").</summary>
+    private static List<SuperelevationPoint> SuperelevationPlan(CurveDesignSession session, RouteDesign written) =>
+        written.Curves.SelectMany(c => SuperelevationPlanner.Plan(c, session.CrossSlope)).OrderBy(p => p.Station).ToList();
+
+    /// <summary>"Hiệu chỉnh góc chuyển hướng" on a polyline: its vertices become the edited PIs (arcs were already ignored).</summary>
+    private static void MovePolylineVertices(Transaction tr, ObjectId polylineId, IReadOnlyList<PlanPoint> pis)
+    {
+        var pline = (Autodesk.AutoCAD.DatabaseServices.Polyline)tr.GetObject(polylineId, OpenMode.ForWrite);
+        while (pline.NumberOfVertices > pis.Count) pline.RemoveVertexAt(pline.NumberOfVertices - 1);
+        for (var i = 0; i < pis.Count; i++)
+        {
+            var p = new Autodesk.AutoCAD.Geometry.Point2d(pis[i].X, pis[i].Y);
+            if (i < pline.NumberOfVertices) pline.SetPointAt(i, p);
+            else pline.AddVertexAt(i, p, 0, 0, 0);
+            pline.SetBulgeAt(i, 0);
+        }
+    }
+
+    /// <summary>&lt;DWGPREFIX&gt;&lt;drawing name&gt;_SIEUCAO.csv / .xlsx.</summary>
+    private static void WriteSuperelevationFiles(Editor ed, TableData table, bool csv, bool xlsx)
+    {
+        var folder = PresetLocator.DrawingFolder();
+        if (folder == null)
+        {
+            ed.WriteMessage("\nBản vẽ chưa được lưu: bỏ qua xuất bảng siêu cao.");
+            return;
+        }
+
+        var name = Path.Combine(folder, Convert.ToString(AcCoreApp.GetSystemVariable("DWGNAME")));
+        try
+        {
+            if (csv) TableExport.WriteCsv(table, TableExport.SuggestPath(name, "SIEUCAO", "csv"));
+            if (xlsx) TableExport.WriteXlsx(table, TableExport.SuggestPath(name, "SIEUCAO", "xlsx"), "Siêu cao");
+            ed.WriteMessage($"\nĐã xuất bảng siêu cao: {TableExport.SuggestPath(name, "SIEUCAO", csv ? "csv" : "xlsx")}");
+        }
+        catch (Exception ex)
+        {
+            ed.WriteMessage($"\nKhông ghi được bảng siêu cao: {ex.Message}");
+        }
     }
 
     /// <summary>Puts each stake on the alignment at its station; a stake that can't be located is skipped with a message.</summary>

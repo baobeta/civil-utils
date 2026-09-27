@@ -15,7 +15,13 @@
       { "DesignSpeed": 20, "MinRadius": 15, "NormalRadius": 50 }
     ],
     "MinSpiral": [],
-    "Widening": []
+    "Widening": [],
+    "Superelevation": []
+  },
+  "RoadSection": {
+    "PavementHalfWidth": 3.5,
+    "CrossSlope": 2,
+    "EdgeStep": 1
   },
   "CurveBox": {
     "TextHeight": 2.5,

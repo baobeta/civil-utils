@@ -8,7 +8,7 @@ namespace C3DTools.Core.Curves;
 public enum CurveIssueCode
 {
     NoRuleForSpeed, RadiusTooSmall, RadiusBelowNormal, SpiralTooShort,
-    InvalidInput, SpiralTooLong, Overlap,
+    InvalidInput, SpiralTooLong, Overlap, TransitionOverlap, TransitionOutsideRoute,
 }
 
 public sealed class CurveIssue
@@ -70,7 +70,7 @@ public static class CurveRuleChecker
         return result;
     }
 
-    internal static RadiusRangeRule Find(IEnumerable<RadiusRangeRule> table, double radius, double speed) =>
+    public static RadiusRangeRule Find(IEnumerable<RadiusRangeRule> table, double radius, double speed) =>
         table.FirstOrDefault(r => (r.DesignSpeed == 0 || r.DesignSpeed == speed)
                                   && radius > r.RadiusFrom && radius <= r.RadiusTo);
 

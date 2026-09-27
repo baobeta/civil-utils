@@ -13,7 +13,8 @@ namespace C3DTools.Civil2021.Ui;
 
 /// <summary>
 /// Tab C3DTools (UI rule 6): one panel per work area, the daily command as the large button, the rest small, each with a
-/// one-sentence Vietnamese tooltip. Tuyến: Yếu tố cong (CTYTC), Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO).
+/// one-sentence Vietnamese tooltip. Tuyến: Yếu tố cong (CTYTC), Tạo tuyến (CTTUYEN), Phát sinh cọc (CTPHATCOC), Đánh tên cọc (CTDANHCOC),
+/// Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO).
 /// Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Trắc ngang: Bảng trắc ngang (CTTRACNGANG), Xếp trang (CTXEPTRANG).
 /// Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Thoát nước: Bảng cống (CTBANGCONG). Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).
 /// </summary>
@@ -59,7 +60,10 @@ public sealed class RibbonSetup : IExtensionApplication
 
         var tab = new RibbonTab { Id = TabId, Title = "C3DTools" };
         tab.Panels.Add(Panel("Tuyến", "ytc",
-            ("Yếu tố cong", "CTYTC", "Thiết kế và cắm cong nằm theo TCVN 4054 cho polyline hoặc alignment: đường cong, khung yếu tố, cọc và bảng."),
+            ("Yếu tố cong", "CTYTC", "Thiết kế và cắm cong nằm theo TCVN 4054 cho polyline hoặc alignment: đường cong, siêu cao, mở rộng, khung yếu tố, cọc và bảng."),
+            ("Tạo tuyến", "CTTUYEN", "Tạo alignment mới từ polyline hoặc các điểm chỉ trên bản vẽ, kèm tỉ lệ bình đồ, vận tốc, trắc dọc tự nhiên và mặt cắt."),
+            ("Phát sinh cọc", "CTPHATCOC", "Phát sinh hoặc chèn cọc (Sample Line) dọc tuyến, khoảng cách riêng trên đoạn thẳng và đoạn cong."),
+            ("Đánh tên cọc", "CTDANHCOC", "Đánh lại tên toàn bộ cọc của một nhóm cọc: cọc C, H, Km và cọc chủ yếu theo quy tắc chọn."),
             ("Mẫu TCVN", "CTYTCMAU", "Nhập kiểu nhãn, label set và bộ viết tắt TCVN cho alignment vào bản vẽ."),
             ("Bảng cong", "CTYTCBANG", "Xuất bảng tổng hợp yếu tố cong của một tuyến ra AutoCAD Table, CSV hoặc Excel."),
             ("Toạ độ cọc", "CTTOADO", "Lập bảng toạ độ cọc của alignment ra AutoCAD Table, CSV, Excel hoặc điểm COGO.")));

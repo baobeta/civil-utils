@@ -55,4 +55,6 @@ public sealed class ProjectPreset
     public SurfaceOptions Surface { get; set; } = new SurfaceOptions();
 
     public CulvertOptions Culvert { get; set; } = new CulvertOptions();
+
+    public RoadSectionOptions RoadSection { get; set; } = new RoadSectionOptions();
 }

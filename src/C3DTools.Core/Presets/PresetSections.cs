@@ -206,3 +206,16 @@ public sealed class CulvertOptions
     /// </summary>
     public bool EndpointIsCentreline { get; set; }
 }
+
+/// <summary>CTYTC: the road section used for superelevation and the widened edge lines.</summary>
+public sealed class RoadSectionOptions
+{
+    /// <summary>m, centreline to pavement edge (B/2).</summary>
+    public double PavementHalfWidth { get; set; } = 3.5;
+
+    /// <summary>%, normal crown cross slope (in).</summary>
+    public double CrossSlope { get; set; } = 2;
+
+    /// <summary>m between points of the edge polylines along transitions and curves.</summary>
+    public double EdgeStep { get; set; } = 1;
+}

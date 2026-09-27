@@ -9,6 +9,9 @@ public sealed class CurveRules
     public List<SpeedRadiusRule> MinRadius { get; set; } = new List<SpeedRadiusRule>();
     public List<RadiusRangeRule> MinSpiral { get; set; } = new List<RadiusRangeRule>();
     public List<RadiusRangeRule> Widening { get; set; } = new List<RadiusRangeRule>();
+
+    /// <summary>isc (%) by speed and radius (TCVN 4054 Bảng 13). The runoff length comes from MinSpiral (Bảng 14).</summary>
+    public List<RadiusRangeRule> Superelevation { get; set; } = new List<RadiusRangeRule>();
 }
 
 public sealed class SpeedRadiusRule

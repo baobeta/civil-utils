@@ -29,6 +29,26 @@ public sealed class CurveInput
     /// <summary>The PI has no curve (an existing alignment's tangents meet there): stations run straight through, no row.</summary>
     public bool NoCurve { get; set; }
 
+    /// <summary>"Tốc độ tại đỉnh": this curve's design speed; null = the route's.</summary>
+    public double? DesignSpeed { get; set; }
+
+    /// <summary>"Siêu cao" (true) or "Không bố trí".</summary>
+    public bool Superelevated { get; set; }
+
+    /// <summary>isc, % (positive).</summary>
+    public double SuperRate { get; set; }
+
+    /// <summary>"Bố trí theo chuyển tiếp": the runoff is the spiral (NĐ → TĐ, TC → NC) when there is one.</summary>
+    public bool RunoffOnSpiral { get; set; } = true;
+
+    /// <summary>"Chiều dài nối" at the start / end (m): superelevation runoff and widening transition, used when not on a spiral.</summary>
+    public double RunoffIn { get; set; }
+    public double RunoffOut { get; set; }
+
+    /// <summary>"Lệch ngoài" at the start / end (m): how much of the runoff lies on the tangent, outside TĐ / TC.</summary>
+    public double OffsetIn { get; set; }
+    public double OffsetOut { get; set; }
+
     public CurveInput Clone() => (CurveInput)MemberwiseClone();
 }
 
@@ -139,7 +159,7 @@ public static class RouteDesigner
 
             if (rules != null)
             {
-                var check = CurveRuleChecker.Check(curve.ToGroup(), designSpeed, rules);
+                var check = CurveRuleChecker.Check(curve.ToGroup(), input.DesignSpeed ?? designSpeed, rules);
                 curve.Issues.AddRange(check.Issues);
                 curve.SuggestedWidening = check.Widening;
             }

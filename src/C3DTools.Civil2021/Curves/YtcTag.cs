@@ -6,11 +6,12 @@ using C3DTools.Civil2021.Drawing;
 namespace C3DTools.Civil2021.Curves;
 
 /// <summary>What a tagged object is, so a rerun can replace only some of them ("Chỉ cắm cọc + khung": boxes and stakes).</summary>
-internal enum YtcKind : short { Unknown = 0, Curve = 1, Box = 2, Stake = 3, Alignment = 4, Table = 5 }
+internal enum YtcKind : short { Unknown = 0, Curve = 1, Box = 2, Stake = 3, Alignment = 4, Table = 5, Edge = 6 }
 
 /// <summary>
 /// XData that marks every object CTYTC creates: regapp C3DTOOLS_YTC, (1000 "YTC", 1005 source handle,
-/// 1070 curve number, 1070 kind, 1040 Wb, 1040 Wl, 1040 R, 1040 L1, 1040 L2). R/L1/L2 let a rerun on a polyline reload the grid.
+/// 1070 curve number, 1070 kind, 1040 Wb, 1040 Wl, 1040 R, 1040 L1, 1040 L2, 1000 extras). R/L1/L2 let a rerun on a polyline reload the grid;
+/// extras (CurveInputText: speed, superelevation, runoffs) reload the detail panel.
 /// A ToolTag of tool "YTC" in the 0.2 layout (number before kind).
 /// </summary>
 internal sealed class YtcTag
@@ -27,6 +28,9 @@ internal sealed class YtcTag
     public double SpiralIn { get; set; }
     public double SpiralOut { get; set; }
 
+    /// <summary>CurveInputText of the curve; null on tags written before 0.5.</summary>
+    public string Extras { get; set; }
+
     /// <summary>Tag for an object that belongs to one curve: carries the curve's inputs so a rerun can reload them.</summary>
     public static YtcTag For(C3DTools.Core.Curves.DesignedCurve curve, YtcKind kind) => new YtcTag
     {
@@ -37,11 +41,12 @@ internal sealed class YtcTag
         Radius = curve.Input.Radius,
         SpiralIn = curve.Input.SpiralIn,
         SpiralOut = curve.Input.SpiralOut,
+        Extras = C3DTools.Core.Curves.CurveInputText.Format(curve.Input),
     };
 
     public ToolTag ToToolTag()
     {
-        var tag = new ToolTag(Tool) { SourceHandle = SourceHandle, Number = Number, Kind = (short)Kind, NumberFirst = true };
+        var tag = new ToolTag(Tool) { SourceHandle = SourceHandle, Number = Number, Kind = (short)Kind, NumberFirst = true, Text = Extras };
         tag.Values.AddRange(new[] { Wb, Wl, Radius, SpiralIn, SpiralOut });
         return tag;
     }
@@ -79,6 +84,7 @@ internal sealed class YtcTag
             Radius = v.Count > 2 ? v[2] : 0,
             SpiralIn = v.Count > 3 ? v[3] : 0,
             SpiralOut = v.Count > 4 ? v[4] : 0,
+            Extras = t.Text,
         };
     }
 }
