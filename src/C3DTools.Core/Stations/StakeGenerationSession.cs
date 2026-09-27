@@ -205,7 +205,10 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         AlternateSides = _alternateSides, WithStation = _labelStations, StationOnlyAtKm = _stationOnlyAtKm, StationDecimals = _stationDecimals,
     };
 
-    private bool _skipHundredPositions = true, _noHundreds;
+    private bool _skipHundredPositions = true, _noHundreds, _plainCurveNames;
+
+    /// <summary>"Tên cọc cong không dấu": TD1, ND1 instead of TĐ1, NĐ1.</summary>
+    public bool PlainCurveNames { get => _plainCurveNames; set => SetOption(ref _plainCurveNames, value, nameof(PlainCurveNames)); }
 
     /// <summary>"Cọc C bỏ qua vị trí cọc H": an H stake takes no C number (C4, H1, C5). Off: C4, H1, C6.</summary>
     public bool SkipHundredPositions { get => _skipHundredPositions; set => SetOption(ref _skipHundredPositions, value, nameof(SkipHundredPositions)); }
@@ -217,6 +220,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     public StakeNamingOptions NamingOptions => new StakeNamingOptions
     {
         StationDecimals = _stationDecimals, CountHundredPositions = !_skipHundredPositions, CreateHundreds = !_noHundreds,
+        PlainCurveNames = _plainCurveNames,
     };
 
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake.</summary>

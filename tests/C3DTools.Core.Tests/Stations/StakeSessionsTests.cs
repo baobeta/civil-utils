@@ -118,6 +118,26 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void Generated_stakes_include_the_curve_stakes_in_route_order()
+    {
+        var s = Loaded("G");
+        var keys = new[]
+        {
+            new RouteStake(55, StakeRole.CurveKey, "", StakeKind.P, 1), new RouteStake(31, StakeRole.CurveKey, "", StakeKind.Td, 1),
+            new RouteStake(79, StakeRole.CurveKey, "", StakeKind.Tc, 1), new RouteStake(150, StakeRole.CurveKey, "", StakeKind.Nd, 2),
+        };
+
+        var plan = s.Plan(null, null, keys);
+
+        Assert.Equal(new[] { "Km0", "C1", "TĐ1", "C2", "P1", "C3", "TC1", "C4", "H1" }, plan.Take(9).Select(p => p.Name));
+        Assert.Contains(plan, p => p.Name == "NĐ2" && p.Station == 150);
+
+        s.PlainCurveNames = true;
+        Assert.Contains(s.Plan(null, null, keys), p => p.Name == "TD1");
+        Assert.Contains(s.Plan(null, null, keys), p => p.Name == "ND2");
+    }
+
+    [Fact]
     public void H_options_change_the_generated_names()
     {
         var s = Loaded("G");

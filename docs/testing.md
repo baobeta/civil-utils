@@ -167,9 +167,13 @@ Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của
   - **Không tạo cọc H**: `C4 (80), C5 (100), C6 (120)`.
 - Từ 0.5.10: **Khoảng cách cọc C** là ô chọn (20, 100, hoặc gõ số khác). Cọc C chạy liên tục tới hết tuyến, **qua cả đường cong**. **Chêm thêm cọc trong đoạn cong** (mặc định tắt) thêm cọc ở các lý trình chẵn theo khoảng cách riêng giữa NĐ và NC; các cọc chủ yếu luôn có.
 
+### Cọc đặc biệt tại đường cong (từ 0.5.11)
+
+`CTPHATCOC` tạo tại mỗi đường cong của alignment các cọc **TĐ** (tiếp đầu), **P** (giữa cung), **TC** (tiếp cuối), và thêm **NĐ**, **NC** nếu đường cong có đoạn chuyển tiếp. Số theo thứ tự đường cong dọc tuyến: đường cong có lý trình nhỏ nhất là `TĐ1, P1, TC1`, kế tiếp là `TĐ2, P2, TC2`… Các cọc này luôn được ghi tên như mọi cọc khác, kể cả khi `CTYTC` đã vẽ cọc (muốn tránh hai bộ chữ, bỏ ô **Cọc** trong `CTYTC`). **Tên cọc cong không dấu** đổi thành `TD, ND`. Cọc đặc biệt không chiếm số của cọc C.
+
 ### Tên cọc trên bình đồ (từ 0.5.6)
 
-`CTPHATCOC` và `CTDANHCOC` có ô **Ghi tên cọc lên bình đồ** (mặc định bật): tên cọc nằm ngay ngoài **đầu trái** của trắc ngang (Sample Line) và lý trình ngay ngoài **đầu phải** (trái, phải theo chiều đi của tuyến), chữ viết dọc theo tuyến, trên layer `COC_TEN` (từ 0.5.8). **Ghi lý trình ở đầu kia** (mặc định bật) có thể tắt; **chỉ tại cọc Km** (mặc định bật, từ 0.5.9) chỉ ghi lý trình ở cọc Km, cọc C, H và cọc chủ yếu chỉ có tên; **Tên cọc xen kẽ trái phải** (mặc định tắt) đổi chỗ tên và lý trình ở mỗi cọc thứ hai. Chữ có cỡ chữ 2.5 mm theo tỉ lệ bình đồ đã nhập ở `CTTUYEN`. Chạy lại sẽ thay chữ cũ của nhóm cọc đó. Tên ghi trên bình đồ không có hậu tố "(Km1)"; hậu tố chỉ có trong tên Sample Line, vì Civil 3D cần tên không trùng. Nếu tuyến đã có cọc chủ yếu do `CTYTC` vẽ (ô **Cọc**), các cọc NĐ, TĐ, P, TC, NC không được ghi lại để khỏi chồng chữ. Với nhóm cọc đã đánh tên từ bản cũ, chạy `CTDANHCOC` rồi **Áp dụng** để ghi tên, kể cả khi không tên nào đổi.
+`CTPHATCOC` và `CTDANHCOC` có ô **Ghi tên cọc lên bình đồ** (mặc định bật): tên cọc nằm ngay ngoài **đầu trái** của trắc ngang (Sample Line) và lý trình ngay ngoài **đầu phải** (trái, phải theo chiều đi của tuyến), chữ viết dọc theo tuyến, trên layer `COC_TEN` (từ 0.5.8). **Ghi lý trình ở đầu kia** (mặc định bật) có thể tắt; **chỉ tại cọc Km** (mặc định bật, từ 0.5.9) chỉ ghi lý trình ở cọc Km, cọc C, H và cọc chủ yếu chỉ có tên; **Tên cọc xen kẽ trái phải** (mặc định tắt) đổi chỗ tên và lý trình ở mỗi cọc thứ hai. Chữ có cỡ chữ 2.5 mm theo tỉ lệ bình đồ đã nhập ở `CTTUYEN`. Chạy lại sẽ thay chữ cũ của nhóm cọc đó. Tên ghi trên bình đồ không có hậu tố "(Km1)"; hậu tố chỉ có trong tên Sample Line, vì Civil 3D cần tên không trùng. Với nhóm cọc đã đánh tên từ bản cũ, chạy `CTDANHCOC` rồi **Áp dụng** để ghi tên, kể cả khi không tên nào đổi.
 
 - [ ] Chưa kiểm tra trên Windows: vị trí, góc xoay và cỡ chữ của tên cọc; `U` một lần xoá cả chữ lẫn thay đổi Sample Line.
 

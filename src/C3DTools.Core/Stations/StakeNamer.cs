@@ -44,6 +44,9 @@ public sealed class StakeNamingOptions
     /// <summary>"Đánh lại cọc cắm cong, siêu cao": NĐ/TĐ/P/TC/NC get the curve number (from FirstPiNumber).</summary>
     public bool RenameCurveKeys { get; set; } = true;
 
+    /// <summary>"Tên cọc cong không dấu": TD, ND instead of TĐ, NĐ (for fonts without Vietnamese letters).</summary>
+    public bool PlainCurveNames { get; set; }
+
     /// <summary>"Số thứ tự đỉnh đầu": number of the first curve.</summary>
     public int FirstPiNumber { get; set; } = 1;
 
@@ -86,7 +89,8 @@ public static class StakeNamer
             {
                 case StakeRole.CurveKey:
                     names[i] = options.RenameCurveKeys || s.Name.Length == 0
-                        ? s.CurvePrefix + (s.CurveNumber - 1 + options.FirstPiNumber).ToString(CultureInfo.InvariantCulture)
+                        ? (options.PlainCurveNames ? s.CurvePrefix.Replace('Đ', 'D') : s.CurvePrefix)
+                          + (s.CurveNumber - 1 + options.FirstPiNumber).ToString(CultureInfo.InvariantCulture)
                         : s.Name;
                     break;
                 case StakeRole.Km:

@@ -29,8 +29,8 @@ internal static class StakeLabelWriter
     }
 
     /// <summary>
-    /// Replaces the group's labels. Curve key stakes are skipped when CTYTC already drew this alignment's stakes
-    /// (they would lie on top of each other). Returns how many stakes were labelled.
+    /// Replaces the group's labels: every stake of the group, the curve stakes (NĐ, TĐ, P, TC, NC) included.
+    /// Returns how many stakes were labelled.
     /// </summary>
     public static int Write(Transaction tr, Database db, Alignment alignment, ObjectId groupId,
         IReadOnlyList<RouteStake> stakes, IReadOnlyList<string> labels, double textHeight, StakeLabelOptions options, Action<string> warn)
@@ -41,13 +41,10 @@ internal static class StakeLabelWriter
         d.EraseTagged(null, null);
 
         var lines = SampleLineStakes.Read(tr, groupId);
-        var skipKeys = HasCurveDesignStakes(tr, db, alignment);
-        if (skipKeys) warn?.Invoke("Tuyến đã có cọc chủ yếu do CTYTC vẽ: không ghi lại tên các cọc NĐ, TĐ, P, TC, NC.");
         var count = 0;
         var failed = 0;
         for (var i = 0; i < stakes.Count; i++)
         {
-            if (skipKeys && stakes[i].Role == StakeRole.CurveKey) continue;
             try
             {
                 var station = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, stakes[i].Station));
@@ -86,12 +83,6 @@ internal static class StakeLabelWriter
     {
         var group = tr.GetObject(groupId, OpenMode.ForRead);
         new TaggedDrawing(tr, db, Tool, group.Handle.ToString()).EraseTagged(null, null);
-    }
-
-    private static bool HasCurveDesignStakes(Transaction tr, Database db, Alignment alignment)
-    {
-        var handle = YtcTag.Read(alignment)?.SourceHandle ?? alignment.Handle.ToString();
-        return YtcTag.FindTagged(tr, db, handle).Any(f => f.tag.Kind == YtcKind.Stake);
     }
 
     /// <summary>TEXT justified middle-centre, as CTYTC's stake texts.</summary>

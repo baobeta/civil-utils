@@ -66,6 +66,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         var noH = Check("Không tạo cọc H", nameof(StakeGenerationSession.NoHundreds));
         noH.ToolTip = "Cọc tại lý trình chẵn trăm cũng là cọc C: C4 (80), C5 (100), C6 (120)";
         hundreds.Children.Add(noH);
+        hundreds.Children.Add(StakeInputs.PlainCurveNames(nameof(StakeGenerationSession.PlainCurveNames)));
         generateBox.Children.Add(hundreds);
         top.Children.Add(generateBox);
 
@@ -90,7 +91,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
-                   "chạy và đánh số liên tục tới hết tuyến, qua cả đường cong; cọc C, H không đặt trùng cọc Km; thêm cọc chủ yếu (NĐ, TĐ, P, TC, NC). " +
+                   "chạy và đánh số liên tục tới hết tuyến, qua cả đường cong; cọc C, H không đặt trùng cọc Km; cọc đặc biệt tại mỗi đường cong: TĐ, P, TC (thêm NĐ, NC nếu có chuyển tiếp), đánh số theo thứ tự đường cong dọc tuyến. " +
                    "Dùng CTDANHCOC để đặt tên theo quy tắc khác.",
             TextWrapping = TextWrapping.Wrap,
             Foreground = System.Windows.Media.Brushes.DimGray,
@@ -170,7 +171,7 @@ internal sealed class StakeRenameWindow : ToolWindow
             Text("Tiếp đầu của cọc"), StakeInputs.Text(nameof(StakeRenameSession.DetailPrefix), null, 60));
         Line(Text("Số thứ tự cọc đầu"), StakeInputs.Text(nameof(StakeRenameSession.FirstDetailNumberText), nameof(StakeRenameSession.IsFirstDetailValid), 60));
         Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
-        Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)));
+        Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)), null, StakeInputs.PlainCurveNames(nameof(StakeRenameSession.PlainCurveNames)));
         Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)));
         Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
         top.Children.Add(form);
@@ -207,6 +208,14 @@ internal static class StakeInputs
     {
         var box = Box("Cọc C bỏ qua vị trí cọc H", path);
         box.ToolTip = "Bật: cọc H không chiếm số của cọc C — C4 (80), H1 (100), C5 (120).\nTắt: vị trí cọc H vẫn được đếm — C4 (80), H1 (100), C6 (120).";
+        return box;
+    }
+
+    /// <summary>"Tên cọc cong không dấu".</summary>
+    public static CheckBox PlainCurveNames(string path)
+    {
+        var box = Box("Tên cọc cong không dấu (TD, ND)", path);
+        box.ToolTip = "Bật: TD1, ND1. Tắt: TĐ1, NĐ1. Dùng khi font chữ của bản vẽ không có chữ Đ.";
         return box;
     }
 

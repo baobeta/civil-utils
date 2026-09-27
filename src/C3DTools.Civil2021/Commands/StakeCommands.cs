@@ -84,6 +84,7 @@ public class StakeCommands
             LabelStations = memory.Get(command, "StationAtEnd", true),
             StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
             SkipHundredPositions = memory.Get(command, "SkipH", true),
+            PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
 
         Route route = null;
@@ -104,6 +105,7 @@ public class StakeCommands
             memory.Set(command, "StationAtEnd", session.LabelStations);
             memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
             memory.Set(command, "SkipH", session.SkipHundredPositions);
+            memory.Set(command, "PlainCurveNames", session.PlainCurveNames);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -314,6 +316,7 @@ public class StakeCommands
             LabelStations = memory.Get(command, "StationAtEnd", true),
             StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
             SkipHundredPositions = memory.Get(command, "SkipH", true),
+            PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
 
         StakeGroup ids = null;
@@ -336,6 +339,7 @@ public class StakeCommands
             memory.Set(command, "StationAtEnd", session.LabelStations);
             memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
             memory.Set(command, "SkipH", session.SkipHundredPositions);
+            memory.Set(command, "PlainCurveNames", session.PlainCurveNames);
             ToolWindow.SaveOptions();
 
             switch (action)

@@ -142,7 +142,10 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         AlternateSides = _alternateSides, WithStation = _labelStations, StationOnlyAtKm = _stationOnlyAtKm, StationDecimals = _stationDecimals,
     };
 
-    private bool _skipHundredPositions = true;
+    private bool _skipHundredPositions = true, _plainCurveNames;
+
+    /// <summary>"Tên cọc cong không dấu": TD1, ND1 instead of TĐ1, NĐ1.</summary>
+    public bool PlainCurveNames { get => _plainCurveNames; set => SetFlag(ref _plainCurveNames, value, nameof(PlainCurveNames)); }
 
     /// <summary>"Cọc C bỏ qua vị trí cọc H": an H stake takes no C number (C4, H1, C5). Off: C4, H1, C6.</summary>
     public bool SkipHundredPositions { get => _skipHundredPositions; set => SetFlag(ref _skipHundredPositions, value, nameof(SkipHundredPositions)); }
@@ -186,6 +189,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         DetailContinuousThroughH = _continuousH,
         CreateHundreds = !_noHundreds,
         CountHundredPositions = !_skipHundredPositions,
+        PlainCurveNames = _plainCurveNames,
         NameByStation = _nameByStation,
         RenameCurveKeys = _renameCurveKeys,
         FirstPiNumber = Math.Max(1, PositiveInt(_firstPiText)),

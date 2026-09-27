@@ -112,6 +112,21 @@ public class StakeNamerTests
     }
 
     [Fact]
+    public void Curve_stakes_are_numbered_by_curve_along_the_route_with_ND_and_NC_on_spirals()
+    {
+        // Curve 1 is circular (TĐ, P, TC); curve 2 has spirals (NĐ, TĐ, P, TC, NC).
+        var stakes = new List<RouteStake>
+        {
+            Km(0), Key(835, StakeKind.Td, 1), Key(1000.5, StakeKind.P, 1), Key(1166, StakeKind.Tc, 1),
+            Key(1500, StakeKind.Nd, 2), Key(1570, StakeKind.Td, 2), Key(1650, StakeKind.P, 2), Key(1730, StakeKind.Tc, 2), Key(1800, StakeKind.Nc, 2),
+        };
+
+        Assert.Equal(new[] { "Km0", "TĐ1", "P1", "TC1", "NĐ2", "TĐ2", "P2", "TC2", "NC2" }, StakeNamer.Name(stakes, new StakeNamingOptions()));
+        Assert.Equal(new[] { "Km0", "TD1", "P1", "TC1", "ND2", "TD2", "P2", "TC2", "NC2" },
+            StakeNamer.Name(stakes, new StakeNamingOptions { PlainCurveNames = true }));
+    }
+
+    [Fact]
     public void Stakes_with_a_kept_prefix_keep_their_name_and_take_no_number()
     {
         var stakes = new List<RouteStake> { Km(0), D(20, "CT1"), D(40, "C9"), D(60, "cong2") };
