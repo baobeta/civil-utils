@@ -155,7 +155,10 @@ public sealed class RibbonSetup : IExtensionApplication
     private static void Say(string message) =>
         AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage("\n" + message);
 
-    /// <summary>Runs the button's CommandParameter ("^C^C_CTYTC ": cancel any running command first) in the active drawing.</summary>
+    /// <summary>
+    /// Runs the button's CommandParameter ("^C^C_CTYTC ": cancel any running command first) in the active drawing.
+    /// AdWindows passes the clicked ribbon item to Execute, not its CommandParameter.
+    /// </summary>
     private sealed class SendCommand : ICommand
     {
         public event EventHandler CanExecuteChanged { add { } remove { } }
@@ -164,8 +167,9 @@ public sealed class RibbonSetup : IExtensionApplication
 
         public void Execute(object parameter)
         {
-            if (parameter is string command)
-                AcCoreApp.DocumentManager.MdiActiveDocument?.SendStringToExecute(command, true, false, true);
+            var command = parameter is RibbonCommandItem item ? item.CommandParameter as string : parameter as string;
+            if (string.IsNullOrEmpty(command)) return;
+            AcCoreApp.DocumentManager.MdiActiveDocument?.SendStringToExecute(command, true, false, true);
         }
     }
 }

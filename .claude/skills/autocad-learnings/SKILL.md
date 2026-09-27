@@ -88,3 +88,9 @@ One entry per command; profiles (CTCONGDUNG, CTTRACDOC) and pipe networks (CTBAN
 - Sample lines: `SampleLine.Create(name, groupId, Point2dCollection)` and `Create(name, groupId, double station)`, `SampleLine.Station` (set), `Name` (set), `LockToStation`, `GroupId`, `Number`; `SampleLineGroup` has no parent alignment id in 2021 — find the owner by scanning `Alignment.GetSampleLineGroupIds()`. Unverified: whether `Name` must be unique inside a group (C3DTools assumes yes and renames through temporary names).
 - Source: reflection over Civil3D2021.Base 1.0.0 (MetadataLoadContext probe) and a clean Release build on macOS. Nothing here has run in Civil 3D 2021 yet (see `docs/testing.md` "Chưa kiểm tra trên Windows (0.5)").
 - Promoted to: *(pending)*
+
+## [2026-09-27] AutoCAD 2021 ribbon — ICommand.Execute receives the ribbon item, not CommandParameter (runtime verified)
+- For a `RibbonButton` with `CommandHandler = ICommand` and `CommandParameter = "..."`, AdWindows calls `Execute(object parameter)` with the clicked `RibbonButton` (a `RibbonCommandItem`) as `parameter`. Read the string with `((RibbonCommandItem)parameter).CommandParameter`.
+- Why it matters: a handler written as `if (parameter is string s) SendStringToExecute(s, ...)` does nothing and reports nothing; every C3DTools ribbon button was dead from 0.2 to 0.5.1 while the typed commands worked.
+- Source: runtime, Civil 3D 2021 (user report on v0.5.1: clicking buttons did nothing, typing the command worked). The fix itself is compile-verified only until the user confirms on v0.5.2.
+- Promoted to: *(pending)*
