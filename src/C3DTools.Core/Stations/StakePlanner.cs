@@ -25,12 +25,14 @@ public static class StakePlanner
     private const int MaxStakes = 5000;
 
     /// <summary>
-    /// "Phát sinh": stakes on from…to. Detail stakes at round multiples of straightSpacing on tangents and of
-    /// curveSpacing inside curve zones; every H and Km; every curve key stake; the two ends. Within 1 mm only the
-    /// most important stake stays (curve key &gt; Km &gt; H &gt; detail). Names are empty.
+    /// "Phát sinh": stakes on from…to. Detail stakes (C) at detailStart, detailStart + straightSpacing, … on tangents
+    /// and at round multiples of curveSpacing inside curve zones; every H (100 m) and Km; every curve key stake; the
+    /// two ends. Within 1 mm only the most important stake stays (curve key &gt; Km &gt; H &gt; detail), so no C or H
+    /// stake lies on a Km stake. Names are empty.
     /// </summary>
+    /// <param name="detailStart">Station of the first C stake; null = DefaultDetailStart(straightSpacing).</param>
     public static List<RouteStake> Generate(double from, double to, double straightSpacing, double curveSpacing,
-        IEnumerable<StationZone> curveZones, IEnumerable<RouteStake> curveKeys)
+        IEnumerable<StationZone> curveZones, IEnumerable<RouteStake> curveKeys, double? detailStart = null)
     {
         if (!(to > from)) throw new ArgumentException("Lý trình cuối phải lớn hơn lý trình đầu.", nameof(to));
         if (!(straightSpacing > 0)) throw new ArgumentOutOfRangeException(nameof(straightSpacing), "Khoảng cách trong đoạn thẳng phải lớn hơn 0.");
@@ -42,7 +44,8 @@ public static class StakePlanner
         var candidates = new List<RouteStake> { new RouteStake(from, RoleOf(from)), new RouteStake(to, RoleOf(to)) };
         foreach (var s in Multiples(from, to, 1000)) candidates.Add(new RouteStake(s, StakeRole.Km));
         foreach (var s in Multiples(from, to, 100)) candidates.Add(new RouteStake(s, RoleOf(s)));
-        foreach (var s in Multiples(from, to, straightSpacing).Where(s => !zones.Any(z => z.Contains(s))))
+        var first = detailStart ?? DefaultDetailStart(straightSpacing);
+        foreach (var s in From(first, from, to, straightSpacing).Where(s => !zones.Any(z => z.Contains(s))))
             candidates.Add(new RouteStake(s, RoleOf(s)));
         foreach (var z in zones)
             foreach (var s in Multiples(Math.Max(from, z.From), Math.Min(to, z.To), curveSpacing))
@@ -88,6 +91,12 @@ public static class StakePlanner
         return result;
     }
 
+    /// <summary>
+    /// Where the C stakes start: at the spacing itself (20 m → Km0+020), except 100 m spacing, which starts at Km0+050
+    /// so the C stakes fall between the H stakes.
+    /// </summary>
+    public static double DefaultDetailStart(double spacing) => Math.Abs(spacing - 100) <= Tolerance ? 50 : spacing;
+
     /// <summary>Km for a whole kilometre, Hundred for a whole 100 m, otherwise Detail.</summary>
     public static StakeRole RoleOf(double station)
     {
@@ -129,6 +138,13 @@ public static class StakePlanner
         StakeRole.Hundred => 1,
         _ => s.Name.Length > 0 ? 0 : -1,
     };
+
+    /// <summary>first, first + step, … inside from…to (first may lie before from).</summary>
+    private static IEnumerable<double> From(double first, double from, double to, double step)
+    {
+        for (var k = Math.Max(0, (long)Math.Ceiling((from - first - Tolerance) / step)); first + k * step <= to + Tolerance; k++)
+            yield return first + k * step;
+    }
 
     private static IEnumerable<double> Multiples(double from, double to, double step)
     {

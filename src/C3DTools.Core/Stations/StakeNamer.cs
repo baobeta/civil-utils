@@ -14,8 +14,11 @@ public sealed class StakeNamingOptions
     /// <summary>"Số thứ tự cọc đầu": number of the first detail stake in the range.</summary>
     public int FirstDetailNumber { get; set; } = 1;
 
-    /// <summary>"Thứ tự cọc quay lại theo KM": detail numbers start again at 1 after each Km stake.</summary>
-    public bool RestartPerKm { get; set; } = true;
+    /// <summary>
+    /// "Thứ tự cọc quay lại theo KM": detail numbers start again at 1 after each Km stake. Off by default: C stakes are
+    /// numbered continuously to the end of the route (H stakes always restart after a Km: H1…H9, Km1, H1…).
+    /// </summary>
+    public bool RestartPerKm { get; set; }
 
     /// <summary>
     /// "Không đánh số quay lại khi TT&gt;=100": a Km stake does not restart the numbering once the last detail

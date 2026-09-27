@@ -37,6 +37,8 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     private bool _hasSource, _insertMode, _subStakeStyle, _stale = true, _writeLabels = true;
     private double _start, _end;
     private string _fromText = "", _toText = "", _straightText = "20", _curveText = "10", _halfWidthText = "60", _insertText = "", _newGroupName = "";
+    private string _detailStartText = "20";
+    private bool _detailStartEdited;
     private List<string> _groupNames = new List<string> { NewGroup };
     private int _groupIndex;
     private List<double> _insertStations = new List<double>();
@@ -66,7 +68,44 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     public bool IsRangeValid => !double.IsNaN(From) && !double.IsNaN(To) && To > From
         && From >= _start - StakePlanner.Tolerance && To <= _end + StakePlanner.Tolerance;
 
-    public string StraightSpacingText { get => _straightText; set => SetText(ref _straightText, value, nameof(StraightSpacingText), nameof(StraightSpacing), nameof(IsSpacingValid)); }
+    public string StraightSpacingText
+    {
+        get => _straightText;
+        set
+        {
+            value ??= "";
+            if (_straightText == value) return;
+            _straightText = value;
+            // Until the user types a start station it follows the spacing: 20 → 20, 100 → 50.
+            if (!_detailStartEdited && !double.IsNaN(StraightSpacing))
+                _detailStartText = Tables.NumberFormat.Trimmed(StakePlanner.DefaultDetailStart(StraightSpacing), 3);
+            foreach (var n in new[] { nameof(StraightSpacingText), nameof(StraightSpacing), nameof(IsSpacingValid), nameof(DetailStartText), nameof(DetailStart), nameof(IsDetailStartValid) })
+                Raise(n);
+            Stale();
+        }
+    }
+
+    /// <summary>"Cọc C bắt đầu từ lý trình": station of the first C stake ("Km0+020", "0+050" or metres).</summary>
+    public string DetailStartText
+    {
+        get => _detailStartText;
+        set
+        {
+            value ??= "";
+            if (_detailStartText == value) return;
+            _detailStartText = value;
+            _detailStartEdited = value.Trim().Length > 0;
+            if (!_detailStartEdited && !double.IsNaN(StraightSpacing))
+                _detailStartText = Tables.NumberFormat.Trimmed(StakePlanner.DefaultDetailStart(StraightSpacing), 3);
+            Raise(nameof(DetailStartText));
+            Raise(nameof(DetailStart));
+            Raise(nameof(IsDetailStartValid));
+            Stale();
+        }
+    }
+
+    public double DetailStart => ParseStation(_detailStartText);
+    public bool IsDetailStartValid => !double.IsNaN(DetailStart) && DetailStart >= 0;
     public string CurveSpacingText { get => _curveText; set => SetText(ref _curveText, value, nameof(CurveSpacingText), nameof(CurveSpacing), nameof(IsSpacingValid)); }
     public double StraightSpacing => Positive(_straightText);
     public double CurveSpacing => Positive(_curveText);
@@ -98,7 +137,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     /// <summary>"Kiểu cọc phụ": inserted stakes are named after the stake before them (C5a).</summary>
     public bool SubStakeStyle { get => _subStakeStyle; set => SetOption(ref _subStakeStyle, value, nameof(SubStakeStyle)); }
 
-    private bool _alternateSides = true, _labelStations;
+    private bool _alternateSides, _labelStations = true;
 
     /// <summary>"Tên cọc xen kẽ trái phải".</summary>
     public bool AlternateSides
@@ -112,7 +151,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         }
     }
 
-    /// <summary>"Ghi kèm lý trình".</summary>
+    /// <summary>"Ghi lý trình ở đầu kia".</summary>
     public bool LabelStations
     {
         get => _labelStations;
@@ -124,7 +163,8 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         }
     }
 
-    public StakeLabelOptions LabelOptions => new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations };
+    public StakeLabelOptions LabelOptions =>
+        new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations, StationDecimals = _stationDecimals };
 
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake.</summary>
     public bool WriteLabels
@@ -172,7 +212,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     public int RemovedCount { get; private set; }
 
     public bool CanApply => _hasSource && IsSpacingValid && IsHalfWidthValid
-        && (_insertMode ? _insertValid && _insertStations.Count > 0 && !IsNewGroup : IsRangeValid)
+        && (_insertMode ? _insertValid && _insertStations.Count > 0 && !IsNewGroup : IsRangeValid && IsDetailStartValid)
         && (!IsNewGroup || _newGroupName.Trim().Length > 0);
 
     public string SummaryText
@@ -182,6 +222,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
             if (!_hasSource) return "Chưa chọn tuyến";
             if (!_insertMode && !IsRangeValid) return "Khoảng lý trình không hợp lệ hoặc nằm ngoài tuyến";
             if (!IsSpacingValid) return "Khoảng cách cọc phải là số lớn hơn 0";
+            if (!_insertMode && !IsDetailStartValid) return "Lý trình bắt đầu cọc C không hợp lệ";
             if (!IsHalfWidthValid) return "Bề rộng nửa dải phải là số lớn hơn 0";
             if (_insertMode && IsNewGroup) return "Chèn cọc cần chọn nhóm cọc (Sample Line Group) đã có";
             if (_insertMode && (!_insertValid || _insertStations.Count == 0)) return "Nhập lý trình cọc cần chèn (trong phạm vi tuyến)";
@@ -233,7 +274,7 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         existing ??= new RouteStake[0];
         if (_insertMode) return StakePlanner.Insert(existing, _insertStations, _subStakeStyle, _stationDecimals, out _);
 
-        var generated = StakePlanner.Generate(From, To, StraightSpacing, CurveSpacing, zones, keys);
+        var generated = StakePlanner.Generate(From, To, StraightSpacing, CurveSpacing, zones, keys, DetailStart);
         var merged = StakePlanner.Replace(existing, generated, From, To);
         var names = StakeNamer.Name(merged, new StakeNamingOptions { StationDecimals = _stationDecimals });
         return merged.Select((s, i) => s.WithName(names[i])).ToList();

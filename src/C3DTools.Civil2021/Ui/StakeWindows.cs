@@ -46,6 +46,12 @@ internal sealed class StakeGenerateWindow : ToolWindow
         spacing.Children.Add(Label("trong đoạn cong"));
         spacing.Children.Add(StakeInputs.Text(nameof(StakeGenerationSession.CurveSpacingText), nameof(StakeGenerationSession.IsSpacingValid), 70));
         generateBox.Children.Add(spacing);
+        var start = Row();
+        start.Children.Add(Caption("Cọc C bắt đầu từ lý trình", 190));
+        var startBox = StakeInputs.Text(nameof(StakeGenerationSession.DetailStartText), nameof(StakeGenerationSession.IsDetailStartValid), 130);
+        startBox.ToolTip = "Để trống: theo khoảng cách (20 m → Km0+020, 100 m → Km0+050)";
+        start.Children.Add(startBox);
+        generateBox.Children.Add(start);
         top.Children.Add(generateBox);
 
         var insert = new RadioButton { Content = "Chèn", GroupName = "Mode", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
@@ -67,8 +73,9 @@ internal sealed class StakeGenerateWindow : ToolWindow
         top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides), nameof(StakeGenerationSession.LabelStations)));
         top.Children.Add(new TextBlock
         {
-            Text = "Phát sinh: cọc chi tiết tại lý trình chẵn theo khoảng cách, thêm mọi cọc H, Km và cọc chủ yếu (NĐ, TĐ, P, TC, NC); " +
-                   "toàn bộ cọc của nhóm được đặt lại tên theo quy tắc mặc định. Dùng CTDANHCOC để đặt tên theo quy tắc khác.",
+            Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
+                   "đánh số liên tục tới hết tuyến; cọc C, H không đặt trùng cọc Km; thêm cọc chủ yếu (NĐ, TĐ, P, TC, NC). " +
+                   "Dùng CTDANHCOC để đặt tên theo quy tắc khác.",
             TextWrapping = TextWrapping.Wrap,
             Foreground = System.Windows.Media.Brushes.DimGray,
             Margin = new Thickness(0, 6, 0, 6),
@@ -182,7 +189,8 @@ internal static class StakeInputs
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
         var write = Box("Ghi tên cọc lên bình đồ", writePath);
         row.Children.Add(write);
-        foreach (var (text, path) in new[] { ("Tên cọc xen kẽ trái phải", alternatePath), ("Ghi kèm lý trình", stationPath) })
+        write.ToolTip = "Tên cọc ở đầu trái trắc ngang, lý trình ở đầu phải, chữ viết dọc theo tuyến";
+        foreach (var (text, path) in new[] { ("Ghi lý trình ở đầu kia", stationPath), ("Tên cọc xen kẽ trái phải", alternatePath) })
         {
             var option = Box(text, path);
             option.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });

@@ -78,8 +78,8 @@ public class StakeCommands
             HalfWidthText = memory.Get(command, "HalfWidth", "60"),
             SubStakeStyle = memory.Get(command, "SubStake", false),
             WriteLabels = memory.Get(command, "Labels", true),
-            AlternateSides = memory.Get(command, "Alternate", true),
-            LabelStations = memory.Get(command, "LabelStations", false),
+            AlternateSides = memory.Get(command, "AlternateEnds", false),
+            LabelStations = memory.Get(command, "StationAtEnd", true),
         };
 
         Route route = null;
@@ -94,8 +94,8 @@ public class StakeCommands
             memory.Set(command, "HalfWidth", session.HalfWidthText);
             memory.Set(command, "SubStake", session.SubStakeStyle);
             memory.Set(command, "Labels", session.WriteLabels);
-            memory.Set(command, "Alternate", session.AlternateSides);
-            memory.Set(command, "LabelStations", session.LabelStations);
+            memory.Set(command, "AlternateEnds", session.AlternateSides);
+            memory.Set(command, "StationAtEnd", session.LabelStations);
             ToolWindow.SaveOptions();
 
             switch (action)
@@ -299,11 +299,11 @@ public class StakeCommands
             NameByStation = memory.Get(command, "ByStation", false),
             NoHundreds = memory.Get(command, "NoH", false),
             ContinuousThroughH = memory.Get(command, "ContinuousH", true),
-            RestartPerKm = memory.Get(command, "RestartKm", true),
+            RestartPerKm = memory.Get(command, "RestartPerKm", false),
             NoRestartFrom100 = memory.Get(command, "No100", true),
             WriteLabels = memory.Get(command, "Labels", true),
-            AlternateSides = memory.Get(command, "Alternate", true),
-            LabelStations = memory.Get(command, "LabelStations", false),
+            AlternateSides = memory.Get(command, "AlternateEnds", false),
+            LabelStations = memory.Get(command, "StationAtEnd", true),
         };
 
         StakeGroup ids = null;
@@ -319,11 +319,11 @@ public class StakeCommands
             memory.Set(command, "ByStation", session.NameByStation);
             memory.Set(command, "NoH", session.NoHundreds);
             memory.Set(command, "ContinuousH", session.ContinuousThroughH);
-            memory.Set(command, "RestartKm", session.RestartPerKm);
+            memory.Set(command, "RestartPerKm", session.RestartPerKm);
             memory.Set(command, "No100", session.NoRestartFrom100);
             memory.Set(command, "Labels", session.WriteLabels);
-            memory.Set(command, "Alternate", session.AlternateSides);
-            memory.Set(command, "LabelStations", session.LabelStations);
+            memory.Set(command, "AlternateEnds", session.AlternateSides);
+            memory.Set(command, "StationAtEnd", session.LabelStations);
             ToolWindow.SaveOptions();
 
             switch (action)

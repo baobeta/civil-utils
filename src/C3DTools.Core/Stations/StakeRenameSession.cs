@@ -39,7 +39,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
     private int _fromIndex, _toIndex;
     private string _keepText = "", _detailPrefix = "C", _firstDetailText = "1", _firstPiText = "1";
     private bool _writeLabels = true;
-    private bool _renameCurveKeys = true, _nameByStation, _noHundreds, _continuousH = true, _restartPerKm = true, _noRestartFrom100 = true;
+    private bool _renameCurveKeys = true, _nameByStation, _noHundreds, _continuousH = true, _restartPerKm, _noRestartFrom100 = true;
 
     public StakeRenameSession(ProjectPreset preset)
     {
@@ -97,7 +97,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
     public IReadOnlyList<string> NewNames { get; private set; } = new string[0];
     public int ChangedCount { get; private set; }
 
-    private bool _alternateSides = true, _labelStations;
+    private bool _alternateSides, _labelStations = true;
 
     /// <summary>"Tên cọc xen kẽ trái phải".</summary>
     public bool AlternateSides
@@ -111,7 +111,7 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         }
     }
 
-    /// <summary>"Ghi kèm lý trình".</summary>
+    /// <summary>"Ghi lý trình ở đầu kia".</summary>
     public bool LabelStations
     {
         get => _labelStations;
@@ -123,7 +123,8 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         }
     }
 
-    public StakeLabelOptions LabelOptions => new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations };
+    public StakeLabelOptions LabelOptions =>
+        new StakeLabelOptions { AlternateSides = _alternateSides, WithStation = _labelStations, StationDecimals = _stationDecimals };
 
     /// <summary>"Ghi tên cọc lên bình đồ": tick, name and station text at every stake of the group.</summary>
     public bool WriteLabels

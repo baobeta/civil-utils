@@ -8,13 +8,12 @@ using C3DTools.Civil2021.Drawing;
 using C3DTools.Core.Curves;
 using C3DTools.Core.Presets;
 using C3DTools.Core.Stations;
-using AcLine = Autodesk.AutoCAD.DatabaseServices.Line;
 
 namespace C3DTools.Civil2021.Curves;
 
 /// <summary>
-/// "Ghi tên cọc lên bình đồ": for each stake a tick across the alignment, its name and its station, laid out like
-/// CTYTC's stakes (ytc:coc) on layer COC_TEN. Tagged with the sample line group, so the next run replaces them.
+/// "Ghi tên cọc lên bình đồ": the stake name beyond the left end of each sample line and its station beyond the right
+/// end, written along the route, on layer COC_TEN. Tagged with the sample line group, so the next run replaces them.
 /// </summary>
 internal static class StakeLabelWriter
 {
@@ -41,6 +40,7 @@ internal static class StakeLabelWriter
         d.EnsureLayer(Layer, 2);
         d.EraseTagged(null, null);
 
+        var lines = SampleLineStakes.Read(tr, groupId);
         var skipKeys = HasCurveDesignStakes(tr, db, alignment);
         if (skipKeys) warn?.Invoke("Tuyến đã có cọc chủ yếu do CTYTC vẽ: không ghi lại tên các cọc NĐ, TĐ, P, TC, NC.");
         var count = 0;
@@ -51,13 +51,14 @@ internal static class StakeLabelWriter
             try
             {
                 var station = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, stakes[i].Station));
+                var lineId = lines.Where(l => Math.Abs(l.stake.Station - stakes[i].Station) <= StakePlanner.Tolerance).Select(l => l.id).FirstOrDefault();
+                if (lineId.IsNull) throw new InvalidOperationException("không tìm thấy trắc ngang của cọc");
+                Ends((SampleLine)tr.GetObject(lineId, OpenMode.ForRead), out var a, out var b);
                 // count, not i: skipped stakes must not break the left/right alternation.
-                var layout = StakeLabelLayout.Build(count, MeasuredElements.Point(alignment, station), MeasuredElements.Direction(alignment, station),
-                    station, StakeNamer.DisplayName(labels[i]), textHeight, options);
-                var tag = new ToolTag(Tool) { Kind = 1, Number = i + 1 };
-                d.Add(new AcLine(P3(layout.TickStart), P3(layout.TickEnd)), Layer, tag);
-                if (layout.StationText.Length > 0) AddText(d, layout.StationText, layout.StationTextPoint, layout.Rotation, textHeight, i + 1);
-                if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NameTextPoint, layout.Rotation, textHeight, i + 1);
+                var layout = StakeLabelLayout.AtEnds(count, a, b, MeasuredElements.Direction(alignment, station), stakes[i].Station,
+                    StakeNamer.DisplayName(labels[i]), textHeight, options);
+                if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NamePoint, layout.Rotation, textHeight, i + 1);
+                if (layout.StationText.Length > 0) AddText(d, layout.StationText, layout.StationPoint, layout.Rotation, textHeight, i + 1);
                 count++;
             }
             catch (Exception ex)
@@ -67,6 +68,17 @@ internal static class StakeLabelWriter
         }
 
         return count;
+    }
+
+    /// <summary>The two ends of the sample line (its first and last vertex).</summary>
+    private static void Ends(SampleLine line, out PlanPoint a, out PlanPoint b)
+    {
+        var vertices = line.Vertices;
+        if (vertices.Count < 2) throw new InvalidOperationException("trắc ngang có ít hơn 2 đỉnh");
+        var first = vertices[0].Location;
+        var last = vertices[vertices.Count - 1].Location;
+        a = new PlanPoint(first.X, first.Y);
+        b = new PlanPoint(last.X, last.Y);
     }
 
     /// <summary>Erases the labels of a group (its stakes are being removed or relabelled elsewhere).</summary>

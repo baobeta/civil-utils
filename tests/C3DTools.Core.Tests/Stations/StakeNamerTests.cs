@@ -23,9 +23,9 @@ public class StakeNamerTests
     }
 
     [Fact]
-    public void Defaults_number_detail_stakes_through_H_and_restart_after_each_Km()
+    public void Restart_per_Km_numbers_detail_stakes_from_1_after_each_Km()
     {
-        var names = StakeNamer.Name(Straight(1140), new StakeNamingOptions());
+        var names = StakeNamer.Name(Straight(1140), new StakeNamingOptions { RestartPerKm = true });
 
         Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "H1", "C5" }, names.Take(7));
         Assert.Equal("H9", names[45]);          // 900
@@ -43,12 +43,15 @@ public class StakeNamerTests
     }
 
     [Fact]
-    public void Without_restart_per_Km_numbers_run_on()
+    public void By_default_C_runs_on_to_the_end_of_the_route_and_H_restarts_after_each_Km()
     {
-        var names = StakeNamer.Name(Straight(1040), new StakeNamingOptions { RestartPerKm = false });
+        var names = StakeNamer.Name(Straight(1140), new StakeNamingOptions());
 
-        Assert.Equal("Km1", names[50]);
-        Assert.Equal(new[] { "C41", "C42" }, names.Skip(51));
+        Assert.Equal(new[] { "Km0", "C1", "C2", "C3", "C4", "H1", "C5" }, names.Take(7));
+        Assert.Equal("H9", names[45]);    // 900
+        Assert.Equal("C40", names[49]);   // 980
+        Assert.Equal("Km1", names[50]);   // 1000: a Km stake, never a C or an H
+        Assert.Equal(new[] { "C41", "C42", "C43", "C44", "H1", "C45" }, names.Skip(51).Take(6));
     }
 
     [Fact]
@@ -59,8 +62,8 @@ public class StakeNamerTests
         stakes.Add(Km(1000));
         stakes.Add(D(1010));
 
-        Assert.Equal("C101", StakeNamer.Name(stakes, new StakeNamingOptions())[102]);
-        Assert.Equal("C1", StakeNamer.Name(stakes, new StakeNamingOptions { NoRestartFrom100 = false })[102]);
+        Assert.Equal("C101", StakeNamer.Name(stakes, new StakeNamingOptions { RestartPerKm = true })[102]);
+        Assert.Equal("C1", StakeNamer.Name(stakes, new StakeNamingOptions { RestartPerKm = true, NoRestartFrom100 = false })[102]);
     }
 
     [Fact]

@@ -73,6 +73,30 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void Detail_start_follows_the_spacing_until_the_user_types_one()
+    {
+        var s = Loaded("G");
+        Assert.Equal("20", s.DetailStartText);
+
+        s.StraightSpacingText = "100";
+        Assert.Equal("50", s.DetailStartText);
+        Assert.Equal(new[] { 0.0, 50, 100, 150, 200, 250 }, s.Plan(null, null, null).Select(p => p.Station));
+
+        s.DetailStartText = "Km0+010";
+        s.StraightSpacingText = "40";
+        Assert.Equal("Km0+010", s.DetailStartText);   // typed: no longer follows the spacing
+        Assert.Equal(new[] { 0.0, 10, 50, 90, 100 }, s.Plan(null, null, null).Take(5).Select(p => p.Station));
+
+        s.DetailStartText = "x";
+        Assert.False(s.CanApply);
+        Assert.Equal("Lý trình bắt đầu cọc C không hợp lệ", s.SummaryText);
+
+        s.DetailStartText = "";   // cleared: back to the rule
+        Assert.Equal("40", s.DetailStartText);
+        Assert.True(s.CanApply);
+    }
+
+    [Fact]
     public void New_group_needs_a_name()
     {
         var s = Loaded();

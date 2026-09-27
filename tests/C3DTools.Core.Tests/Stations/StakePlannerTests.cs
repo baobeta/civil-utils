@@ -23,6 +23,46 @@ public class StakePlannerTests
     }
 
     [Fact]
+    public void Spacing_100_puts_C_stakes_between_the_H_stakes_from_Km0_050()
+    {
+        var stakes = StakePlanner.Generate(0, 1200, 100, 10, null, null);
+        var names = StakeNamer.Name(stakes, new StakeNamingOptions());
+
+        Assert.Equal(new[] { 0.0, 50, 100, 150, 200 }, stakes.Take(5).Select(s => s.Station));
+        Assert.Equal(new[] { "Km0", "C1", "H1", "C2", "H2" }, names.Take(5));
+        var at1000 = stakes.FindIndex(s => s.Station == 1000);
+        Assert.Equal(new[] { "C10", "Km1", "C11", "H1", "C12", "H2" }, names.Skip(at1000 - 1).Take(6));   // 950 … 1200
+        Assert.Single(stakes, s => s.Station == 1000);   // no C or H on the Km stake
+    }
+
+    [Fact]
+    public void Spacing_20_starts_C1_at_Km0_020_and_skips_H_and_Km_positions()
+    {
+        var stakes = StakePlanner.Generate(0, 1040, 20, 10, null, null);
+        var names = StakeNamer.Name(stakes, new StakeNamingOptions());
+
+        Assert.Equal(20, stakes[1].Station);
+        Assert.Equal("C1", names[1]);
+        Assert.Equal(new[] { "C40", "Km1", "C41", "C42" }, names.Skip(49));
+        Assert.Equal(stakes.Count, stakes.Select(s => s.Station).Distinct().Count());
+    }
+
+    [Fact]
+    public void A_chosen_start_station_shifts_the_C_stakes()
+    {
+        var stakes = StakePlanner.Generate(0, 100, 20, 10, null, null, detailStart: 5);
+
+        Assert.Equal(new[] { 0.0, 5, 25, 45, 65, 85, 100 }, stakes.Select(s => s.Station));
+        Assert.Equal(new[] { 45.0, 65, 85, 100 }, StakePlanner.Generate(40, 100, 20, 10, null, null, detailStart: 5).Skip(1).Select(s => s.Station));
+    }
+
+    [Theory]
+    [InlineData(20, 20)]
+    [InlineData(100, 50)]
+    [InlineData(25, 25)]
+    public void Default_detail_start(double spacing, double start) => Assert.Equal(start, StakePlanner.DefaultDetailStart(spacing));
+
+    [Fact]
     public void Curve_zone_uses_the_curve_spacing_and_keeps_its_key_stakes()
     {
         var keys = new[] { Key(113.4, StakeKind.Td, 1), Key(140.2, StakeKind.P, 1), Key(167, StakeKind.Tc, 1) };
