@@ -68,6 +68,28 @@ internal abstract class ToolWindow : Window
         }
     }
 
+    public static string TraceLogPath =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "C3DTools", "trace.log");
+
+    /// <summary>
+    /// Appends one step to %APPDATA%\C3DTools\trace.log at once, so after a crash inside Civil 3D (which no catch
+    /// sees) the last line tells where it happened. The file restarts when it passes 1 MB. Never throws.
+    /// </summary>
+    public static void Trace(string step)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(TraceLogPath));
+            var file = new FileInfo(TraceLogPath);
+            if (file.Exists && file.Length > 1024 * 1024) file.Delete();
+            File.AppendAllText(TraceLogPath, DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture) + " " + step + Environment.NewLine);
+        }
+        catch (Exception)
+        {
+            // Tracing is a convenience.
+        }
+    }
+
     public static string ErrorLogPath =>
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "C3DTools", "error.log");
 
@@ -94,6 +116,7 @@ internal abstract class ToolWindow : Window
         {
             e.Handled = true;
             LogError(Command + " (hộp thoại)", e.Exception);
+            Trace(Command + ": lỗi trong hộp thoại: " + e.Exception.Message);
             AcCoreApp.DocumentManager.MdiActiveDocument?.Editor.WriteMessage(
                 $"\nLỗi C3DTools trong hộp thoại: {e.Exception.Message} Chi tiết: {ErrorLogPath}");
             Action = DialogAction.Cancel;
@@ -107,6 +130,7 @@ internal abstract class ToolWindow : Window
             }
         };
         Dispatcher.UnhandledException += guard;
+        Trace(Command + ": mở hộp thoại");
         try
         {
             AcCoreApp.ShowModalWindow(this);
@@ -116,6 +140,7 @@ internal abstract class ToolWindow : Window
             Dispatcher.UnhandledException -= guard;
         }
 
+        Trace(Command + ": hộp thoại đóng, chọn " + Action);
         return Action;
     }
 

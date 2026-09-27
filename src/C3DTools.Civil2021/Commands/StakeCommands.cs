@@ -32,10 +32,13 @@ public class StakeCommands
     {
         try
         {
+            ToolWindow.Trace("=== lệnh cọc bắt đầu, C3DTools " + typeof(StakeCommands).Assembly.GetName().Version);
             run();
+            ToolWindow.Trace("=== lệnh cọc kết thúc");
         }
         catch (System.Exception ex)
         {
+            ToolWindow.Trace("=== lệnh cọc lỗi: " + ex.Message);
             // Last resort: never let an exception reach AutoCAD's unhandled-exception dialog.
             ToolWindow.LogError("CTPHATCOC/CTDANHCOC", ex);
             Prompts.Say(AcCoreApp.DocumentManager.MdiActiveDocument?.Editor, $"Lỗi C3DTools: {ex.Message} Chi tiết: {ToolWindow.ErrorLogPath}");
@@ -116,6 +119,7 @@ public class StakeCommands
     {
         try
         {
+            ToolWindow.Trace("CTPHATCOC: đọc alignment");
             using (var tr = doc.TransactionManager.StartTransaction())
             {
                 var alignment = (Alignment)tr.GetObject(id, OpenMode.ForRead);
@@ -130,6 +134,7 @@ public class StakeCommands
                     alignment.StartingStation, alignment.EndingStation, route.Groups.Select(g => g.name));
                 if (session.IsNewGroup && session.NewGroupName.Length == 0) session.NewGroupName = alignment.Name + "-COC";
                 tr.Commit();
+                ToolWindow.Trace($"CTPHATCOC: đã đọc {route.Name}, {route.Groups.Count} nhóm cọc, {route.Curves.Keys.Count} cọc chủ yếu");
                 return route;
             }
         }
@@ -145,8 +150,10 @@ public class StakeCommands
     {
         try
         {
+            ToolWindow.Trace($"CTPHATCOC: xem trước, nhóm '{session.Group ?? "(mới)"}', chèn={session.InsertMode}, từ {session.FromText} tới {session.ToText}, thẳng {session.StraightSpacingText}, cong {session.CurveSpacingText}");
             var existing = ExistingStakes(doc, route, session.Group);
             session.SetPreview(session.Plan(existing, route.Curves.Zones, route.Curves.Keys), existing);
+            ToolWindow.Trace($"CTPHATCOC: xem trước xong, {session.Planned.Count} cọc ({existing.Count} cọc có sẵn)");
             return true;
         }
         catch (ArgumentException ex)
@@ -159,6 +166,7 @@ public class StakeCommands
     private static bool WriteGenerate(Document doc, Route route, StakeGenerationSession session)
     {
         var ed = doc.Editor;
+        ToolWindow.Trace("CTPHATCOC: bắt đầu ghi cọc");
         using (doc.LockDocument())
         using (var tr = doc.Database.TransactionManager.StartTransaction())
         {
@@ -169,7 +177,9 @@ public class StakeCommands
                     ? SampleLineStakes.CreateGroup(tr, alignment, session.NewGroupName)
                     : route.Groups.First(g => g.name == session.Group).id;
                 var result = SampleLineStakes.Write(tr, alignment, groupId, session.Planned, session.PlannedLabels, session.HalfWidth, m => Prompts.Say(ed, m));
+                ToolWindow.Trace("CTPHATCOC: commit");
                 tr.Commit();
+                ToolWindow.Trace("CTPHATCOC: commit xong, " + SampleLineStakes.Summary(result));
                 Prompts.Say(ed, $"Hoàn thành: {SampleLineStakes.Summary(result)}. Một lệnh U hoàn tác toàn bộ.\n");
                 return true;
             }
@@ -197,6 +207,7 @@ public class StakeCommands
 
     private static double? PickStation(Document doc, Route route, string message)
     {
+        ToolWindow.Trace("CTPHATCOC: chọn điểm lý trình");
         // Pick first, open the alignment after: no object stays open while the user pans, zooms or cancels.
         var point = Prompts.PickPoint(doc.Editor, message);
         if (point == null) return null;

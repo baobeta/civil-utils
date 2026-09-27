@@ -84,6 +84,7 @@ internal static class SampleLineStakes
             if (index >= 0 && !keep.ContainsKey(index)) keep[index] = id;
             else
             {
+                Ui.ToolWindow.Trace($"ghi cọc: xoá '{stake.Name}' tại {NumberFormat.Fixed(stake.Station, 3)}");
                 var line = (SampleLine)tr.GetObject(id, OpenMode.ForWrite);
                 using (var views = line.GetSectionViewIds()) viewsLost += views.Count;   // erasing the line takes its section views with it
                 line.Name = "~x" + stamp + "-" + erased.ToString(CultureInfo.InvariantCulture);   // an erased line still holds its name until commit
@@ -92,6 +93,7 @@ internal static class SampleLineStakes
             }
         }
 
+        Ui.ToolWindow.Trace($"ghi cọc: đổi tên {keep.Count} cọc giữ lại");
         var renamed = keep.Count(k => ((SampleLine)tr.GetObject(k.Value, OpenMode.ForRead)).Name != labels[k.Key]);
         Rename(tr, keep.Values.ToList(), keep.Keys.Select(i => labels[i]).ToList());
 
@@ -104,6 +106,7 @@ internal static class SampleLineStakes
             var station = Math.Max(alignment.StartingStation, Math.Min(alignment.EndingStation, planned[i].Station));
             try
             {
+                Ui.ToolWindow.Trace($"ghi cọc: tạo '{labels[i]}' tại {NumberFormat.Fixed(station, 3)}");
                 var points = new Point2dCollection();   // plain managed collection in 2021: nothing to dispose
                 double x = 0, y = 0;
                 alignment.PointLocation(station, -halfWidth, ref x, ref y);
@@ -120,6 +123,7 @@ internal static class SampleLineStakes
             }
         }
 
+        Ui.ToolWindow.Trace($"ghi cọc: xong vòng tạo, {created} tạo, {failed} lỗi");
         if (failed > 5) warn?.Invoke($"… và {failed - 5} cọc khác không tạo được.");
         return (created, renamed, erased, viewsLost);
     }
