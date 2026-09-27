@@ -123,7 +123,7 @@ public sealed class LayerMapRow : INotifyPropertyChanged
         return short.TryParse((text ?? "").Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out color) && color >= 1 && color <= 255;
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }
 
 /// <summary>State of the CTLAYER dialog: the drawing's layers, their targets from the preset LayerMap, and the options.</summary>
@@ -319,5 +319,5 @@ public sealed class LayerMapSession : INotifyPropertyChanged
         Raise(nameof(SummaryText));
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

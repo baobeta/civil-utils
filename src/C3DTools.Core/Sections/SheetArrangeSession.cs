@@ -186,5 +186,5 @@ public sealed class SheetArrangeSession : INotifyPropertyChanged
     private static int Count(string text) =>
         int.TryParse((text ?? "").Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var n) && n >= 1 && n <= 50 ? n : -1;
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

@@ -29,6 +29,15 @@ internal abstract class ToolWindow : Window
 
     private static DialogOptionsMemory _options;
 
+    static ToolWindow()
+    {
+        NotifyGuard.LoopDetected = property =>
+        {
+            Trace("VÒNG LẶP BINDING tại " + property + " (đã ngắt)");
+            LogError("Vòng lặp binding tại " + property, new InvalidOperationException(Environment.StackTrace));
+        };
+    }
+
     protected ToolWindow(string command, string title, double width, double height, double minWidth, double minHeight)
     {
         Command = command ?? throw new ArgumentNullException(nameof(command));
@@ -41,7 +50,13 @@ internal abstract class ToolWindow : Window
         Height = RememberedSize("Height", height, minHeight, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
-        Closed += (s, e) => RememberSize();
+        Closed += (s, e) =>
+        {
+            RememberSize();
+            // A command reopens its dialog on the same view model after every pick or preview. A closed dialog must stop
+            // listening, or its controls keep receiving every change and writing values back.
+            DataContext = null;
+        };
     }
 
     /// <summary>The command name, e.g. "CTYTC"; the prefix of this dialog's remembered options.</summary>

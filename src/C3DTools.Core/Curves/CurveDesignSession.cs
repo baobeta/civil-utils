@@ -326,7 +326,7 @@ public sealed class CurveDesignSession : INotifyPropertyChanged
         Raise(name);
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }
 
 /// <summary>One numbered curve (Đn) in the grid.</summary>
@@ -512,7 +512,7 @@ public sealed class CurveRow : INotifyPropertyChanged
 
     internal void Refresh()
     {
-        foreach (var name in Derived) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        foreach (var name in Derived) C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
     }
 
     private void Set(string field, string text, Action<double> apply) => Set(field, text, apply, null);

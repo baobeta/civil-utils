@@ -49,5 +49,5 @@ public sealed class CurveTableOptions : INotifyPropertyChanged
         Raise(nameof(CanApply));
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

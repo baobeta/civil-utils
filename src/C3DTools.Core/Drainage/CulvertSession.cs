@@ -32,7 +32,7 @@ public sealed class CulvertNetworkItem : INotifyPropertyChanged
         {
             if (_isChecked == value) return;
             _isChecked = value;
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsChecked)));
+            C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, nameof(IsChecked));
         }
     }
 }
@@ -127,7 +127,7 @@ public sealed class CulvertRow : INotifyPropertyChanged
         }
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }
 
 /// <summary>State of the CTBANGCONG dialog: alignment, networks, surface for ground, outputs and the editable schedule.</summary>
@@ -357,5 +357,5 @@ public sealed class CulvertSession : INotifyPropertyChanged
         Raise(nameof(SummaryText));
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

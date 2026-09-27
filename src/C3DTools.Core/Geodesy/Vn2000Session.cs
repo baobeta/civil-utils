@@ -286,5 +286,5 @@ public sealed class Vn2000Session : INotifyPropertyChanged
     private static double Shift(Vn2000Item item, PlanPoint p) =>
         Math.Sqrt((p.X - item.X) * (p.X - item.X) + (p.Y - item.Y) * (p.Y - item.Y));
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

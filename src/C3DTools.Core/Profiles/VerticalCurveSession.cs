@@ -260,5 +260,5 @@ public sealed class VerticalCurveSession : INotifyPropertyChanged
         Raise(nameof(SummaryText));
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }

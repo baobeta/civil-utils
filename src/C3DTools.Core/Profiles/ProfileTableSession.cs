@@ -73,7 +73,7 @@ public sealed class ProfileTableRowOption : INotifyPropertyChanged
     public int Decimals =>
         int.TryParse(_decimalsText.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var d) && d <= 6 ? d : -1;
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }
 
 /// <summary>
@@ -419,5 +419,5 @@ public sealed class ProfileTableSession : INotifyPropertyChanged
         Raise(nameof(SummaryText));
     }
 
-    private void Raise(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    private void Raise(string name) => C3DTools.Core.Ui.NotifyGuard.Raise(this, PropertyChanged, name);
 }
