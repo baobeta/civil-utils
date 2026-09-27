@@ -138,6 +138,30 @@ public class StakeGenerationSessionTests
     }
 
     [Fact]
+    public void Station_mode_is_one_choice_and_defaults_to_Km_stakes_only()
+    {
+        var s = Loaded("G");
+        Assert.Equal(1, s.StationModeIndex);
+        Assert.True(s.LabelOptions.WritesStation(StakeRole.Km));
+        Assert.False(s.LabelOptions.WritesStation(StakeRole.Detail));
+
+        s.StationModeIndex = 2;
+        Assert.True(s.LabelOptions.WritesStation(StakeRole.Hundred));
+
+        s.StationModeIndex = 0;
+        Assert.False(s.LabelOptions.WritesStation(StakeRole.Km));
+
+        s.StationModeIndex = 7;   // ignored
+        Assert.Equal(0, s.StationModeIndex);
+        Assert.Equal(3, StakeLabelOptions.StationModes.Count);
+
+        var rename = new StakeRenameSession(new ProjectPreset());
+        Assert.Equal(1, rename.StationModeIndex);
+        rename.StationModeIndex = 2;
+        Assert.True(rename.LabelOptions.WritesStation(StakeRole.CurveKey));
+    }
+
+    [Fact]
     public void H_options_change_the_generated_names()
     {
         var s = Loaded("G");

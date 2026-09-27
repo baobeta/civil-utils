@@ -200,6 +200,21 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         }
     }
 
+    /// <summary>One choice instead of two dependent boxes: 0 no station, 1 at Km stakes only (default), 2 at every stake.</summary>
+    public int StationModeIndex
+    {
+        get => !_labelStations ? 0 : _stationOnlyAtKm ? 1 : 2;
+        set
+        {
+            if (value < 0 || value > 2 || value == StationModeIndex) return;
+            _labelStations = value != 0;
+            _stationOnlyAtKm = value != 2;
+            Raise(nameof(StationModeIndex));
+            Raise(nameof(LabelStations));
+            Raise(nameof(StationOnlyAtKm));
+        }
+    }
+
     public StakeLabelOptions LabelOptions => new StakeLabelOptions
     {
         AlternateSides = _alternateSides, WithStation = _labelStations, StationOnlyAtKm = _stationOnlyAtKm, StationDecimals = _stationDecimals,

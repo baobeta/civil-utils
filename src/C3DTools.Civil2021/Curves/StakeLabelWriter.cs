@@ -30,9 +30,9 @@ internal static class StakeLabelWriter
 
     /// <summary>
     /// Replaces the group's labels: every stake of the group, the curve stakes (NĐ, TĐ, P, TC, NC) included.
-    /// Returns how many stakes were labelled.
+    /// Returns how many names and how many stations were written.
     /// </summary>
-    public static int Write(Transaction tr, Database db, Alignment alignment, ObjectId groupId,
+    public static (int names, int stations) Write(Transaction tr, Database db, Alignment alignment, ObjectId groupId,
         IReadOnlyList<RouteStake> stakes, IReadOnlyList<string> labels, double textHeight, StakeLabelOptions options, Action<string> warn)
     {
         var group = tr.GetObject(groupId, OpenMode.ForRead);
@@ -42,6 +42,7 @@ internal static class StakeLabelWriter
 
         var lines = SampleLineStakes.Read(tr, groupId);
         var count = 0;
+        var stations = 0;
         var failed = 0;
         for (var i = 0; i < stakes.Count; i++)
         {
@@ -55,7 +56,12 @@ internal static class StakeLabelWriter
                 var layout = StakeLabelLayout.AtEnds(count, a, b, MeasuredElements.Direction(alignment, station), stakes[i].Station,
                     StakeNamer.DisplayName(labels[i]), textHeight, options, stakes[i].Role);
                 if (layout.NameText.Length > 0) AddText(d, layout.NameText, layout.NamePoint, layout.Rotation, textHeight, i + 1);
-                if (layout.StationText.Length > 0) AddText(d, layout.StationText, layout.StationPoint, layout.Rotation, textHeight, i + 1);
+                if (layout.StationText.Length > 0)
+                {
+                    AddText(d, layout.StationText, layout.StationPoint, layout.Rotation, textHeight, i + 1);
+                    stations++;
+                }
+
                 count++;
             }
             catch (Exception ex)
@@ -64,7 +70,7 @@ internal static class StakeLabelWriter
             }
         }
 
-        return count;
+        return (count, stations);
     }
 
     /// <summary>The two ends of the sample line (its first and last vertex).</summary>

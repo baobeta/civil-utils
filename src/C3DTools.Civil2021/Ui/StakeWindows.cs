@@ -87,7 +87,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         top.Children.Add(insertBox);
 
         top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides),
-            nameof(StakeGenerationSession.LabelStations), nameof(StakeGenerationSession.StationOnlyAtKm)));
+            nameof(StakeGenerationSession.StationModeIndex)));
         top.Children.Add(new TextBlock
         {
             Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
@@ -176,7 +176,7 @@ internal sealed class StakeRenameWindow : ToolWindow
         Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
         top.Children.Add(form);
         top.Children.Add(StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides),
-            nameof(StakeRenameSession.LabelStations), nameof(StakeRenameSession.StationOnlyAtKm)));
+            nameof(StakeRenameSession.StationModeIndex)));
 
         var grid = StakeInputs.Grid(nameof(StakeRenameSession.PreviewRows),
             ("Lý trình", nameof(StakeRenameLine.Station), 120), ("Tên cũ", nameof(StakeRenameLine.OldName), 130), ("Tên mới", nameof(StakeRenameLine.NewName), 0));
@@ -219,42 +219,23 @@ internal static class StakeInputs
         return box;
     }
 
-    public static StackPanel LabelOptions(string writePath, string alternatePath, string stationPath, string kmOnlyPath)
+    public static StackPanel LabelOptions(string writePath, string alternatePath, string stationModePath)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
         var write = Box("Ghi tên cọc lên bình đồ", writePath);
-        row.Children.Add(write);
         write.ToolTip = "Tên cọc ở đầu trái trắc ngang, lý trình ở đầu phải, chữ viết dọc theo tuyến";
-        var station = Box("Ghi lý trình ở đầu kia", stationPath);
-        station.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
-        row.Children.Add(station);
-        var kmOnly = Box("chỉ tại cọc Km", kmOnlyPath);
-        kmOnly.ToolTip = "Bật: chỉ cọc Km có lý trình; cọc C, H và cọc chủ yếu chỉ có tên.";
-        var both = new MultiBinding { Converter = AllTrue.Instance };
-        both.Bindings.Add(new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
-        both.Bindings.Add(new Binding(nameof(ToggleButton.IsChecked)) { Source = station });
-        kmOnly.SetBinding(UIElement.IsEnabledProperty, both);
-        row.Children.Add(kmOnly);
+        row.Children.Add(write);
+
+        var mode = new ComboBox { Width = 190, Margin = new Thickness(0, 0, 14, 0), VerticalContentAlignment = VerticalAlignment.Center, ItemsSource = StakeLabelOptions.StationModes };
+        mode.SetBinding(Selector.SelectedIndexProperty, new Binding(stationModePath) { Mode = BindingMode.TwoWay });
+        mode.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
+        mode.ToolTip = "Lý trình ghi ở đầu kia của trắc ngang";
+        row.Children.Add(mode);
+
         var alternate = Box("Tên cọc xen kẽ trái phải", alternatePath);
         alternate.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(ToggleButton.IsChecked)) { Source = write });
         row.Children.Add(alternate);
-
         return row;
-    }
-
-    private sealed class AllTrue : IMultiValueConverter
-    {
-        public static readonly AllTrue Instance = new AllTrue();
-
-        public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
-        {
-            foreach (var v in values)
-                if (!(v is bool b && b)) return false;
-            return true;
-        }
-
-        public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture) =>
-            throw new NotSupportedException();
     }
 
     private static CheckBox Box(string text, string path)

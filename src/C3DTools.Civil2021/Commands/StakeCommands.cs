@@ -81,8 +81,7 @@ public class StakeCommands
             NoHundreds = memory.Get(command, "NoH", false),
             WriteLabels = memory.Get(command, "Labels", true),
             AlternateSides = memory.Get(command, "AlternateEnds", false),
-            LabelStations = memory.Get(command, "StationAtEnd", true),
-            StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
+            StationModeIndex = memory.Get(command, "StationMode", 1),
             SkipHundredPositions = memory.Get(command, "SkipH", true),
             PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
@@ -102,8 +101,7 @@ public class StakeCommands
             memory.Set(command, "NoH", session.NoHundreds);
             memory.Set(command, "Labels", session.WriteLabels);
             memory.Set(command, "AlternateEnds", session.AlternateSides);
-            memory.Set(command, "StationAtEnd", session.LabelStations);
-            memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
+            memory.Set(command, "StationMode", session.StationModeIndex);
             memory.Set(command, "SkipH", session.SkipHundredPositions);
             memory.Set(command, "PlainCurveNames", session.PlainCurveNames);
             ToolWindow.SaveOptions();
@@ -206,7 +204,8 @@ public class StakeCommands
                     ToolWindow.Trace("CTPHATCOC: ghi tên cọc");
                     var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, groupId, session.Planned, session.PlannedLabels,
                         StakeLabelWriter.TextHeight(alignment, preset), session.LabelOptions, m => Prompts.Say(ed, m));
-                    Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
+                    Prompts.Say(ed, $"Đã ghi tên {labelled.names} cọc, lý trình tại {labelled.stations} cọc ({StakeLabelOptions.StationModes[session.StationModeIndex]}), layer {StakeLabelWriter.Layer}.");
+                    ToolWindow.Trace($"ghi tên cọc: {labelled.names} tên, {labelled.stations} lý trình, chế độ {session.StationModeIndex}, xen kẽ={session.AlternateSides}");
                 }
 
                 ToolWindow.Trace("CTPHATCOC: commit");
@@ -313,8 +312,7 @@ public class StakeCommands
             NoRestartFrom100 = memory.Get(command, "No100", true),
             WriteLabels = memory.Get(command, "Labels", true),
             AlternateSides = memory.Get(command, "AlternateEnds", false),
-            LabelStations = memory.Get(command, "StationAtEnd", true),
-            StationOnlyAtKm = memory.Get(command, "StationKmOnly", true),
+            StationModeIndex = memory.Get(command, "StationMode", 1),
             SkipHundredPositions = memory.Get(command, "SkipH", true),
             PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
@@ -336,8 +334,7 @@ public class StakeCommands
             memory.Set(command, "No100", session.NoRestartFrom100);
             memory.Set(command, "Labels", session.WriteLabels);
             memory.Set(command, "AlternateEnds", session.AlternateSides);
-            memory.Set(command, "StationAtEnd", session.LabelStations);
-            memory.Set(command, "StationKmOnly", session.StationOnlyAtKm);
+            memory.Set(command, "StationMode", session.StationModeIndex);
             memory.Set(command, "SkipH", session.SkipHundredPositions);
             memory.Set(command, "PlainCurveNames", session.PlainCurveNames);
             ToolWindow.SaveOptions();
@@ -436,7 +433,8 @@ public class StakeCommands
                     var alignment = (Alignment)tr.GetObject(group.AlignmentId, OpenMode.ForRead);
                     var labelled = StakeLabelWriter.Write(tr, doc.Database, alignment, group.GroupId, session.Stakes, session.NewNames,
                         StakeLabelWriter.TextHeight(alignment, preset), session.LabelOptions, m => Prompts.Say(ed, m));
-                    Prompts.Say(ed, $"Đã ghi tên {labelled} cọc trên layer {StakeLabelWriter.Layer}.");
+                    Prompts.Say(ed, $"Đã ghi tên {labelled.names} cọc, lý trình tại {labelled.stations} cọc ({StakeLabelOptions.StationModes[session.StationModeIndex]}), layer {StakeLabelWriter.Layer}.");
+                    ToolWindow.Trace($"ghi tên cọc: {labelled.names} tên, {labelled.stations} lý trình, chế độ {session.StationModeIndex}, xen kẽ={session.AlternateSides}");
                 }
 
                 tr.TransactionManager.QueueForGraphicsFlush();

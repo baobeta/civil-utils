@@ -17,6 +17,10 @@ public sealed class StakeLabelOptions
 
     public int StationDecimals { get; set; } = 2;
 
+    /// <summary>The choices of "Lý trình": index 0 none, 1 Km stakes only, 2 every stake.</summary>
+    public static System.Collections.Generic.IReadOnlyList<string> StationModes { get; } =
+        new[] { "Không ghi lý trình", "Lý trình chỉ tại cọc Km", "Lý trình tại mọi cọc" };
+
     public bool WritesStation(StakeRole role) => WithStation && (!StationOnlyAtKm || role == StakeRole.Km);
 }
 
