@@ -52,8 +52,6 @@ public sealed class SupportBundleTests : IDisposable
             });
     }
 
-    // ── existing tests ────────────────────────────────────────────────────────
-
     [Fact]
     public void Packs_the_files_and_the_facts()
     {
@@ -254,9 +252,25 @@ public sealed class SupportBundleTests : IDisposable
         }
     }
 
-    // ── new tests for this round ──────────────────────────────────────────────
+    // A local last-write time of 1979-12-31 23:30 must not abort the bundle (zip format requires year >= 1980).
+    [Fact]
+    public void Local_year_1979_timestamp_does_not_abort_bundle()
+    {
+        var zip = Path.Combine(_folder, "out.zip");
+        var old = NewFile("old1979.log", "ancient");
+        File.SetLastWriteTime(old, new DateTime(1979, 12, 31, 23, 30, 0, DateTimeKind.Local));
+        var normal = NewFile("normal.log", "recent");
 
-    // 1. Odd timestamp (pre-1980) must not abort the bundle
+        var written = SupportBundle.Write(zip, null, new[] { old, normal });
+
+        Assert.Contains("old1979.log", written);
+        Assert.Contains("normal.log", written);
+        var entries = Read(zip);
+        Assert.Equal("ancient", entries["old1979.log"]);
+        Assert.Equal("recent", entries["normal.log"]);
+    }
+
+    // Pre-1980 timestamp must not abort the bundle; the entry is still packed, just without a timestamp.
     [Fact]
     public void Pre1980_timestamp_does_not_abort_bundle()
     {
@@ -267,7 +281,6 @@ public sealed class SupportBundleTests : IDisposable
 
         var written = SupportBundle.Write(zip, null, new[] { old, normal });
 
-        // Both entries present with correct content
         Assert.Contains("old.log", written);
         Assert.Contains("normal.log", written);
         var entries = Read(zip);
@@ -275,18 +288,14 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal("recent", entries["normal.log"]);
     }
 
-    // 3. Existing zip is replaced (not just left-intact), new content is readable
     [Fact]
     public void Successful_run_replaces_existing_zip()
     {
         var zip = Path.Combine(_folder, "out.zip");
-        // Create a pre-existing zip with old content
         SupportBundle.Write(zip, new[] { "old" }, null);
         var oldEntries = Read(zip);
         Assert.Contains("old", oldEntries[SupportBundle.InfoName]);
 
-        // New run should replace it
-        NewFile("new.log", "new content");
         SupportBundle.Write(zip, new[] { "new" }, new[] { NewFile("new.log", "new content", "sub") });
 
         var newEntries = Read(zip);
@@ -294,12 +303,11 @@ public sealed class SupportBundleTests : IDisposable
         Assert.True(newEntries.ContainsKey("new.log"));
     }
 
-    // 5. ZipPath in files is skipped — strengthen: create the file first, assert it's not packed
+    // zipPath listed in files is skipped; the zip gets new content and no self-reference entry.
     [Fact]
-    public void ZipPath_in_files_is_skipped_real()
+    public void ZipPath_in_files_is_skipped()
     {
         var zip = Path.Combine(_folder, "out.zip");
-        // Create a pre-existing file at zip path so it exists on disk when passed as input
         File.WriteAllText(zip, "previous report");
         var other = NewFile("ok.log", "data");
 

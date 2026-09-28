@@ -23,10 +23,6 @@ public static class SupportBundle
     /// </summary>
     public const long MaxFileBytes = 2 * 1024 * 1024;
 
-    // Zip format accepts timestamps from 1980-01-01 to 2107-12-31.
-    private static readonly DateTimeOffset ZipMinTime = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
-    private static readonly DateTimeOffset ZipMaxTime = new DateTimeOffset(2107, 12, 31, 23, 59, 59, TimeSpan.Zero);
-
     /// <summary>
     /// Writes the archive to a temporary file next to <paramref name="zipPath"/> and puts it in place only when
     /// complete. If anything fails the temporary file is deleted and <paramref name="zipPath"/> is left untouched.
@@ -64,12 +60,12 @@ public static class SupportBundle
                     }
                     catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException)
                     {
-                        // Cannot extract a file name — skip silently with a generic message (4: no path printed)
+                        // Cannot extract a file name — skip silently with a generic message, no path printed.
                         lines.Add("đường dẫn không hợp lệ");
                         continue;
                     }
 
-                    // Skip if the path resolves to the zip output itself (H).
+                    // Skip if the path resolves to the zip output itself.
                     string fullRaw;
                     try { fullRaw = Path.GetFullPath(rawPath); }
                     catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException ||
@@ -87,10 +83,10 @@ public static class SupportBundle
                     // Only reading is inside the try/catch; writing to the archive is outside so a write
                     // failure propagates and the cleanup block removes the temporary file.
                     byte[] bytes;
-                    long bytesRead;
+                    int bytesRead;
                     long totalLength;
                     bool wasCapped;
-                    DateTimeOffset? lastWrite = null;
+                    DateTime? lastWrite = null;
                     try
                     {
                         // trace.log may be open for append by the running add-in (FileShare.ReadWrite).
@@ -100,8 +96,8 @@ public static class SupportBundle
                         if (wasCapped)
                             source.Seek(totalLength - MaxFileBytes, SeekOrigin.Begin);
 
-                        // Read into a capped buffer with a loop so we never allocate more than MaxFileBytes,
-                        // and so bytesRead reflects what was actually read (the file may have shrunk).
+                        // Allocate a buffer of at most MaxFileBytes. An empty-at-open file still gets a buffer
+                        // because it may be written while we read.
                         var cap = (int)Math.Min(MaxFileBytes, totalLength > 0 ? totalLength : MaxFileBytes);
                         var buf = new byte[cap];
                         var offset = 0;
@@ -120,11 +116,12 @@ public static class SupportBundle
                         }
 
                         // Read the timestamp while still inside the guarded block so a failure here is
-                        // treated as an unreadable file rather than aborting the whole bundle.
+                        // treated like any other read error rather than aborting the whole bundle.
+                        // The zip format only accepts years 1980–2107; compare the LOCAL calendar year
+                        // (the value File.GetLastWriteTime returns) so the check is correct in every time zone.
                         var raw = File.GetLastWriteTime(rawPath);
-                        var dto = new DateTimeOffset(raw);
-                        if (dto >= ZipMinTime && dto <= ZipMaxTime)
-                            lastWrite = dto;
+                        if (raw.Year >= 1980 && raw.Year <= 2107)
+                            lastWrite = raw;
                     }
                     catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                     {
@@ -141,7 +138,7 @@ public static class SupportBundle
                     if (lastWrite.HasValue)
                         entry.LastWriteTime = lastWrite.Value;
                     using (var target = entry.Open())
-                        target.Write(bytes, 0, (int)bytesRead);
+                        target.Write(bytes, 0, bytesRead);
                     written.Add(name);
 
                     // Write the truncation line only when bytes were actually left out.
@@ -159,7 +156,7 @@ public static class SupportBundle
                 written.Add(InfoName);
             }
 
-            // Put the finished archive in place. File.Replace is atomic on most OSes when target exists.
+            // Replaces the target in one step, so a failure leaves the old file in place.
             if (File.Exists(fullZip))
                 File.Replace(tmp, fullZip, null);
             else
