@@ -11,7 +11,7 @@ namespace C3DTools.Civil2021.Ui;
 internal sealed class StakeGenerateWindow : ToolWindow
 {
     public StakeGenerateWindow(StakeGenerationSession session)
-        : base("CTPHATCOC", "Phát sinh cọc", 760, 640, 600, 520)
+        : base("CTPHATCOC", "Phát sinh cọc", 760, 640, 600, 580)   // 580: the list keeps about 100 px with Nâng cao open
     {
         if (session == null) throw new ArgumentNullException(nameof(session));
         DataContext = session;

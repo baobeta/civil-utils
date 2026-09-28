@@ -26,6 +26,8 @@ public class RouteCreationSessionTests
         Assert.Equal(new[] { RouteCreationSession.NoSurface, "EG" }, s.SurfaceNames);
         Assert.Null(s.Surface);
         Assert.Equal(1000, s.Scale);
+        Assert.Equal("1000", s.ScaleText);
+        Assert.True(s.LoadAllAssemblies);
         Assert.Equal(2.5, s.TextHeight, 9);
         Assert.Equal(0, s.StartStation);
         Assert.Equal("TUYEN", s.LayerName);

@@ -226,7 +226,7 @@ internal abstract class ToolWindow : Window
     /// <summary>
     /// "Nâng cao": the rows a user rarely changes, folded away until asked for. Whether it is open is remembered per command.
     /// A dialog has at most one Nâng cao section; its open/closed state is stored under one key per command.
-    /// The inner ScrollViewer caps the expanded height at <paramref name="maxHeight"/> (default 240).
+    /// The inner ScrollViewer caps the expanded height at <paramref name="maxHeight"/>.
     /// </summary>
     protected Expander Advanced(double maxHeight, params UIElement[] rows)
     {

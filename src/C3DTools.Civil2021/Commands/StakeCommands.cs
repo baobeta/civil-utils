@@ -435,7 +435,8 @@ public class StakeCommands
 
     /// <summary>
     /// The group of a picked sample line, or of a picked alignment (asked on the command line when it has several).
-    /// Fills the session; returns the sample lines in the session's order, or null with a message.
+    /// Fills the session; returns the sample lines in the session's order, or null (with a message, except for
+    /// an object that is neither, which callers never pass).
     /// </summary>
     private static StakeGroup LoadGroup(Document doc, ProjectPreset preset, ObjectId picked, StakeRenameSession session)
     {
@@ -473,6 +474,11 @@ public class StakeCommands
                 tr.Commit();
             }
         }
+        catch (OperationCanceledException)
+        {
+            Prompts.Say(ed, "Đã hủy chọn nhóm cọc.");
+            return null;
+        }
         catch (System.Exception ex)
         {
             Prompts.Say(ed, $"Không đọc được nhóm cọc: {ex.Message}");
@@ -496,9 +502,10 @@ public class StakeCommands
                 var alignment = (Alignment)tr.GetObject(alignmentId, OpenMode.ForRead);
                 var lines = SampleLineStakes.Read(tr, groupId);
                 var groupName = ((SampleLineGroup)tr.GetObject(groupId, OpenMode.ForRead)).Name;
+                var alignmentName = alignment.Name;
                 var curves = AlignmentCurves.Read(doc, preset, alignment);
                 tr.Commit();
-                session.SetStakes($"{groupName} ({alignment.Name}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
+                session.SetStakes($"{groupName} ({alignmentName}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
                 return new StakeGroup { GroupId = groupId, AlignmentId = alignmentId, Lines = lines.Select(l => l.id).ToList() };
             }
         }
