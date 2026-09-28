@@ -192,3 +192,74 @@ Bảng có thêm cột **V** (tốc độ tại đỉnh, để trống = V của
 - [ ] `CTYTC` **Dồn dịch đỉnh trắc dọc phía sau**: PVI của trắc dọc thiết kế dời đúng khi R thay đổi
 - [ ] `CTYTC` **Góc chuyển hướng** trên polyline: đỉnh polyline dời theo
 - [ ] `CTPHATCOC` / `CTDANHCOC`: tạo, đổi tên, xoá Sample Line trong một bước undo; tên trùng giữa các Km có hậu tố "(Km1)"
+
+## Bản 0.6 — dùng dễ hơn
+
+Bản này không đổi phép tính nào; nó đổi cách dùng. Chưa có phần nào của bản 0.6 được chạy trên Civil 3D trước khi phát hành: mọi mục dưới đây cần người thử xác nhận.
+
+### Tuyến hiện hành
+
+Bản vẽ nhớ một **tuyến hiện hành**. `CTPHATCOC`, `CTDANHCOC`, `CTTOADO`, `CTBANGCONG` mở ra là dùng ngay tuyến đó, không hỏi chọn alignment. Dòng lệnh báo `Tuyến hiện hành: <tên>`.
+
+- Tuyến vừa tạo bằng `CTTUYEN` tự thành tuyến hiện hành.
+- Bấm **Chọn trên bản vẽ…** trong một lệnh và chọn tuyến khác: các lệnh sau trong phiên làm việc này dùng tuyến đó. Tuyến chỉ được **ghi vào bản vẽ** khi bấm **Áp dụng**; bấm **Hủy** thì bản vẽ không đổi.
+- Chọn alignment trước rồi mới gõ lệnh: lệnh dùng alignment đó.
+- Bản vẽ chỉ có một alignment: lệnh dùng luôn alignment đó.
+- `CTTUYENHH` (nút **Tuyến hiện hành**): xem hoặc đổi tuyến hiện hành.
+
+### Nâng cao và Về mặc định
+
+`CTTUYEN`, `CTPHATCOC`, `CTDANHCOC` chỉ hiện các ô hay dùng. Các ô còn lại nằm trong **Nâng cao**; bấm vào để mở, lần sau hộp thoại nhớ trạng thái mở/đóng.
+
+Khi **Áp dụng** bị mờ, dòng chữ cạnh nút nói ô nào sai. Nếu ô đó không thấy trên hộp thoại thì nó nằm trong **Nâng cao**.
+
+**Về mặc định** đặt lại mọi ô của hộp thoại về giá trị ban đầu. Tuyến hoặc nhóm cọc đang chọn, kích thước cửa sổ và trạng thái Nâng cao giữ nguyên. Ở `CTPHATCOC`, khoảng lý trình, nhóm cọc đã chọn và các lý trình chèn cũng về ban đầu.
+
+### Ribbon
+
+Sáu panel theo thứ tự làm việc: **Tuyến → Cọc → Trắc dọc → Trắc ngang → Địa hình → Tiện ích**.
+
+### Gửi báo lỗi — `CTBAOLOI`
+
+Tạo tệp `C3DTools-baoloi-<ngày-giờ>.zip` trên Desktop, gồm `trace.log`, `error.log`, `options.json` và `thong-tin.txt` (phiên bản C3DTools, Civil 3D, Windows, tên bản vẽ, số alignment, số nhóm cọc). **Tệp không chứa bản vẽ và C3DTools không tự gửi nó đi đâu.** Gửi tệp này kèm mô tả bước đang làm khi gặp lỗi.
+
+Tệp có tên bản vẽ, tên tuyến, tên nhóm cọc, tên cọc, và nhật ký lỗi có thể chứa đường dẫn thư mục trên máy (kể cả tên người dùng Windows). Nhật ký gồm mọi bản vẽ đã làm, không riêng bản vẽ đang mở. Có thể mở tệp zip ra xem trước khi gửi. Nếu Desktop nằm trong OneDrive thì tệp sẽ được OneDrive đồng bộ như mọi tệp khác trên Desktop.
+
+### Chưa kiểm tra trên Windows (0.6)
+
+Tuyến hiện hành:
+
+- [ ] Tuyến hiện hành còn sau khi lưu, đóng và mở lại bản vẽ
+- [ ] Xoá alignment đang là tuyến hiện hành: lệnh hỏi chọn tuyến, không báo lỗi
+- [ ] Bản vẽ có 2 alignment, chưa có tuyến hiện hành: lệnh mở hộp thoại với "chưa chọn"
+- [ ] Mở lệnh, **Chọn trên bản vẽ…**, rồi **Hủy**: bản vẽ không bị đánh dấu đã sửa (`DBMOD` không đổi), không có bước undo mới
+- [ ] `CTTOADO` chỉ xuất CSV (không vẽ bảng): chạy được, bản vẽ không đổi
+- [ ] **Áp dụng** → `U` → chạy lại lệnh: lệnh vẫn mở đúng tuyến, một lệnh `U` hoàn tác cả cọc lẫn bản ghi tuyến hiện hành
+- [ ] `CTTUYENHH`: Enter giữ tuyến đang có; Esc thoát không đổi gì; bấm trượt ra ngoài thì hỏi lại; chọn alignment trước rồi gõ lệnh thì đề nghị đúng alignment đó
+- [ ] `CTTUYEN` khi đang có tuyến A: **Xem trước** rồi trả lời không giữ, **Hủy**, chạy `CTPHATCOC`: lệnh mở với tuyến A
+- [ ] `CTDANHCOC` khi chọn sẵn một line hoặc text: lệnh dùng tuyến hiện hành; chọn sẵn một Sample Line: lệnh dùng nhóm cọc của nó
+
+Hộp thoại:
+
+- [ ] **Về mặc định**: các ô về giá trị ban đầu; tuyến, kích thước cửa sổ, trạng thái Nâng cao giữ nguyên
+- [ ] `CTDANHCOC` trên tuyến có từ 2 nhóm cọc, chọn nhóm thứ hai, **Về mặc định**: dòng lệnh không hỏi lại, hộp thoại vẫn ghi nhóm thứ hai
+- [ ] `CTDANHCOC`: Esc khi được hỏi nhóm cọc: dòng lệnh ghi "Đã hủy chọn nhóm cọc.", hộp thoại mở lại
+- [ ] Mỗi hộp thoại: mở, **Về mặc định**, đổi Phát sinh/Chèn, mở và đóng Nâng cao, **Chọn trên bản vẽ…**, **Xem trước**, **Về mặc định**, **Áp dụng**: không treo, `trace.log` không có dòng "VÒNG LẶP BINDING"
+- [ ] **Nâng cao**: mở/đóng được; chữ và mũi tên đọc được trên giao diện tối của Civil 3D
+- [ ] Thu cửa sổ về nhỏ nhất với Nâng cao đang mở (thử cả tỉ lệ màn hình 125% và 150%): thấy đủ các nút ở chân hộp thoại, danh sách cọc còn ít nhất vài hàng, cuộn tới được mọi ô trong Nâng cao
+- [ ] `CTTUYEN` với Nâng cao mở ở kích thước nhỏ nhất: chỉ có một thanh cuộn, lăn chuột cuộn được
+- [ ] Phím Tab đi từ trên xuống, tới được tiêu đề Nâng cao (Space để mở), các nút chân hộp thoại đi sau cùng
+- [ ] Dòng tóm tắt dài: bị cắt bằng "…" và rê chuột hiện đủ câu; dòng rỗng thì không hiện khung trống khi rê chuột
+- [ ] `CTPHATCOC`: gõ "abc" vào khoảng cách cọc C, chuyển sang **Chèn**, thêm một lý trình: **Áp dụng** bấm được. Chuyển lại **Phát sinh**: bị chặn, dòng tóm tắt nêu khoảng cách cọc C
+- [ ] `CTTUYEN`: chọn tệp mặt cắt lỗi: thông báo hiện trong Nâng cao
+
+Ribbon và báo lỗi:
+
+- [ ] Ribbon: 6 panel, không panel nào cao quá 3 hàng, icon Cọc và Tiện ích hiện đúng, bấm nút chạy lệnh
+- [ ] `CTBAOLOI`: có tệp zip trên Desktop, Explorer mở và chọn sẵn tệp, trong zip không có DWG
+- [ ] `CTBAOLOI` khi Desktop nằm trong OneDrive, và khi tên người dùng Windows có dấu tiếng Việt hoặc dấu cách
+- [ ] `CTBAOLOI`: mở `thong-tin.txt` bằng Notepad, chữ tiếng Việt đọc được
+- [ ] `CTBAOLOI` trên máy chưa từng chạy lệnh C3DTools nào: dòng lệnh nêu tệp nào chưa có
+- [ ] `CTBAOLOI` trên bản vẽ tạo từ `acad.dwt` và khi mở Civil 3D bằng lối tắt "Civil 3D as AutoCAD": vẫn ra tệp zip, `thong-tin.txt` ghi phần Civil 3D không đọc được
+- [ ] `CTBAOLOI` khi Desktop bị chặn ghi (Controlled Folder Access): tệp zip nằm trong thư mục tạm, dòng lệnh ghi đường dẫn
+- [ ] Sau `CTBAOLOI`: bản vẽ không bị đánh dấu đã sửa
