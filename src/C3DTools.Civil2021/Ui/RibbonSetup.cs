@@ -12,11 +12,9 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 namespace C3DTools.Civil2021.Ui;
 
 /// <summary>
-/// Tab C3DTools (UI rule 6): one panel per work area, the daily command as the large button, the rest small, each with a
-/// one-sentence Vietnamese tooltip. Tuyến: Yếu tố cong (CTYTC), Tạo tuyến (CTTUYEN), Phát sinh cọc (CTPHATCOC), Đánh tên cọc (CTDANHCOC),
-/// Mẫu TCVN (CTYTCMAU), Bảng cong (CTYTCBANG), Toạ độ cọc (CTTOADO).
-/// Trắc dọc: Bảng trắc dọc (CTTRACDOC), Cong đứng (CTCONGDUNG). Trắc ngang: Bảng trắc ngang (CTTRACNGANG), Xếp trang (CTXEPTRANG).
-/// Địa hình: Mặt địa hình (CTMATDIA), VN-2000 (CTVN2000). Thoát nước: Bảng cống (CTBANGCONG). Bản vẽ: Chuyển font (CTFONT), Chuẩn layer (CTLAYER).
+/// Tab C3DTools (UI rule 6): one panel per stage of the work, left to right — Tuyến, Cọc, Trắc dọc, Trắc ngang,
+/// Địa hình, Tiện ích. The stage's main command is the large button; at most three small ones beside it; each has a
+/// one-sentence Vietnamese tooltip.
 /// </summary>
 public sealed class RibbonSetup : IExtensionApplication
 {
@@ -58,15 +56,17 @@ public sealed class RibbonSetup : IExtensionApplication
         var ribbon = ComponentManager.Ribbon;
         if (ribbon.Tabs.Any(t => t.Id == TabId)) return;
 
+        // Left to right in the order of the work; at most three small buttons per panel (three rows fit the ribbon).
         var tab = new RibbonTab { Id = TabId, Title = "C3DTools" };
         tab.Panels.Add(Panel("Tuyến", "ytc",
-            ("Yếu tố cong", "CTYTC", "Thiết kế và cắm cong nằm theo TCVN 4054 cho polyline hoặc alignment: đường cong, siêu cao, mở rộng, khung yếu tố, cọc và bảng."),
-            ("Tạo tuyến", "CTTUYEN", "Tạo alignment mới từ polyline hoặc các điểm chỉ trên bản vẽ, kèm tỉ lệ bình đồ, vận tốc, trắc dọc tự nhiên và mặt cắt."),
-            ("Phát sinh cọc", "CTPHATCOC", "Phát sinh hoặc chèn cọc (Sample Line) dọc tuyến, khoảng cách riêng trên đoạn thẳng và đoạn cong."),
-            ("Đánh tên cọc", "CTDANHCOC", "Đánh lại tên toàn bộ cọc của một nhóm cọc: cọc C, H, Km và cọc chủ yếu theo quy tắc chọn."),
-            ("Mẫu TCVN", "CTYTCMAU", "Nhập kiểu nhãn, label set và bộ viết tắt TCVN cho alignment vào bản vẽ."),
+            ("Tạo tuyến", "CTTUYEN", "Tạo alignment mới từ polyline hoặc các điểm chỉ trên bản vẽ, kèm tỉ lệ bình đồ và vận tốc thiết kế."),
+            ("Yếu tố cong", "CTYTC", "Thiết kế và cắm cong nằm theo TCVN 4054: đường cong, siêu cao, mở rộng, khung yếu tố, cọc và bảng."),
             ("Bảng cong", "CTYTCBANG", "Xuất bảng tổng hợp yếu tố cong của một tuyến ra AutoCAD Table, CSV hoặc Excel."),
-            ("Toạ độ cọc", "CTTOADO", "Lập bảng toạ độ cọc của alignment ra AutoCAD Table, CSV, Excel hoặc điểm COGO.")));
+            ("Tuyến hiện hành", "CTTUYENHH", "Chọn tuyến mà các lệnh sau sẽ làm việc; không phải chọn lại ở từng lệnh.")));
+        tab.Panels.Add(Panel("Cọc", "coc",
+            ("Phát sinh cọc", "CTPHATCOC", "Phát sinh hoặc chèn cọc dọc tuyến: cọc Km, H, C và cọc đặc biệt tại đường cong, kèm tên cọc trên bình đồ."),
+            ("Đánh tên cọc", "CTDANHCOC", "Đánh lại tên cọc của một nhóm cọc theo quy tắc chọn và ghi tên lên bình đồ."),
+            ("Toạ độ cọc", "CTTOADO", "Lập bảng toạ độ cọc của tuyến ra AutoCAD Table, CSV, Excel hoặc điểm COGO.")));
         tab.Panels.Add(Panel("Trắc dọc", "tracdoc",
             ("Bảng trắc dọc", "CTTRACDOC", "Vẽ bảng số liệu trắc dọc kiểu Việt Nam dưới profile view và xuất CSV, Excel."),
             ("Cong đứng", "CTCONGDUNG", "Tính và ghi yếu tố cong đứng (A, R, T, E) của trắc dọc thiết kế, kiểm tra theo preset.")));
@@ -75,12 +75,13 @@ public sealed class RibbonSetup : IExtensionApplication
             ("Xếp trang", "CTXEPTRANG", "Xếp các trắc ngang vào tờ in theo thứ tự lý trình và vẽ khung tờ.")));
         tab.Panels.Add(Panel("Địa hình", "diahinh",
             ("Mặt địa hình", "CTMATDIA", "Xoá tam giác dài hoặc ngoài ranh giới của mặt phủ TIN, hoặc ghi cao độ đường đồng mức."),
-            ("VN-2000", "CTVN2000", "Chuyển toạ độ đối tượng hoặc điểm COGO sang kinh tuyến trục, múi chiếu VN-2000 khác.")));
-        tab.Panels.Add(Panel("Thoát nước", "thoatnuoc",
+            ("VN-2000", "CTVN2000", "Chuyển toạ độ đối tượng hoặc điểm COGO sang kinh tuyến trục, múi chiếu VN-2000 khác."),
             ("Bảng cống", "CTBANGCONG", "Lập bảng thống kê cống của các mạng cống cắt qua tuyến ra AutoCAD Table, CSV hoặc Excel.")));
-        tab.Panels.Add(Panel("Bản vẽ", "banve",
+        tab.Panels.Add(Panel("Tiện ích", "tienich",
+            ("Gửi báo lỗi", "CTBAOLOI", "Gom nhật ký, phiên bản và cấu hình thành một tệp zip trên Desktop để gửi khi gặp lỗi. Không kèm bản vẽ."),
             ("Chuyển font", "CTFONT", "Chuyển chữ tiếng Việt giữa TCVN3, VNI và Unicode cho đối tượng chọn hoặc toàn bản vẽ."),
-            ("Chuẩn layer", "CTLAYER", "Chuyển đối tượng sang layer chuẩn theo preset và xoá layer rỗng nếu cần.")));
+            ("Chuẩn layer", "CTLAYER", "Chuyển đối tượng sang layer chuẩn theo preset và xoá layer rỗng nếu cần."),
+            ("Mẫu TCVN", "CTYTCMAU", "Nhập kiểu nhãn, label set và bộ viết tắt TCVN cho alignment vào bản vẽ.")));
         ribbon.Tabs.Add(tab);
     }
 
