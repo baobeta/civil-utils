@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.Collections;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -13,8 +13,9 @@ using C3DTools.Core.Ui;
 namespace C3DTools.Civil2021.Services;
 
 /// <summary>
-/// The active route of a drawing: an Xrecord in the Named Object Dictionary holding the alignment's handle, so it is
-/// saved with the drawing.
+/// The active route of a drawing: an Xrecord in the Named Object Dictionary holding the alignment's handle, so it
+/// is saved with the drawing. The handle is valid only in this drawing; if the record is carried into another
+/// drawing the rule ignores a handle that matches no alignment there.
 /// </summary>
 internal static class ActiveRouteStore
 {
@@ -60,12 +61,18 @@ internal static class ActiveRouteStore
     }
 }
 
-/// <summary>"Tuyến hiện hành": which alignment a command starts with, and remembering the one the user picks.</summary>
+/// <summary>
+/// "Tuyến hiện hành": which alignment a command starts with, session memory of the chosen alignment, and
+/// persisting that choice to the drawing only when a command actually applies (writes) its results.
+/// Contract: call <see cref="Remember"/> after a successful alignment load; call <see cref="Save"/> inside the
+/// existing write transaction just before its Commit; never open a transaction just for the route.
+/// </summary>
 internal static class RoutePicker
 {
     /// <summary>
-    /// The alignment to start with (ActiveRoute.Resolve): selected before the command, else the drawing's active
-    /// route, else its only alignment; ObjectId.Null when the user has to pick. message: what to tell the user, or null.
+    /// The alignment to start with (ActiveRoute.Resolve): selected before the command, else the remembered or
+    /// stored handle, else the drawing's only alignment; ObjectId.Null when the user must pick.
+    /// message: what to tell the user, or null.
     /// </summary>
     public static ObjectId Resolve(Document doc, out string message)
     {
@@ -77,21 +84,27 @@ internal static class RoutePicker
             using (var tr = doc.TransactionManager.StartTransaction())
             {
                 var civil = CivilDocument.GetCivilDocument(doc.Database);
-                var alignments = civil.GetAlignmentIds().Cast<ObjectId>()
-                    .Select(id => tr.GetObject(id, OpenMode.ForRead) as Alignment)
-                    .Where(a => a != null)
+                var ids = civil.GetAlignmentIds().Cast<ObjectId>()
+                    .Where(id => !id.IsErased)
                     .ToList();
+                var handles = ids.Select(id => id.Handle.ToString()).ToList();
+                var stored = ReadRemembered(doc) ?? ActiveRouteStore.Read(tr, doc.Database);
                 var choice = ActiveRoute.Resolve(
                     preselected.IsNull ? null : preselected.Handle.ToString(),
-                    ActiveRouteStore.Read(tr, doc.Database),
-                    alignments.Select(a => a.Handle.ToString()));
-                tr.Commit();
-                if (!choice.Found) return ObjectId.Null;
+                    stored,
+                    handles);
+                if (!choice.Found)
+                {
+                    tr.Commit();
+                    return ObjectId.Null;
+                }
 
-                var chosen = alignments.First(a => string.Equals(a.Handle.ToString(), choice.Handle, StringComparison.OrdinalIgnoreCase));
-                message = ActiveRoute.Describe(choice.Reason, chosen.Name);
-                ToolWindow.Trace($"tuyến: {choice.Reason} {chosen.Name}");
-                return chosen.ObjectId;
+                var chosenId = ids.First(id => string.Equals(id.Handle.ToString(), choice.Handle, StringComparison.OrdinalIgnoreCase));
+                var name = ((Alignment)tr.GetObject(chosenId, OpenMode.ForRead)).Name;
+                tr.Commit();
+                message = ActiveRoute.Describe(choice.Reason, name);
+                ToolWindow.Trace($"tuyến: {choice.Reason} {name}");
+                return chosenId;
             }
         }
         catch (System.Exception ex)
@@ -101,25 +114,56 @@ internal static class RoutePicker
         }
     }
 
-    /// <summary>Makes the alignment the drawing's active route. A failure only means the next command asks again.</summary>
-    public static void Use(Document doc, ObjectId alignmentId)
+    /// <summary>
+    /// Remembers the alignment for this session (doc.UserData); no transaction, no drawing change.
+    /// Call after a successful alignment load. Does nothing for a null id. Never throws.
+    /// </summary>
+    public static void Remember(Document doc, ObjectId alignmentId)
     {
         if (alignmentId.IsNull) return;
         try
         {
-            using (doc.LockDocument())
-            using (var tr = doc.TransactionManager.StartTransaction())
-            {
-                if (!(tr.GetObject(alignmentId, OpenMode.ForRead) is Alignment alignment)) return;
-                var handle = alignment.Handle.ToString();
-                if (!string.Equals(ActiveRouteStore.Read(tr, doc.Database), handle, StringComparison.OrdinalIgnoreCase))
-                    ActiveRouteStore.Write(tr, doc.Database, handle);
-                tr.Commit();
-            }
+            doc.UserData[ActiveRouteStore.Key] = alignmentId.Handle.ToString();
         }
         catch (System.Exception ex)
         {
-            ToolWindow.LogError("RoutePicker.Use", ex);
+            ToolWindow.LogError("RoutePicker.Remember", ex);
+        }
+    }
+
+    /// <summary>
+    /// Persists the remembered handle to the drawing's Named Object Dictionary inside the caller's own write
+    /// transaction (the document must already be locked). Call just before the transaction's Commit.
+    /// Returns true when the drawing now holds the remembered handle (including when it already did).
+    /// Returns false when nothing was remembered or when writing fails (logs the error). Never throws.
+    /// </summary>
+    public static bool Save(Transaction tr, Document doc)
+    {
+        try
+        {
+            var handle = ReadRemembered(doc);
+            if (handle == null) return false;
+            if (!string.Equals(ActiveRouteStore.Read(tr, doc.Database), handle, StringComparison.OrdinalIgnoreCase))
+                ActiveRouteStore.Write(tr, doc.Database, handle);
+            return true;
+        }
+        catch (System.Exception ex)
+        {
+            ToolWindow.LogError("RoutePicker.Save", ex);
+            return false;
+        }
+    }
+
+    /// <summary>The handle remembered in doc.UserData for this session, or null.</summary>
+    private static string ReadRemembered(Document doc)
+    {
+        try
+        {
+            return (doc.UserData as Hashtable)?[ActiveRouteStore.Key] as string;
+        }
+        catch (System.Exception)
+        {
+            return null;
         }
     }
 

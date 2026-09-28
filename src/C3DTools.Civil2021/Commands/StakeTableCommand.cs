@@ -90,7 +90,11 @@ public class StakeTableCommand
         Route route = null;
         var first = RoutePicker.Resolve(doc, out var why);
         if (why != null) Prompts.Say(ed, why);
-        if (!first.IsNull) route = Load(doc, preset, first, session) ?? route;
+        if (!first.IsNull)
+        {
+            route = Load(doc, preset, first, session) ?? route;
+            if (route != null) RoutePicker.Remember(doc, first);
+        }
         if (route != null) Preview(doc, route, session, surfaces);
 
         while (true)
@@ -112,9 +116,9 @@ public class StakeTableCommand
                 case DialogAction.Pick:
                     var picked = Prompts.PickEntity<Alignment>(ed, "Chọn alignment: ");
                     if (picked.IsNull) continue;
-                    RoutePicker.Use(doc, picked);
                     var loaded = Load(doc, preset, picked, session);
                     if (loaded == null) continue;
+                    RoutePicker.Remember(doc, picked);
                     route = loaded;
                     Preview(doc, route, session, surfaces);
                     continue;
@@ -333,6 +337,7 @@ public class StakeTableCommand
                     return false;
                 }
 
+                RoutePicker.Save(tr, doc);
                 tr.Commit();
             }
         }

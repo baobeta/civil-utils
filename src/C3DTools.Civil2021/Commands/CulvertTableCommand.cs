@@ -79,7 +79,11 @@ public class CulvertTableCommand
         Route route = null;
         var first = RoutePicker.Resolve(doc, out var why);
         if (why != null) Prompts.Say(ed, why);
-        if (!first.IsNull) route = Load(doc, first, session);
+        if (!first.IsNull)
+        {
+            route = Load(doc, first, session);
+            if (route != null) RoutePicker.Remember(doc, first);
+        }
         if (route != null && session.CanApply) Preview(doc, route, session, networks, surfaces, preset);
 
         while (true)
@@ -98,9 +102,9 @@ public class CulvertTableCommand
                 case DialogAction.Pick:
                     var picked = Prompts.PickEntity<Alignment>(ed, "Chọn alignment: ");
                     if (picked.IsNull) continue;
-                    RoutePicker.Use(doc, picked);
                     var loaded = Load(doc, picked, session);
                     if (loaded == null) continue;
+                    RoutePicker.Remember(doc, picked);
                     route = loaded;
                     if (session.CanApply) Preview(doc, route, session, networks, surfaces, preset);
                     continue;
@@ -279,6 +283,7 @@ public class CulvertTableCommand
                 return false;
             }
 
+            RoutePicker.Save(tr, doc);
             tr.Commit();
             return true;
         }
