@@ -25,7 +25,7 @@ public readonly struct RouteChoice : IEquatable<RouteChoice>
         string.Equals(Handle, other.Handle, StringComparison.OrdinalIgnoreCase) && Reason == other.Reason;
 
     public override bool Equals(object obj) => obj is RouteChoice other && Equals(other);
-    public override int GetHashCode() => (Handle ?? "").ToUpperInvariant().GetHashCode() ^ (int)Reason;
+    public override int GetHashCode() => StringComparer.OrdinalIgnoreCase.GetHashCode(Handle ?? "") ^ (int)Reason;
     public override string ToString() => Reason + ":" + Handle;
 }
 

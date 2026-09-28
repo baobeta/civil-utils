@@ -41,4 +41,25 @@ public class ActiveRouteTests
     [InlineData(RouteChoiceReason.Preselected, null)]
     [InlineData(RouteChoiceReason.None, null)]
     public void Describe(RouteChoiceReason reason, string text) => Assert.Equal(text, ActiveRoute.Describe(reason, "T1"));
+
+    [Fact]
+    public void Handle_is_spelled_as_the_drawing_spells_it()
+    {
+        Assert.Equal("1A", ActiveRoute.Resolve(null, "1a", Three).Handle);
+        Assert.Equal("2B", ActiveRoute.Resolve("2b", null, Three).Handle);
+    }
+
+    [Fact]
+    public void RouteChoice_equality_and_hash_code()
+    {
+        var a = new RouteChoice("1a", RouteChoiceReason.Active);
+        var b = new RouteChoice("1A", RouteChoiceReason.Active);
+        Assert.Equal(a, b);
+        Assert.Equal(a.GetHashCode(), b.GetHashCode());
+
+        var c = new RouteChoice("1A", RouteChoiceReason.OnlyOne);
+        Assert.NotEqual(a, c);
+
+        Assert.Equal(RouteChoice.None, default(RouteChoice));
+    }
 }
