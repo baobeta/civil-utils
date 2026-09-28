@@ -9,6 +9,42 @@ namespace C3DTools.Core.Tests.Stations;
 
 public class StakeGenerationSessionTests
 {
+    /// <summary>"Về mặc định" rebuilds the session with nothing remembered: these are the values it promises.</summary>
+    [Fact]
+    public void A_new_session_has_the_defaults_reset_promises()
+    {
+        var s = new StakeGenerationSession(new ProjectPreset());
+
+        Assert.Equal("20", s.StraightSpacingText);
+        Assert.Equal("20", s.DetailStartText);
+        Assert.Equal("10", s.CurveSpacingText);
+        Assert.Equal("60", s.HalfWidthText);
+        Assert.False(s.DensifyCurves);
+        Assert.False(s.InsertMode);
+        Assert.False(s.SubStakeStyle);
+        Assert.True(s.SkipHundredPositions);
+        Assert.False(s.NoHundreds);
+        Assert.False(s.PlainCurveNames);
+        Assert.True(s.WriteLabels);
+        Assert.Equal(1, s.StationModeIndex);
+        Assert.False(s.AlternateSides);
+
+        var r = new StakeRenameSession(new ProjectPreset());
+        Assert.Equal("C", r.DetailPrefix);
+        Assert.Equal("1", r.FirstDetailNumberText);
+        Assert.Equal("1", r.FirstPiNumberText);
+        Assert.Equal("", r.KeepPrefixesText);
+        Assert.True(r.RenameCurveKeys);
+        Assert.False(r.NameByStation);
+        Assert.False(r.NoHundreds);
+        Assert.True(r.ContinuousThroughH);
+        Assert.False(r.RestartPerKm);
+        Assert.True(r.NoRestartFrom100);
+        Assert.True(r.SkipHundredPositions);
+        Assert.True(r.WriteLabels);
+        Assert.Equal(1, r.StationModeIndex);
+    }
+
     private static StakeGenerationSession Loaded(params string[] groups)
     {
         var s = new StakeGenerationSession(new ProjectPreset());

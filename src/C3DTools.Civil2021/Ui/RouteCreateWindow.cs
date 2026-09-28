@@ -13,6 +13,7 @@ internal sealed class RouteCreateWindow : ToolWindow
 {
     private readonly RouteCreationSession _session;
     private readonly Func<string, IList<string>> _readAssemblies;
+    private readonly Expander _advanced;
     private readonly TextBlock _status = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = System.Windows.Media.Brushes.DarkRed };
 
     /// <param name="readAssemblies">Assembly names of a DWG ("Tệp mặt cắt"); throws with a Vietnamese message.</param>
@@ -28,22 +29,24 @@ internal sealed class RouteCreateWindow : ToolWindow
         top.Children.Add(ActionButton("Theo polyline…", DialogAction.Pick));
         top.Children.Add(ActionButton("Chỉ điểm…", DialogAction.PickPoints));
 
-        var form = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        form.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        var row = 0;
-        void Add(string label, UIElement input)
+        // Two forms with the same label column: what every route needs, and what usually keeps its default.
+        var form = NewForm();
+        var more = NewForm();
+        void AddTo(Grid grid, string label, UIElement input)
         {
-            form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var row = grid.RowDefinitions.Count;
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             var text = new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 3, 10, 3) };
             Grid.SetRow(text, row);
-            form.Children.Add(text);
+            grid.Children.Add(text);
             if (input is FrameworkElement f) f.Margin = new Thickness(0, 3, 0, 3);
             Grid.SetRow(input, row);
             Grid.SetColumn(input, 1);
-            form.Children.Add(input);
-            row++;
+            grid.Children.Add(input);
         }
+
+        void Add(string label, UIElement input) => AddTo(form, label, input);
+        void AddMore(string label, UIElement input) => AddTo(more, label, input);
 
         var nameAndScale = Row();
         nameAndScale.Margin = new Thickness(0);
@@ -51,7 +54,7 @@ internal sealed class RouteCreateWindow : ToolWindow
         nameAndScale.Children.Add(Label("Tỉ lệ bình đồ 1/"));
         nameAndScale.Children.Add(Text(nameof(RouteCreationSession.ScaleText), nameof(RouteCreationSession.IsScaleValid), 70));
         Add("Tên đường tuyến", nameAndScale);
-        Add("Mô tả", Text(nameof(RouteCreationSession.Description), null, 0));
+        AddMore("Mô tả", Text(nameof(RouteCreationSession.Description), null, 0));
 
         var startAndSpeed = Row();
         startAndSpeed.Margin = new Thickness(0);
@@ -63,10 +66,10 @@ internal sealed class RouteCreateWindow : ToolWindow
         startAndSpeed.Children.Add(new TextBlock { Text = "km/h", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 0, 0) });
         Add("Lý trình đầu", startAndSpeed);
 
-        Add("Kiểu Alignment", Combo(nameof(RouteCreationSession.StyleNames), nameof(RouteCreationSession.StyleIndex)));
-        Add("Bộ nhãn", Combo(nameof(RouteCreationSession.LabelSetNames), nameof(RouteCreationSession.LabelSetIndex)));
-        Add("Layer", Text(nameof(RouteCreationSession.LayerName), nameof(RouteCreationSession.IsLayerValid), 200));
-        Add("Trắc dọc tự nhiên từ", Combo(nameof(RouteCreationSession.SurfaceNames), nameof(RouteCreationSession.SurfaceIndex)));
+        AddMore("Kiểu Alignment", Combo(nameof(RouteCreationSession.StyleNames), nameof(RouteCreationSession.StyleIndex)));
+        AddMore("Bộ nhãn", Combo(nameof(RouteCreationSession.LabelSetNames), nameof(RouteCreationSession.LabelSetIndex)));
+        AddMore("Layer", Text(nameof(RouteCreationSession.LayerName), nameof(RouteCreationSession.IsLayerValid), 200));
+        AddMore("Trắc dọc tự nhiên từ", Combo(nameof(RouteCreationSession.SurfaceNames), nameof(RouteCreationSession.SurfaceIndex)));
 
         var file = new DockPanel();
         var browse = Button("…", (s, e) => Browse());
@@ -77,18 +80,31 @@ internal sealed class RouteCreateWindow : ToolWindow
         var path = new TextBox { IsReadOnly = true, Background = ReadOnlyBrush, VerticalContentAlignment = VerticalAlignment.Center };
         path.SetBinding(TextBox.TextProperty, new Binding(nameof(RouteCreationSession.SectionFile)) { Mode = BindingMode.OneWay });
         file.Children.Add(path);
-        Add("Tệp mặt cắt (DWG)", file);
-        Add("", Check("Tải toàn bộ mặt cắt trong tệp", nameof(RouteCreationSession.LoadAllAssemblies)));
-        Add("Mặt cắt cho tuyến", Combo(nameof(RouteCreationSession.AssemblyNames), nameof(RouteCreationSession.AssemblyIndex)));
+        AddMore("Tệp mặt cắt (DWG)", file);
+        AddMore("", Check("Tải toàn bộ mặt cắt trong tệp", nameof(RouteCreationSession.LoadAllAssemblies)));
+        AddMore("Mặt cắt cho tuyến", Combo(nameof(RouteCreationSession.AssemblyNames), nameof(RouteCreationSession.AssemblyIndex)));
 
         var height = new TextBlock { Foreground = System.Windows.Media.Brushes.DimGray };
         height.SetBinding(TextBlock.TextProperty, new Binding(nameof(RouteCreationSession.TextHeightText)));
         Add("", height);
         Add("", Check("Bố trí cong ngay sau khi tạo (mở CTYTC)", nameof(RouteCreationSession.OpenCurveDesign)));
-        Add("", _status);
+        AddMore("", _status);
 
-        var content = new ScrollViewer { Content = form, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-        SetLayout(top, BuildFooter(nameof(RouteCreationSession.SummaryText), nameof(RouteCreationSession.CanApply)), content);
+        var body = new StackPanel();
+        body.Children.Add(form);
+        var advanced = Advanced(more);
+        body.Children.Add(advanced);
+        var content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        SetLayout(top, BuildFooter(nameof(RouteCreationSession.SummaryText), nameof(RouteCreationSession.CanApply), withReset: true), content);
+        _advanced = advanced;
+    }
+
+    private static Grid NewForm()
+    {
+        var grid = new Grid { Margin = new Thickness(0, 8, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        return grid;
     }
 
     private void Browse()
@@ -104,6 +120,7 @@ internal sealed class RouteCreateWindow : ToolWindow
         catch (Exception ex)
         {
             _status.Text = "Không đọc được tệp mặt cắt: " + ex.Message;
+            _advanced.IsExpanded = true;   // the message is inside Nâng cao
         }
     }
 

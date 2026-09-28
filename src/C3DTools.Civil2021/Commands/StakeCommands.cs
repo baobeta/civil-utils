@@ -71,7 +71,7 @@ public class StakeCommands
         var ed = doc.Editor;
         var preset = LoadPreset(ed);
         var memory = ToolWindow.Options;
-        var session = new StakeGenerationSession(preset)
+        StakeGenerationSession NewSession() => new StakeGenerationSession(preset)
         {
             StraightSpacingText = memory.Get(command, "Straight", "20"),
             CurveSpacingText = memory.Get(command, "Curve", "10"),
@@ -86,13 +86,26 @@ public class StakeCommands
             PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
 
+        var session = NewSession();
         Route route = null;
-        var first = PickFirst<Alignment>(ed);
+        var first = RoutePicker.Resolve(doc, out var why);
+        if (why != null) Prompts.Say(ed, why);
         if (!first.IsNull) route = LoadRoute(doc, preset, first, session);
+        if (route != null) RoutePicker.Remember(doc, route.Id);
 
         while (true)
         {
             var action = new StakeGenerateWindow(session).ShowModal();
+            if (action == DialogAction.Reset)
+            {
+                // Not saved first: the values being reset must not be written back.
+                ToolWindow.ResetOptions(command);
+                session = NewSession();
+                if (route != null) route = LoadRoute(doc, preset, route.Id, session) ?? route;
+                if (route != null) RoutePicker.Remember(doc, route.Id);
+                continue;
+            }
+
             memory.Set(command, "Straight", session.StraightSpacingText);
             memory.Set(command, "Curve", session.CurveSpacingText);
             memory.Set(command, "Densify", session.DensifyCurves);
@@ -110,7 +123,9 @@ public class StakeCommands
             {
                 case DialogAction.Pick:
                     var picked = Prompts.PickEntity<Alignment>(ed, "Chọn alignment: ");
-                    if (!picked.IsNull) route = LoadRoute(doc, preset, picked, session) ?? route;
+                    if (picked.IsNull) continue;
+                    route = LoadRoute(doc, preset, picked, session) ?? route;
+                    if (route != null) RoutePicker.Remember(doc, route.Id);
                     continue;
                 case DialogAction.PickFrom:
                 case DialogAction.PickTo:
@@ -209,6 +224,7 @@ public class StakeCommands
                 }
 
                 ToolWindow.Trace("CTPHATCOC: commit");
+                RoutePicker.Save(tr, doc);
                 tr.Commit();
                 ToolWindow.Trace("CTPHATCOC: commit xong, " + SampleLineStakes.Summary(result));
                 Prompts.Say(ed, $"Hoàn thành: {SampleLineStakes.Summary(result)}. Một lệnh U hoàn tác toàn bộ.\n");
@@ -300,7 +316,7 @@ public class StakeCommands
         var ed = doc.Editor;
         var preset = LoadPreset(ed);
         var memory = ToolWindow.Options;
-        var session = new StakeRenameSession(preset)
+        StakeRenameSession NewSession() => new StakeRenameSession(preset)
         {
             DetailPrefix = memory.Get(command, "Prefix", "C"),
             KeepPrefixesText = memory.Get(command, "Keep", ""),
@@ -317,13 +333,31 @@ public class StakeCommands
             PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
         };
 
+        var session = NewSession();
         StakeGroup ids = null;
-        var first = PickFirst<Autodesk.AutoCAD.DatabaseServices.Entity>(ed);
-        if (!first.IsNull) ids = LoadGroup(doc, preset, first, session) ?? ids;
+        // A sample line or alignment selected before the command; else the active route.
+        var source = PickFirst<Autodesk.AutoCAD.DatabaseServices.Entity>(ed);
+        if (source.IsNull)
+        {
+            source = RoutePicker.Resolve(doc, out var why);
+            if (why != null) Prompts.Say(ed, why);
+        }
+
+        if (!source.IsNull) ids = LoadGroup(doc, preset, source, session) ?? ids;
+        if (ids != null) RoutePicker.Remember(doc, ids.AlignmentId);
 
         while (true)
         {
             var action = new StakeRenameWindow(session).ShowModal();
+            if (action == DialogAction.Reset)
+            {
+                ToolWindow.ResetOptions(command);
+                session = NewSession();
+                if (ids != null) ids = LoadGroup(doc, preset, source, session) ?? ids;
+                if (ids != null) RoutePicker.Remember(doc, ids.AlignmentId);
+                continue;
+            }
+
             memory.Set(command, "Prefix", session.DetailPrefix);
             memory.Set(command, "Keep", session.KeepPrefixesText);
             memory.Set(command, "CurveKeys", session.RenameCurveKeys);
@@ -343,7 +377,12 @@ public class StakeCommands
             {
                 case DialogAction.Pick:
                     var picked = PickGroupObject(ed);
-                    if (!picked.IsNull) ids = LoadGroup(doc, preset, picked, session) ?? ids;
+                    if (picked.IsNull) continue;
+                    var loaded = LoadGroup(doc, preset, picked, session);
+                    if (loaded == null) continue;
+                    ids = loaded;
+                    source = picked;
+                    RoutePicker.Remember(doc, ids.AlignmentId);
                     continue;
                 case DialogAction.Preview:
                 case DialogAction.Apply:
@@ -437,6 +476,7 @@ public class StakeCommands
                     ToolWindow.Trace($"ghi tên cọc: {labelled.names} tên, {labelled.stations} lý trình, chế độ {session.StationModeIndex}, xen kẽ={session.AlternateSides}");
                 }
 
+                RoutePicker.Save(tr, doc);
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
                 keep = !askToKeep || Prompts.AskKeep(ed);

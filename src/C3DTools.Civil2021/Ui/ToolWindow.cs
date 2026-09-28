@@ -285,6 +285,7 @@ internal abstract class ToolWindow : Window
         {
             VerticalAlignment = VerticalAlignment.Center,
             TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 0, 8, 0),
         };
         summary.SetBinding(TextBlock.TextProperty, new Binding(summaryPath));
         summary.SetBinding(ToolTipProperty, new Binding(summaryPath) { Converter = NullIfEmpty.Instance });

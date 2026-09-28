@@ -51,15 +51,20 @@ public class RouteCreateCommand
         foreach (var m in messages) Prompts.Say(ed, m);
 
         var memory = ToolWindow.Options;
-        var session = new RouteCreationSession(preset)
+        RouteCreationSession NewSession()
         {
-            ScaleText = memory.Get(Command, "Scale", "1000"),
-            LayerName = memory.Get(Command, "Layer", "TUYEN"),
-            OpenCurveDesign = memory.Get(Command, "OpenCurveDesign", true),
-            LoadAllAssemblies = memory.Get(Command, "LoadAllAssemblies", true),
-        };
-        ReadDrawing(doc, session);
+            var fresh = new RouteCreationSession(preset)
+            {
+                ScaleText = memory.Get(Command, "Scale", "1000"),
+                LayerName = memory.Get(Command, "Layer", "TUYEN"),
+                OpenCurveDesign = memory.Get(Command, "OpenCurveDesign", true),
+                LoadAllAssemblies = memory.Get(Command, "LoadAllAssemblies", true),
+            };
+            ReadDrawing(doc, fresh);
+            return fresh;
+        }
 
+        var session = NewSession();
         var polylineId = PickFirst(ed);
         if (!polylineId.IsNull) session.SetPolylineSource(Describe(doc, polylineId));
 
@@ -67,6 +72,17 @@ public class RouteCreateCommand
         {
             var window = new RouteCreateWindow(session, ReadAssemblies);
             var action = window.ShowModal();
+            if (action == DialogAction.Reset)
+            {
+                // Not saved first: the values being reset must not be written back. The centreline stays.
+                ToolWindow.ResetOptions(Command);
+                var points = session.PickedPoints;
+                session = NewSession();
+                if (!polylineId.IsNull) session.SetPolylineSource(Describe(doc, polylineId));
+                else if (points.Count >= 2) session.SetPickedPoints(points);
+                continue;
+            }
+
             memory.Set(Command, "Scale", session.ScaleText);
             memory.Set(Command, "Layer", session.LayerName);
             memory.Set(Command, "OpenCurveDesign", session.OpenCurveDesign);
@@ -82,10 +98,10 @@ public class RouteCreateCommand
                     session.SetPolylineSource(Describe(doc, picked));
                     continue;
                 case DialogAction.PickPoints:
-                    var points = Prompts.PickPoints(ed, "Điểm đầu tuyến: ", "Đỉnh tiếp theo [Lui] <Enter: kết thúc>: ");
-                    if (points == null || points.Count < 2) continue;
+                    var clicked = Prompts.PickPoints(ed, "Điểm đầu tuyến: ", "Đỉnh tiếp theo [Lui] <Enter: kết thúc>: ");
+                    if (clicked == null || clicked.Count < 2) continue;
                     polylineId = ObjectId.Null;
-                    session.SetPickedPoints(points.Select(p => new PlanPoint(p.X, p.Y)));
+                    session.SetPickedPoints(clicked.Select(p => new PlanPoint(p.X, p.Y)));
                     continue;
                 case DialogAction.Preview:
                 case DialogAction.Apply:
@@ -200,6 +216,9 @@ public class RouteCreateCommand
                 ImportAssemblies(civil, session, alignment, side, ed);
                 RouteTag.Write(tr, db, alignment, session.Scale, session.DesignSpeed, session.Assembly);
                 if (session.Surface != null) CreateGroundProfile(tr, civil, alignment, session.Surface, layerId, ed);
+
+                RoutePicker.Remember(doc, id);
+                RoutePicker.Save(tr, doc);
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();

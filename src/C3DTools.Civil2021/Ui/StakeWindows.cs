@@ -31,9 +31,10 @@ internal sealed class StakeGenerateWindow : ToolWindow
         var width = Row();
         width.Children.Add(Caption("Bề rộng nửa dải xác định trắc ngang (m)", 260));
         width.Children.Add(StakeInputs.Text(nameof(StakeGenerationSession.HalfWidthText), nameof(StakeGenerationSession.IsHalfWidthValid), 70));
-        top.Children.Add(width);
 
         var generate = new RadioButton { Content = "Phát sinh", GroupName = "Mode", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
+        generate.ToolTip = "Cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách, chạy và đánh số liên tục tới hết tuyến, " +
+                           "qua cả đường cong; cọc C, H không đặt trùng cọc Km; cọc đặc biệt tại mỗi đường cong: TĐ, P, TC (thêm NĐ, NC nếu có chuyển tiếp).";
         generate.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(StakeGenerationSession.GenerateMode)) { Mode = BindingMode.TwoWay });
         top.Children.Add(generate);
         var generateBox = new StackPanel { Margin = new Thickness(20, 0, 0, 0) };
@@ -48,26 +49,26 @@ internal sealed class StakeGenerateWindow : ToolWindow
         spacing.Children.Add(choice);
         generateBox.Children.Add(spacing);
         var start = Row();
-        start.Children.Add(Caption("Cọc C bắt đầu từ lý trình", 190));
+        start.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.GenerateMode)));
+        start.Children.Add(Caption("Cọc C bắt đầu từ lý trình", 210));
         var startBox = StakeInputs.Text(nameof(StakeGenerationSession.DetailStartText), nameof(StakeGenerationSession.IsDetailStartValid), 130);
         startBox.ToolTip = "Để trống: theo khoảng cách (20 m → Km0+020, 100 m → Km0+050)";
         start.Children.Add(startBox);
-        generateBox.Children.Add(start);
         var curves = Row();
+        curves.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.GenerateMode)));
         var densify = Check("Chêm thêm cọc trong đoạn cong, khoảng cách (m)", nameof(StakeGenerationSession.DensifyCurves));
         densify.ToolTip = "Thêm cọc ở các lý trình chẵn theo khoảng cách này giữa NĐ và NC, ngoài các cọc C";
         curves.Children.Add(densify);
         var curveBox = StakeInputs.Text(nameof(StakeGenerationSession.CurveSpacingText), nameof(StakeGenerationSession.IsCurveSpacingValid), 70);
         curveBox.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.DensifyCurves)));
         curves.Children.Add(curveBox);
-        generateBox.Children.Add(curves);
         var hundreds = Row();
+        hundreds.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.GenerateMode)));
         hundreds.Children.Add(StakeInputs.SkipHundreds(nameof(StakeGenerationSession.SkipHundredPositions)));
         var noH = Check("Không tạo cọc H", nameof(StakeGenerationSession.NoHundreds));
         noH.ToolTip = "Cọc tại lý trình chẵn trăm cũng là cọc C: C4 (80), C5 (100), C6 (120)";
         hundreds.Children.Add(noH);
         hundreds.Children.Add(StakeInputs.PlainCurveNames(nameof(StakeGenerationSession.PlainCurveNames)));
-        generateBox.Children.Add(hundreds);
         top.Children.Add(generateBox);
 
         var insert = new RadioButton { Content = "Chèn", GroupName = "Mode", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
@@ -83,25 +84,19 @@ internal sealed class StakeGenerateWindow : ToolWindow
         stations.Children.Add(new Border { Width = 8 });
         stations.Children.Add(ActionButton("Chỉ điểm…", DialogAction.PickPoints));
         insertBox.Children.Add(stations);
-        insertBox.Children.Add(Check("Kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle)));
         top.Children.Add(insertBox);
 
-        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides),
-            nameof(StakeGenerationSession.StationModeIndex)));
-        top.Children.Add(new TextBlock
-        {
-            Text = "Phát sinh: cọc Km mỗi 1000 m, cọc H mỗi 100 m (H1–H9, lặp lại sau mỗi Km), cọc C theo khoảng cách từ lý trình bắt đầu, " +
-                   "chạy và đánh số liên tục tới hết tuyến, qua cả đường cong; cọc C, H không đặt trùng cọc Km; cọc đặc biệt tại mỗi đường cong: TĐ, P, TC (thêm NĐ, NC nếu có chuyển tiếp), đánh số theo thứ tự đường cong dọc tuyến. " +
-                   "Dùng CTDANHCOC để đặt tên theo quy tắc khác.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = System.Windows.Media.Brushes.DimGray,
-            Margin = new Thickness(0, 6, 0, 6),
-        });
+        var subStake = Check("Chèn: kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle));
+        subStake.Margin = new Thickness(0, 2, 0, 2);
+        top.Children.Add(Advanced(
+            width, start, curves, hundreds, subStake,
+            StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides),
+                nameof(StakeGenerationSession.StationModeIndex))));
 
         var grid = StakeInputs.Grid(nameof(StakeGenerationSession.PreviewRows),
             ("Tên cọc", nameof(StakePreviewLine.Name), 110), ("Lý trình", nameof(StakePreviewLine.Station), 110),
             ("Loại", nameof(StakePreviewLine.Kind), 90), ("Ghi chú", nameof(StakePreviewLine.Status), 0));
-        SetLayout(top, BuildFooter(nameof(StakeGenerationSession.SummaryText), nameof(StakeGenerationSession.CanApply)), grid);
+        SetLayout(top, BuildFooter(nameof(StakeGenerationSession.SummaryText), nameof(StakeGenerationSession.CanApply), withReset: true), grid);
     }
 
     private StackPanel Range(string caption, string path, DialogAction pick)
@@ -141,42 +136,30 @@ internal sealed class StakeRenameWindow : ToolWindow
         var top = new StackPanel();
         top.Children.Add(BuildHeader("Nhóm cọc: " + session.SourceText));
 
-        var form = new Grid { Margin = new Thickness(0, 6, 0, 6) };
-        for (var c = 0; c < 4; c++) form.ColumnDefinitions.Add(new ColumnDefinition { Width = c % 2 == 0 ? GridLength.Auto : new GridLength(1, GridUnitType.Star) });
-        var row = 0;
-        void Line(UIElement a, UIElement b = null, UIElement c = null, UIElement d = null)
-        {
-            form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var cells = new[] { a, b, c, d };
-            for (var i = 0; i < cells.Length; i++)
-            {
-                if (cells[i] == null) continue;
-                if (cells[i] is FrameworkElement f) f.Margin = new Thickness(i % 2 == 0 ? 0 : 4, 3, 12, 3);
-                Grid.SetRow(cells[i], row);
-                Grid.SetColumn(cells[i], i);
-                form.Children.Add(cells[i]);
-            }
+        // Always visible: the range and how C stakes are named.
+        var form = new Form();
+        form.Line(Text("Từ cọc"), Choice(nameof(StakeRenameSession.FromIndex)),
+            Text("Tiếp đầu của cọc"), StakeInputs.Text(nameof(StakeRenameSession.DetailPrefix), null, 60));
+        form.Line(Text("Tới cọc"), Choice(nameof(StakeRenameSession.ToIndex)),
+            Text("Số thứ tự cọc đầu"), StakeInputs.Text(nameof(StakeRenameSession.FirstDetailNumberText), nameof(StakeRenameSession.IsFirstDetailValid), 60));
+        top.Children.Add(form.Grid);
 
-            row++;
-        }
-
-        Line(Text("Từ cọc"), Choice(nameof(StakeRenameSession.FromIndex)));
-        Line(Text("Tới cọc"), Choice(nameof(StakeRenameSession.ToIndex)));
+        var more = new Form();
         var keep = StakeInputs.Text(nameof(StakeRenameSession.KeepPrefixesText), null, 0);
         keep.ToolTip = "Các tiếp đầu cách nhau bởi dấu ; ví dụ: CT; CONG";
-        Line(Text("Để lại các cọc có tiếp đầu"), keep);
-        Line(Check("Đánh lại cọc cắm cong, siêu cao", nameof(StakeRenameSession.RenameCurveKeys)), null,
+        more.Line(Text("Để lại các cọc có tiếp đầu"), keep);
+        more.Line(Check("Đánh lại cọc cắm cong, siêu cao", nameof(StakeRenameSession.RenameCurveKeys)), null,
             Text("Số thứ tự đỉnh đầu"), StakeInputs.Text(nameof(StakeRenameSession.FirstPiNumberText), nameof(StakeRenameSession.IsFirstPiValid), 60));
-        Line(Check("Tên cọc theo kiểu lý trình", nameof(StakeRenameSession.NameByStation)), null,
-            Text("Tiếp đầu của cọc"), StakeInputs.Text(nameof(StakeRenameSession.DetailPrefix), null, 60));
-        Line(Text("Số thứ tự cọc đầu"), StakeInputs.Text(nameof(StakeRenameSession.FirstDetailNumberText), nameof(StakeRenameSession.IsFirstDetailValid), 60));
-        Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
-        Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)), null, StakeInputs.PlainCurveNames(nameof(StakeRenameSession.PlainCurveNames)));
-        Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)));
-        Line(Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
-        top.Children.Add(form);
-        top.Children.Add(StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides),
-            nameof(StakeRenameSession.StationModeIndex)));
+        more.Line(Check("Tên cọc theo kiểu lý trình", nameof(StakeRenameSession.NameByStation)), null,
+            StakeInputs.PlainCurveNames(nameof(StakeRenameSession.PlainCurveNames)));
+        more.Line(Check("Không tạo cọc H", nameof(StakeRenameSession.NoHundreds)), null, Check("Cọc H liên tục", nameof(StakeRenameSession.ContinuousThroughH)));
+        more.Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)));
+        more.Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)), null,
+            Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
+        top.Children.Add(Advanced(
+            more.Grid,
+            StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides),
+                nameof(StakeRenameSession.StationModeIndex))));
 
         var grid = StakeInputs.Grid(nameof(StakeRenameSession.PreviewRows),
             ("Lý trình", nameof(StakeRenameLine.Station), 120), ("Tên cũ", nameof(StakeRenameLine.OldName), 130), ("Tên mới", nameof(StakeRenameLine.NewName), 0));
@@ -185,7 +168,38 @@ internal sealed class StakeRenameWindow : ToolWindow
         trigger.Setters.Add(new Setter(BackgroundProperty, WarningBrush));
         changed.Triggers.Add(trigger);
         grid.RowStyle = changed;
-        SetLayout(top, BuildFooter(nameof(StakeRenameSession.SummaryText), nameof(StakeRenameSession.CanApply)), grid);
+        SetLayout(top, BuildFooter(nameof(StakeRenameSession.SummaryText), nameof(StakeRenameSession.CanApply), withReset: true), grid);
+    }
+
+    /// <summary>A four-column grid: label, input, label, input.</summary>
+    private sealed class Form
+    {
+        private int _row;
+
+        public Form()
+        {
+            Grid = new Grid { Margin = new Thickness(0, 6, 0, 6) };
+            for (var c = 0; c < 4; c++)
+                Grid.ColumnDefinitions.Add(new ColumnDefinition { Width = c % 2 == 0 ? GridLength.Auto : new GridLength(1, GridUnitType.Star) });
+        }
+
+        public Grid Grid { get; }
+
+        public void Line(UIElement a, UIElement b = null, UIElement c = null, UIElement d = null)
+        {
+            Grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var cells = new[] { a, b, c, d };
+            for (var i = 0; i < cells.Length; i++)
+            {
+                if (cells[i] == null) continue;
+                if (cells[i] is FrameworkElement f) f.Margin = new Thickness(i % 2 == 0 ? 0 : 4, 3, 12, 3);
+                System.Windows.Controls.Grid.SetRow(cells[i], _row);
+                System.Windows.Controls.Grid.SetColumn(cells[i], i);
+                Grid.Children.Add(cells[i]);
+            }
+
+            _row++;
+        }
     }
 
     private static TextBlock Text(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center };
@@ -202,7 +216,6 @@ internal sealed class StakeRenameWindow : ToolWindow
 /// <summary>Inputs shared by the stake dialogs.</summary>
 internal static class StakeInputs
 {
-    /// <summary>"Ghi tên cọc lên bình đồ" with its two options, which are enabled only while it is ticked.</summary>
     /// <summary>"Cọc C bỏ qua vị trí cọc H", with what each state gives in the tooltip.</summary>
     public static CheckBox SkipHundreds(string path)
     {
@@ -219,6 +232,7 @@ internal static class StakeInputs
         return box;
     }
 
+    /// <summary>"Ghi tên cọc lên bình đồ" with its station choice and the alternate option, enabled only while it is ticked.</summary>
     public static StackPanel LabelOptions(string writePath, string alternatePath, string stationModePath)
     {
         var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 2) };
