@@ -4,6 +4,7 @@ using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Security;
 using System.Text;
 
 namespace C3DTools.Core.Ui;
@@ -22,10 +23,13 @@ public static class SupportBundle
     /// </summary>
     public const long MaxFileBytes = 2 * 1024 * 1024;
 
+    // Zip format accepts timestamps from 1980-01-01 to 2107-12-31.
+    private static readonly DateTimeOffset ZipMinTime = new DateTimeOffset(1980, 1, 1, 0, 0, 0, TimeSpan.Zero);
+    private static readonly DateTimeOffset ZipMaxTime = new DateTimeOffset(2107, 12, 31, 23, 59, 59, TimeSpan.Zero);
+
     /// <summary>
-    /// Writes the zip to a temporary file in the same directory, then atomically moves it to
-    /// <paramref name="zipPath"/> (deleting any existing file there first). If anything fails the
-    /// temporary file is deleted and <paramref name="zipPath"/> is left untouched.
+    /// Writes the archive to a temporary file next to <paramref name="zipPath"/> and puts it in place only when
+    /// complete. If anything fails the temporary file is deleted and <paramref name="zipPath"/> is left untouched.
     /// <para>
     /// A source file that is missing or cannot be read is skipped and named in thong-tin.txt; only
     /// failures writing the archive propagate. Files larger than <see cref="MaxFileBytes"/> are capped
@@ -51,7 +55,8 @@ public static class SupportBundle
             {
                 foreach (var rawPath in (files ?? Enumerable.Empty<string>()).Where(p => !string.IsNullOrWhiteSpace(p)))
                 {
-                    // E: guard Path.GetFileName against illegal-character exceptions
+                    // Guard Path.GetFileName against illegal-character exceptions (.NET Framework throws
+                    // ArgumentException or NotSupportedException for paths with illegal characters).
                     string fileName;
                     try
                     {
@@ -59,14 +64,17 @@ public static class SupportBundle
                     }
                     catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException)
                     {
-                        lines.Add(rawPath + ": không có");
+                        // Cannot extract a file name — skip silently with a generic message (4: no path printed)
+                        lines.Add("đường dẫn không hợp lệ");
                         continue;
                     }
 
-                    // H: skip if the path is the zip output itself
+                    // Skip if the path resolves to the zip output itself (H).
                     string fullRaw;
                     try { fullRaw = Path.GetFullPath(rawPath); }
-                    catch { fullRaw = null; }
+                    catch (Exception ex) when (ex is ArgumentException || ex is NotSupportedException ||
+                                               ex is PathTooLongException || ex is SecurityException)
+                    { fullRaw = null; }
                     if (fullRaw != null && string.Equals(fullRaw, fullZip, StringComparison.OrdinalIgnoreCase))
                         continue;
 
@@ -76,48 +84,74 @@ public static class SupportBundle
                         continue;
                     }
 
-                    // D: only reading is inside the try/catch; writing to the archive is outside
+                    // Only reading is inside the try/catch; writing to the archive is outside so a write
+                    // failure propagates and the cleanup block removes the temporary file.
                     byte[] bytes;
+                    long bytesRead;
                     long totalLength;
                     bool wasCapped;
+                    DateTimeOffset? lastWrite = null;
                     try
                     {
-                        // trace.log may be open for append by the running add-in (FileShare.ReadWrite)
+                        // trace.log may be open for append by the running add-in (FileShare.ReadWrite).
                         using var source = new FileStream(rawPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         totalLength = source.Length;
                         wasCapped = totalLength > MaxFileBytes;
                         if (wasCapped)
                             source.Seek(totalLength - MaxFileBytes, SeekOrigin.Begin);
 
-                        using var buffer = new MemoryStream();
-                        source.CopyTo(buffer);
-                        bytes = buffer.ToArray();
+                        // Read into a capped buffer with a loop so we never allocate more than MaxFileBytes,
+                        // and so bytesRead reflects what was actually read (the file may have shrunk).
+                        var cap = (int)Math.Min(MaxFileBytes, totalLength > 0 ? totalLength : MaxFileBytes);
+                        var buf = new byte[cap];
+                        var offset = 0;
+                        int n;
+                        while (offset < buf.Length && (n = source.Read(buf, offset, buf.Length - offset)) > 0)
+                            offset += n;
+                        bytesRead = offset;
+                        if (offset == buf.Length)
+                        {
+                            bytes = buf;
+                        }
+                        else
+                        {
+                            bytes = new byte[offset];
+                            Array.Copy(buf, bytes, offset);
+                        }
+
+                        // Read the timestamp while still inside the guarded block so a failure here is
+                        // treated as an unreadable file rather than aborting the whole bundle.
+                        var raw = File.GetLastWriteTime(rawPath);
+                        var dto = new DateTimeOffset(raw);
+                        if (dto >= ZipMinTime && dto <= ZipMaxTime)
+                            lastWrite = dto;
                     }
                     catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
                     {
-                        // F: use exception type name, not message (message may contain the user's account path)
+                        // Use the exception type name only — the message may contain the user's account path.
                         lines.Add(fileName + ": không đọc được (" + ex.GetType().Name + ")");
                         continue;
                     }
 
-                    // A: reserve InfoName — rename packed file if it collides
+                    // Reserve InfoName — rename the packed file if its name collides with the facts entry.
                     var name = UniqueNotReserved(fileName, written);
 
-                    // D: archive write is outside the catch — failure propagates (B cleans up)
+                    // Archive writes are outside the catch — failures propagate and cleanup removes the tmp file.
                     var entry = zip.CreateEntry(name);
-                    // G: set last-write time from the source file
-                    entry.LastWriteTime = File.GetLastWriteTime(rawPath);
+                    if (lastWrite.HasValue)
+                        entry.LastWriteTime = lastWrite.Value;
                     using (var target = entry.Open())
-                        target.Write(bytes, 0, bytes.Length);
+                        target.Write(bytes, 0, (int)bytesRead);
                     written.Add(name);
 
-                    if (wasCapped)
+                    // Write the truncation line only when bytes were actually left out.
+                    if (wasCapped && bytesRead < totalLength)
                         lines.Add(string.Format(CultureInfo.InvariantCulture,
                             "{0}: chỉ lấy {1} byte cuối của {2} byte",
-                            fileName, MaxFileBytes, totalLength));
+                            fileName, bytesRead, totalLength));
                 }
 
-                // facts entry — always InfoName, always last
+                // Facts entry — always InfoName, always last.
                 var infoEntry = zip.CreateEntry(InfoName);
                 using (var writer = new StreamWriter(infoEntry.Open(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true)))
                     foreach (var line in lines)
@@ -125,16 +159,17 @@ public static class SupportBundle
                 written.Add(InfoName);
             }
 
-            // B: atomic move — delete existing zipPath first, then rename tmp
+            // Put the finished archive in place. File.Replace is atomic on most OSes when target exists.
             if (File.Exists(fullZip))
-                File.Delete(fullZip);
-            File.Move(tmp, fullZip);
+                File.Replace(tmp, fullZip, null);
+            else
+                File.Move(tmp, fullZip);
 
             return written;
         }
         catch
         {
-            // B: clean up the temporary file on any failure
+            // Clean up the temporary file on any failure so no partial zip is left behind.
             try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best effort */ }
             throw;
         }
@@ -150,7 +185,7 @@ public static class SupportBundle
     /// </summary>
     private static string UniqueNotReserved(string name, List<string> used)
     {
-        // Treat InfoName as if it were already in the used list
+        // Treat InfoName as if it were already in the used list.
         bool Taken(string candidate) =>
             used.Contains(candidate, StringComparer.OrdinalIgnoreCase) ||
             candidate.Equals(InfoName, StringComparison.OrdinalIgnoreCase);

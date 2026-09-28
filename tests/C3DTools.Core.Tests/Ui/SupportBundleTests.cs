@@ -52,7 +52,7 @@ public sealed class SupportBundleTests : IDisposable
             });
     }
 
-    // ── existing tests (File_ renamed to NewFile) ────────────────────────────
+    // ── existing tests ────────────────────────────────────────────────────────
 
     [Fact]
     public void Packs_the_files_and_the_facts()
@@ -67,7 +67,7 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal("mở hộp thoại", entries["trace.log"]);
         Assert.Equal("{}", entries["options.json"]);
         Assert.Contains("C3DTools 0.6.0", entries[SupportBundle.InfoName]);
-        Assert.Contains("Bản vẽ: Tuyến 1.dwg", entries[SupportBundle.InfoName]);   // Vietnamese text survives
+        Assert.Contains("Bản vẽ: Tuyến 1.dwg", entries[SupportBundle.InfoName]);
     }
 
     [Fact]
@@ -117,9 +117,6 @@ public sealed class SupportBundleTests : IDisposable
     public void File_name_carries_the_time() =>
         Assert.Equal("C3DTools-baoloi-20260928-153007.zip", SupportBundle.FileName(new DateTime(2026, 9, 28, 15, 30, 7)));
 
-    // ── new tests ─────────────────────────────────────────────────────────────
-
-    // 1. Reserved name: THONG-TIN.txt is packed as thong-tin-2.txt
     [Fact]
     public void Reserved_name_is_renamed_and_facts_entry_is_still_thong_tin()
     {
@@ -128,7 +125,6 @@ public sealed class SupportBundleTests : IDisposable
 
         var written = SupportBundle.Write(zip, null, new[] { f });
 
-        // Packed file renamed (casing preserved from source); facts entry is exactly InfoName
         Assert.Contains("THONG-TIN-2.txt", written);
         Assert.Equal(SupportBundle.InfoName, written[written.Count - 1]);
         var entries = Read(zip);
@@ -137,7 +133,6 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal(1, entries.Keys.Count(k => k.Equals(SupportBundle.InfoName, StringComparison.OrdinalIgnoreCase)));
     }
 
-    // 2. Lazy enumerable that throws: no zipPath, no .tmp file left
     [Fact]
     public void Lazy_enumerable_throws_no_partial_zip_left()
     {
@@ -155,14 +150,13 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Empty(Directory.GetFiles(_folder, "*.tmp"));
     }
 
-    // 3. Existing file at zipPath is left untouched when run fails
     [Fact]
     public void Existing_zip_untouched_on_failure()
     {
         var zip = Path.Combine(_folder, "out.zip");
         File.WriteAllText(zip, "original");
 
-#pragma warning disable CS0162 // Unreachable code — yield break forces this to be an iterator
+#pragma warning disable CS0162
         IEnumerable<string> Exploding() { throw new InvalidOperationException("boom"); yield break; }
 #pragma warning restore CS0162
 
@@ -170,14 +164,12 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal("original", File.ReadAllText(zip));
     }
 
-    // 4. File larger than MaxFileBytes is packed as last MaxFileBytes bytes
     [Fact]
     public void Large_file_is_truncated_to_last_MaxFileBytes_bytes()
     {
         var zip = Path.Combine(_folder, "out.zip");
         long total = SupportBundle.MaxFileBytes + 10;
         var bytes = new byte[total];
-        // Fill head with 0xAA, tail with 0xBB so we can detect which part was kept
         for (var i = 0; i < total; i++) bytes[i] = i < 10 ? (byte)0xAA : (byte)0xBB;
         var f = NewFileBinary("big.bin", bytes);
 
@@ -186,14 +178,13 @@ public sealed class SupportBundleTests : IDisposable
         var entries = ReadBytes(zip);
         var packed = entries["big.bin"];
         Assert.Equal(SupportBundle.MaxFileBytes, packed.Length);
-        Assert.All(packed, b => Assert.Equal(0xBB, b));  // tail only
+        Assert.All(packed, b => Assert.Equal(0xBB, b));
         var facts = Read(zip)[SupportBundle.InfoName];
         Assert.Contains("big.bin: chỉ lấy", facts);
         Assert.Contains(SupportBundle.MaxFileBytes.ToString(System.Globalization.CultureInfo.InvariantCulture), facts);
         Assert.Contains(total.ToString(System.Globalization.CultureInfo.InvariantCulture), facts);
     }
 
-    // 5. File held open with FileShare.None → không đọc được (IOException), others still packed
     [Fact]
     public void Locked_file_reported_as_IOException_others_still_packed()
     {
@@ -202,9 +193,7 @@ public sealed class SupportBundleTests : IDisposable
         var other = NewFile("other.log", "ok");
 
         using (new FileStream(locked, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
-        {
             SupportBundle.Write(zip, null, new[] { locked, other });
-        }
 
         var facts = Read(zip)[SupportBundle.InfoName];
         Assert.Contains("locked.log: không đọc được (IOException)", facts);
@@ -213,7 +202,6 @@ public sealed class SupportBundleTests : IDisposable
         Assert.DoesNotContain("locked.log", entries.Keys.Where(k => k != SupportBundle.InfoName));
     }
 
-    // 6. Zip path in non-existent folder throws
     [Fact]
     public void Zip_path_in_missing_folder_throws()
     {
@@ -221,7 +209,6 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Throws<DirectoryNotFoundException>(() => SupportBundle.Write(zip, null, null));
     }
 
-    // 7. Third file with same name becomes a-3.json
     [Fact]
     public void Three_files_with_same_name_get_distinct_entries()
     {
@@ -237,7 +224,6 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal(new[] { "a.json", "a-2.json", "a-3.json", SupportBundle.InfoName }, written);
     }
 
-    // 8. thong-tin.txt starts with UTF-8 BOM (EF BB BF)
     [Fact]
     public void Facts_entry_starts_with_utf8_bom()
     {
@@ -251,7 +237,6 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal(0xBF, raw[2]);
     }
 
-    // 9. Packed entry's LastWriteTime equals the source file's (even second, zip resolution)
     [Fact]
     public void Entry_last_write_time_matches_source_file()
     {
@@ -269,11 +254,53 @@ public sealed class SupportBundleTests : IDisposable
         }
     }
 
-    // 10. zipPath listed in files is skipped silently
+    // ── new tests for this round ──────────────────────────────────────────────
+
+    // 1. Odd timestamp (pre-1980) must not abort the bundle
     [Fact]
-    public void ZipPath_in_files_is_skipped()
+    public void Pre1980_timestamp_does_not_abort_bundle()
     {
         var zip = Path.Combine(_folder, "out.zip");
+        var old = NewFile("old.log", "ancient");
+        File.SetLastWriteTime(old, new DateTime(1975, 6, 1));
+        var normal = NewFile("normal.log", "recent");
+
+        var written = SupportBundle.Write(zip, null, new[] { old, normal });
+
+        // Both entries present with correct content
+        Assert.Contains("old.log", written);
+        Assert.Contains("normal.log", written);
+        var entries = Read(zip);
+        Assert.Equal("ancient", entries["old.log"]);
+        Assert.Equal("recent", entries["normal.log"]);
+    }
+
+    // 3. Existing zip is replaced (not just left-intact), new content is readable
+    [Fact]
+    public void Successful_run_replaces_existing_zip()
+    {
+        var zip = Path.Combine(_folder, "out.zip");
+        // Create a pre-existing zip with old content
+        SupportBundle.Write(zip, new[] { "old" }, null);
+        var oldEntries = Read(zip);
+        Assert.Contains("old", oldEntries[SupportBundle.InfoName]);
+
+        // New run should replace it
+        NewFile("new.log", "new content");
+        SupportBundle.Write(zip, new[] { "new" }, new[] { NewFile("new.log", "new content", "sub") });
+
+        var newEntries = Read(zip);
+        Assert.Contains("new", newEntries[SupportBundle.InfoName]);
+        Assert.True(newEntries.ContainsKey("new.log"));
+    }
+
+    // 5. ZipPath in files is skipped — strengthen: create the file first, assert it's not packed
+    [Fact]
+    public void ZipPath_in_files_is_skipped_real()
+    {
+        var zip = Path.Combine(_folder, "out.zip");
+        // Create a pre-existing file at zip path so it exists on disk when passed as input
+        File.WriteAllText(zip, "previous report");
         var other = NewFile("ok.log", "data");
 
         var written = SupportBundle.Write(zip, null, new[] { zip, other });
@@ -281,5 +308,7 @@ public sealed class SupportBundleTests : IDisposable
         Assert.Equal(new[] { "ok.log", SupportBundle.InfoName }, written);
         var entries = Read(zip);
         Assert.False(entries.ContainsKey("out.zip"));
+        Assert.DoesNotContain("out.zip", entries[SupportBundle.InfoName]);
+        Assert.True(entries.ContainsKey("ok.log"));
     }
 }
