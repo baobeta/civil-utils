@@ -11,6 +11,7 @@ using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
 using C3DTools.Civil2021.Curves;
 using C3DTools.Civil2021.Drawing;
+using C3DTools.Civil2021.Services;
 using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Curves;
 using C3DTools.Core.Presets;
@@ -87,7 +88,8 @@ public class StakeTableCommand
         if (lastSurface.Length > 0 && remembered > 0) session.SurfaceIndex = remembered;
 
         Route route = null;
-        var first = PickFirst(ed);
+        var first = RoutePicker.Resolve(doc, out var why);
+        if (why != null) Prompts.Say(ed, why);
         if (!first.IsNull) route = Load(doc, preset, first, session) ?? route;
         if (route != null) Preview(doc, route, session, surfaces);
 
@@ -110,6 +112,7 @@ public class StakeTableCommand
                 case DialogAction.Pick:
                     var picked = Prompts.PickEntity<Alignment>(ed, "Chọn alignment: ");
                     if (picked.IsNull) continue;
+                    RoutePicker.Use(doc, picked);
                     var loaded = Load(doc, preset, picked, session);
                     if (loaded == null) continue;
                     route = loaded;
@@ -128,16 +131,6 @@ public class StakeTableCommand
                     return;
             }
         }
-    }
-
-    /// <summary>The first alignment of the selection made before the command, or ObjectId.Null.</summary>
-    private static ObjectId PickFirst(Editor ed)
-    {
-        var implied = ed.SelectImplied();
-        if (implied.Status != PromptStatus.OK || implied.Value == null) return ObjectId.Null;
-        ed.SetImpliedSelection(new ObjectId[0]);
-        var alignmentClass = RXObject.GetClass(typeof(Alignment));
-        return implied.Value.GetObjectIds().FirstOrDefault(id => id.ObjectClass.IsDerivedFrom(alignmentClass));
     }
 
     /// <summary>TIN and grid surfaces of the drawing (volume surfaces have no terrain elevation).</summary>

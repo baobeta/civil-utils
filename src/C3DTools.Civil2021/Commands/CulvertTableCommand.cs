@@ -10,6 +10,7 @@ using Autodesk.Civil.DatabaseServices;
 using C3DTools.Civil2021.Curves;
 using C3DTools.Civil2021.Drainage;
 using C3DTools.Civil2021.Drawing;
+using C3DTools.Civil2021.Services;
 using C3DTools.Civil2021.Ui;
 using C3DTools.Core.Drainage;
 using C3DTools.Core.Presets;
@@ -76,7 +77,8 @@ public class CulvertTableCommand
         if (networks.Count == 0) Prompts.Say(ed, "Bản vẽ không có mạng cống (pipe network).");
 
         Route route = null;
-        var first = PickFirst(ed);
+        var first = RoutePicker.Resolve(doc, out var why);
+        if (why != null) Prompts.Say(ed, why);
         if (!first.IsNull) route = Load(doc, first, session);
         if (route != null && session.CanApply) Preview(doc, route, session, networks, surfaces, preset);
 
@@ -96,6 +98,7 @@ public class CulvertTableCommand
                 case DialogAction.Pick:
                     var picked = Prompts.PickEntity<Alignment>(ed, "Chọn alignment: ");
                     if (picked.IsNull) continue;
+                    RoutePicker.Use(doc, picked);
                     var loaded = Load(doc, picked, session);
                     if (loaded == null) continue;
                     route = loaded;
@@ -119,16 +122,6 @@ public class CulvertTableCommand
                     return;
             }
         }
-    }
-
-    /// <summary>The first alignment of the selection made before the command, or ObjectId.Null.</summary>
-    private static ObjectId PickFirst(Editor ed)
-    {
-        var implied = ed.SelectImplied();
-        if (implied.Status != PromptStatus.OK || implied.Value == null) return ObjectId.Null;
-        ed.SetImpliedSelection(new ObjectId[0]);
-        var alignmentClass = RXObject.GetClass(typeof(Alignment));
-        return implied.Value.GetObjectIds().FirstOrDefault(id => id.ObjectClass.IsDerivedFrom(alignmentClass));
     }
 
     /// <summary>The drawing's pipe networks by name.</summary>
