@@ -127,7 +127,12 @@ internal abstract class ToolWindow : Window
         }
     }
 
-    /// <summary>"Về mặc định": forgets the command's remembered values; window size and the Nâng cao state stay.</summary>
+    /// <summary>
+    /// "Về mặc định": clears all remembered option values for <paramref name="command"/> except window size and the
+    /// Nâng cao open/closed state, which reflect how the window looks, not what the command does.
+    /// The caller must invoke this BEFORE saving any of the dialog's values for that command; if the dialog is still
+    /// open and its bindings write back after this call, the cleared values will be re-written.
+    /// </summary>
     public static void ResetOptions(string command)
     {
         Options.Clear(command, WidthOption, HeightOption, AdvancedOption);
@@ -183,14 +188,18 @@ internal abstract class ToolWindow : Window
         Close();
     }
 
-    /// <summary>top and bottom dock to the edges, content fills the rest.</summary>
+    /// <summary>
+    /// top docks to the top edge, bottom docks to the bottom edge, content fills the rest.
+    /// bottom is added BEFORE top so that DockPanel reserves its space first; this prevents the footer from being
+    /// pushed out of the window when the content grows taller than the remaining space.
+    /// </summary>
     protected void SetLayout(UIElement top, UIElement bottom, UIElement content)
     {
         var root = new DockPanel { Margin = new Thickness(10) };
-        DockPanel.SetDock(top, Dock.Top);
-        root.Children.Add(top);
         DockPanel.SetDock(bottom, Dock.Bottom);
         root.Children.Add(bottom);
+        DockPanel.SetDock(top, Dock.Top);
+        root.Children.Add(top);
         root.Children.Add(content);
         Content = root;
     }
@@ -208,15 +217,23 @@ internal abstract class ToolWindow : Window
 
     /// <summary>
     /// "Nâng cao": the rows a user rarely changes, folded away until asked for. Whether it is open is remembered per command.
+    /// A dialog has at most one Nâng cao section; its open/closed state is stored under one key per command.
     /// </summary>
     protected Expander Advanced(params UIElement[] rows)
     {
         var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         foreach (var row in rows) panel.Children.Add(row);
+        var scroll = new ScrollViewer
+        {
+            Content = panel,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            MaxHeight = 240,
+        };
         var expander = new Expander
         {
             Header = "Nâng cao",
-            Content = panel,
+            Content = scroll,
             Margin = new Thickness(0, 6, 0, 2),
             IsExpanded = Options.Get(Command, AdvancedOption, false),
         };
@@ -231,34 +248,49 @@ internal abstract class ToolWindow : Window
     }
 
     /// <summary>
-    /// Summary text on the left; Xem trước, Áp dụng (both enabled by canApplyPath) and Hủy on the right.
-    /// withReset adds "Về mặc định" (DialogAction.Reset): only for commands whose loop handles it.
+    /// Summary text on the left (fills); Hủy, Áp dụng, Xem trước docked right (Tab order: Xem trước, Áp dụng, Hủy).
+    /// withReset adds "Về mặc định" (DialogAction.Reset) docked LEFT, separated from the summary by a 16 px right margin,
+    /// and away from the primary buttons on purpose — it discards all of the user's values with one click.
+    /// Only use withReset for commands whose loop handles DialogAction.Reset (see ResetOptions).
     /// </summary>
     protected DockPanel BuildFooter(string summaryPath, string canApplyPath, bool withReset = false)
     {
-        var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = false };
-        var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
-        summary.SetBinding(TextBlock.TextProperty, new Binding(summaryPath));
-        actions.Children.Add(summary);
-        var cancel = Button("Hủy", (s, e) => Finish(DialogAction.Cancel));
-        cancel.IsCancel = true;
-        var apply = ActionButton("Áp dụng", DialogAction.Apply);
-        apply.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
-        var preview = ActionButton("Xem trước", DialogAction.Preview);
-        preview.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
-        var buttons = new List<Button> { cancel, apply, preview };
+        var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = true };
+
         if (withReset)
         {
             var reset = ActionButton("Về mặc định", DialogAction.Reset);
             reset.ToolTip = "Đặt lại mọi ô của hộp thoại này về giá trị ban đầu (giữ nguyên tuyến đang chọn)";
-            buttons.Add(reset);
+            reset.Margin = new Thickness(0, 0, 16, 0);
+            reset.TabIndex = 0;
+            DockPanel.SetDock(reset, Dock.Left);
+            actions.Children.Add(reset);
         }
 
-        foreach (var b in buttons)
+        var cancel = Button("Hủy", (s, e) => Finish(DialogAction.Cancel));
+        cancel.IsCancel = true;
+        cancel.TabIndex = 3;
+        var apply = ActionButton("Áp dụng", DialogAction.Apply);
+        apply.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
+        apply.TabIndex = 2;
+        var preview = ActionButton("Xem trước", DialogAction.Preview);
+        preview.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
+        preview.TabIndex = 1;
+
+        foreach (var b in new[] { cancel, apply, preview })
         {
             DockPanel.SetDock(b, Dock.Right);
             actions.Children.Add(b);
         }
+
+        var summary = new TextBlock
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+        };
+        summary.SetBinding(TextBlock.TextProperty, new Binding(summaryPath));
+        summary.SetBinding(ToolTipProperty, new Binding(summaryPath));
+        actions.Children.Add(summary);
 
         return actions;
     }
@@ -330,8 +362,8 @@ internal abstract class ToolWindow : Window
     {
         var size = WindowState == WindowState.Normal ? new Size(ActualWidth, ActualHeight) : RestoreBounds.Size;
         if (!(size.Width > 0) || !(size.Height > 0) || double.IsInfinity(size.Width) || double.IsInfinity(size.Height)) return;
-        Options.Set(Command, "Width", Math.Round(size.Width));
-        Options.Set(Command, "Height", Math.Round(size.Height));
+        Options.Set(Command, WidthOption, Math.Round(size.Width));
+        Options.Set(Command, HeightOption, Math.Round(size.Height));
         SaveOptions();
     }
 
