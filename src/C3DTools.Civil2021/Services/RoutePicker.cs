@@ -167,6 +167,9 @@ internal static class RoutePicker
         }
     }
 
+    /// <summary>The handle remembered in doc.UserData for this session, or null. Exposed so commands can save and restore it.</summary>
+    internal static string ReadRememberedHandle(Document doc) => ReadRemembered(doc);
+
     /// <summary>The handle remembered in doc.UserData for this session, or null.</summary>
     private static string ReadRemembered(Document doc)
     {

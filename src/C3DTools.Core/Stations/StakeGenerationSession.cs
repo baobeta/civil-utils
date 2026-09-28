@@ -283,8 +283,10 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
     public int NewCount { get; private set; }
     public int RemovedCount { get; private set; }
 
-    public bool CanApply => _hasSource && IsSpacingValid && IsHalfWidthValid
-        && (_insertMode ? _insertValid && _insertStations.Count > 0 && !IsNewGroup : IsRangeValid && IsDetailStartValid)
+    public bool CanApply => _hasSource && IsHalfWidthValid
+        && (_insertMode
+            ? _insertValid && _insertStations.Count > 0 && !IsNewGroup
+            : IsSpacingValid && IsRangeValid && IsDetailStartValid)
         && (!IsNewGroup || _newGroupName.Trim().Length > 0);
 
     public string SummaryText
@@ -293,8 +295,8 @@ public sealed class StakeGenerationSession : INotifyPropertyChanged
         {
             if (!_hasSource) return "Chưa chọn tuyến";
             if (!_insertMode && !IsRangeValid) return "Khoảng lý trình không hợp lệ hoặc nằm ngoài tuyến";
-            if (!IsStraightSpacingValid) return "Khoảng cách cọc C phải là số lớn hơn 0";
-            if (!IsCurveSpacingValid) return "Khoảng cách chêm cọc trong đường cong phải là số lớn hơn 0";
+            if (!_insertMode && !IsStraightSpacingValid) return "Khoảng cách cọc C phải là số lớn hơn 0";
+            if (!_insertMode && !IsCurveSpacingValid) return "Khoảng cách chêm cọc trong đường cong phải là số lớn hơn 0";
             if (!_insertMode && !IsDetailStartValid) return "Lý trình bắt đầu cọc C không hợp lệ";
             if (!IsHalfWidthValid) return "Bề rộng nửa dải phải là số lớn hơn 0";
             if (_insertMode && IsNewGroup) return "Chèn cọc cần chọn nhóm cọc (Sample Line Group) đã có";

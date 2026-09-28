@@ -28,21 +28,6 @@ public class StakeGenerationSessionTests
         Assert.True(s.WriteLabels);
         Assert.Equal(1, s.StationModeIndex);
         Assert.False(s.AlternateSides);
-
-        var r = new StakeRenameSession(new ProjectPreset());
-        Assert.Equal("C", r.DetailPrefix);
-        Assert.Equal("1", r.FirstDetailNumberText);
-        Assert.Equal("1", r.FirstPiNumberText);
-        Assert.Equal("", r.KeepPrefixesText);
-        Assert.True(r.RenameCurveKeys);
-        Assert.False(r.NameByStation);
-        Assert.False(r.NoHundreds);
-        Assert.True(r.ContinuousThroughH);
-        Assert.False(r.RestartPerKm);
-        Assert.True(r.NoRestartFrom100);
-        Assert.True(r.SkipHundredPositions);
-        Assert.True(r.WriteLabels);
-        Assert.Equal(1, r.StationModeIndex);
     }
 
     private static StakeGenerationSession Loaded(params string[] groups)
@@ -295,6 +280,56 @@ public class StakeGenerationSessionTests
         Assert.True(s.IsStale);
     }
 
+    [Fact]
+    public void Insert_mode_is_not_blocked_by_generate_only_spacings()
+    {
+        var s = Loaded("G");
+        s.InsertMode = true;
+        s.StraightSpacingText = "abc";   // invalid, but not used by insert mode
+        s.AddInsertStation(25.5);
+
+        Assert.False(s.IsStraightSpacingValid);
+        Assert.True(s.CanApply);   // insert mode does not require straight spacing
+    }
+
+    [Fact]
+    public void Insert_mode_is_not_blocked_by_curve_densify_spacing()
+    {
+        var s = Loaded("G");
+        s.InsertMode = true;
+        s.DensifyCurves = true;
+        s.CurveSpacingText = "abc";   // invalid, but not used by insert mode
+        s.AddInsertStation(25.5);
+
+        Assert.False(s.IsCurveSpacingValid);
+        Assert.True(s.CanApply);
+    }
+
+    [Fact]
+    public void Summary_names_half_width_when_it_is_bad()
+    {
+        var s = Loaded("G");
+        s.HalfWidthText = "abc";
+
+        Assert.False(s.CanApply);
+        Assert.Equal("Bề rộng nửa dải phải là số lớn hơn 0", s.SummaryText);
+    }
+
+    [Fact]
+    public void Summary_gives_insert_mode_messages()
+    {
+        var s = Loaded("G");
+        s.InsertMode = true;
+
+        // No stations yet
+        Assert.Equal("Nhập lý trình cọc cần chèn (trong phạm vi tuyến)", s.SummaryText);
+
+        // New group (index 0) not allowed in insert mode
+        s.GroupIndex = 0;
+        Assert.True(s.IsNewGroup);
+        Assert.Equal("Chèn cọc cần chọn nhóm cọc (Sample Line Group) đã có", s.SummaryText);
+    }
+
     [Theory]
     [InlineData("Km1+020.5", 1020.5)]
     [InlineData("0+100", 100)]
@@ -305,6 +340,29 @@ public class StakeGenerationSessionTests
 public class StakeRenameSessionTests
 {
     private static RouteStake D(double s, string name) => new RouteStake(s, StakeRole.Detail, name);
+
+    /// <summary>"Về mặc định" rebuilds the session with nothing remembered: these are the values it promises.</summary>
+    [Fact]
+    public void A_new_session_has_the_defaults_reset_promises()
+    {
+        var r = new StakeRenameSession(new ProjectPreset());
+
+        Assert.Equal("C", r.DetailPrefix);
+        Assert.Equal("1", r.FirstDetailNumberText);
+        Assert.Equal("1", r.FirstPiNumberText);
+        Assert.Equal("", r.KeepPrefixesText);
+        Assert.True(r.RenameCurveKeys);
+        Assert.False(r.NameByStation);
+        Assert.False(r.NoHundreds);
+        Assert.True(r.ContinuousThroughH);
+        Assert.False(r.RestartPerKm);
+        Assert.True(r.NoRestartFrom100);
+        Assert.True(r.SkipHundredPositions);
+        Assert.False(r.PlainCurveNames);
+        Assert.True(r.WriteLabels);
+        Assert.Equal(1, r.StationModeIndex);
+        Assert.False(r.AlternateSides);
+    }
 
     private static StakeRenameSession Loaded()
     {

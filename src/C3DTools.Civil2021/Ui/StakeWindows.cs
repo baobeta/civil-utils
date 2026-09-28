@@ -11,7 +11,7 @@ namespace C3DTools.Civil2021.Ui;
 internal sealed class StakeGenerateWindow : ToolWindow
 {
     public StakeGenerateWindow(StakeGenerationSession session)
-        : base("CTPHATCOC", "Phát sinh cọc", 760, 620, 600, 460)
+        : base("CTPHATCOC", "Phát sinh cọc", 760, 640, 600, 520)
     {
         if (session == null) throw new ArgumentNullException(nameof(session));
         DataContext = session;
@@ -89,7 +89,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         var subStake = Check("Chèn: kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle));
         subStake.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.InsertMode)));
         subStake.Margin = new Thickness(0, 2, 0, 2);
-        top.Children.Add(Advanced(
+        top.Children.Add(Advanced(140,
             width, start, curves, hundreds, subStake,
             StakeInputs.LabelOptions(nameof(StakeGenerationSession.WriteLabels), nameof(StakeGenerationSession.AlternateSides),
                 nameof(StakeGenerationSession.StationModeIndex))));
@@ -129,7 +129,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
 internal sealed class StakeRenameWindow : ToolWindow
 {
     public StakeRenameWindow(StakeRenameSession session)
-        : base("CTDANHCOC", "Đánh lại toàn bộ tên cọc", 720, 640, 560, 480)
+        : base("CTDANHCOC", "Đánh lại toàn bộ tên cọc", 720, 660, 560, 520)
     {
         if (session == null) throw new ArgumentNullException(nameof(session));
         DataContext = session;
@@ -157,7 +157,7 @@ internal sealed class StakeRenameWindow : ToolWindow
         more.Line(StakeInputs.SkipHundreds(nameof(StakeRenameSession.SkipHundredPositions)));
         more.Line(Check("Thứ tự cọc quay lại theo KM", nameof(StakeRenameSession.RestartPerKm)), null,
             Check("Không đánh số quay lại khi TT>=100", nameof(StakeRenameSession.NoRestartFrom100)));
-        top.Children.Add(Advanced(
+        top.Children.Add(Advanced(140,
             more.Grid,
             StakeInputs.LabelOptions(nameof(StakeRenameSession.WriteLabels), nameof(StakeRenameSession.AlternateSides),
                 nameof(StakeRenameSession.StationModeIndex))));
@@ -286,6 +286,7 @@ internal static class StakeInputs
             CanUserDeleteRows = false,
             CanUserSortColumns = false,
             HeadersVisibility = DataGridHeadersVisibility.Column,
+            MinHeight = 100,
         };
         grid.SetBinding(ItemsControl.ItemsSourceProperty, new Binding(itemsPath));
         foreach (var (header, path, width) in columns)

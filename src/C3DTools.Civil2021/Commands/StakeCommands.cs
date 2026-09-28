@@ -71,20 +71,22 @@ public class StakeCommands
         var ed = doc.Editor;
         var preset = LoadPreset(ed);
         var memory = ToolWindow.Options;
-        StakeGenerationSession NewSession() => new StakeGenerationSession(preset)
+        StakeGenerationSession NewSession()
         {
-            StraightSpacingText = memory.Get(command, "Straight", "20"),
-            CurveSpacingText = memory.Get(command, "Curve", "10"),
-            DensifyCurves = memory.Get(command, "Densify", false),
-            HalfWidthText = memory.Get(command, "HalfWidth", "60"),
-            SubStakeStyle = memory.Get(command, "SubStake", false),
-            NoHundreds = memory.Get(command, "NoH", false),
-            WriteLabels = memory.Get(command, "Labels", true),
-            AlternateSides = memory.Get(command, "AlternateEnds", false),
-            StationModeIndex = memory.Get(command, "StationMode", 1),
-            SkipHundredPositions = memory.Get(command, "SkipH", true),
-            PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
-        };
+            var s = new StakeGenerationSession(preset);
+            s.StraightSpacingText = memory.Get(command, "Straight", s.StraightSpacingText);
+            s.CurveSpacingText = memory.Get(command, "Curve", s.CurveSpacingText);
+            s.DensifyCurves = memory.Get(command, "Densify", s.DensifyCurves);
+            s.HalfWidthText = memory.Get(command, "HalfWidth", s.HalfWidthText);
+            s.SubStakeStyle = memory.Get(command, "SubStake", s.SubStakeStyle);
+            s.NoHundreds = memory.Get(command, "NoH", s.NoHundreds);
+            s.WriteLabels = memory.Get(command, "Labels", s.WriteLabels);
+            s.AlternateSides = memory.Get(command, "AlternateEnds", s.AlternateSides);
+            s.StationModeIndex = memory.Get(command, "StationMode", s.StationModeIndex);
+            s.SkipHundredPositions = memory.Get(command, "SkipH", s.SkipHundredPositions);
+            s.PlainCurveNames = memory.Get(command, "PlainCurveNames", s.PlainCurveNames);
+            return s;
+        }
 
         var session = NewSession();
         Route route = null;
@@ -316,28 +318,36 @@ public class StakeCommands
         var ed = doc.Editor;
         var preset = LoadPreset(ed);
         var memory = ToolWindow.Options;
-        StakeRenameSession NewSession() => new StakeRenameSession(preset)
+        StakeRenameSession NewSession()
         {
-            DetailPrefix = memory.Get(command, "Prefix", "C"),
-            KeepPrefixesText = memory.Get(command, "Keep", ""),
-            RenameCurveKeys = memory.Get(command, "CurveKeys", true),
-            NameByStation = memory.Get(command, "ByStation", false),
-            NoHundreds = memory.Get(command, "NoH", false),
-            ContinuousThroughH = memory.Get(command, "ContinuousH", true),
-            RestartPerKm = memory.Get(command, "RestartPerKm", false),
-            NoRestartFrom100 = memory.Get(command, "No100", true),
-            WriteLabels = memory.Get(command, "Labels", true),
-            AlternateSides = memory.Get(command, "AlternateEnds", false),
-            StationModeIndex = memory.Get(command, "StationMode", 1),
-            SkipHundredPositions = memory.Get(command, "SkipH", true),
-            PlainCurveNames = memory.Get(command, "PlainCurveNames", false),
-        };
+            var s = new StakeRenameSession(preset);
+            s.DetailPrefix = memory.Get(command, "Prefix", s.DetailPrefix);
+            s.KeepPrefixesText = memory.Get(command, "Keep", s.KeepPrefixesText);
+            s.RenameCurveKeys = memory.Get(command, "CurveKeys", s.RenameCurveKeys);
+            s.NameByStation = memory.Get(command, "ByStation", s.NameByStation);
+            s.NoHundreds = memory.Get(command, "NoH", s.NoHundreds);
+            s.ContinuousThroughH = memory.Get(command, "ContinuousH", s.ContinuousThroughH);
+            s.RestartPerKm = memory.Get(command, "RestartPerKm", s.RestartPerKm);
+            s.NoRestartFrom100 = memory.Get(command, "No100", s.NoRestartFrom100);
+            s.WriteLabels = memory.Get(command, "Labels", s.WriteLabels);
+            s.AlternateSides = memory.Get(command, "AlternateEnds", s.AlternateSides);
+            s.StationModeIndex = memory.Get(command, "StationMode", s.StationModeIndex);
+            s.SkipHundredPositions = memory.Get(command, "SkipH", s.SkipHundredPositions);
+            s.PlainCurveNames = memory.Get(command, "PlainCurveNames", s.PlainCurveNames);
+            return s;
+        }
 
         var session = NewSession();
         StakeGroup ids = null;
         // A sample line or alignment selected before the command; else the active route.
-        var source = PickFirst<Autodesk.AutoCAD.DatabaseServices.Entity>(ed);
-        if (source.IsNull)
+        var presel = PickFirst<SampleLine>(ed);
+        if (presel.IsNull) presel = PickFirst<Alignment>(ed);
+        ObjectId source;
+        if (!presel.IsNull)
+        {
+            source = presel;
+        }
+        else
         {
             source = RoutePicker.Resolve(doc, out var why);
             if (why != null) Prompts.Say(ed, why);
@@ -351,10 +361,15 @@ public class StakeCommands
             var action = new StakeRenameWindow(session).ShowModal();
             if (action == DialogAction.Reset)
             {
+                // Not saved first: the values being reset must not be written back. The group stays.
                 ToolWindow.ResetOptions(command);
                 session = NewSession();
-                if (ids != null) ids = LoadGroup(doc, preset, source, session) ?? ids;
-                if (ids != null) RoutePicker.Remember(doc, ids.AlignmentId);
+                if (ids != null)
+                {
+                    var reloaded = ReloadGroup(doc, preset, ids.GroupId, ids.AlignmentId, session);
+                    if (reloaded != null) { ids = reloaded; RoutePicker.Remember(doc, ids.AlignmentId); }
+                    else Prompts.Say(ed, "Không tải lại được nhóm cọc; giữ lại nhóm cũ.");
+                }
                 continue;
             }
 
@@ -446,6 +461,33 @@ public class StakeCommands
                 tr.Commit();
                 session.SetStakes($"{groupName} ({alignment.Name}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
                 return new StakeGroup { GroupId = groupId, AlignmentId = alignment.ObjectId, Lines = lines.Select(l => l.id).ToList() };
+            }
+        }
+        catch (System.Exception ex)
+        {
+            Prompts.Say(ed, $"Không đọc được nhóm cọc: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reloads a known group by id without prompting the user. Used by the Reset path so reset never re-asks
+    /// which group to use. Returns null (with a message) when the group or alignment can no longer be read.
+    /// </summary>
+    private static StakeGroup ReloadGroup(Document doc, ProjectPreset preset, ObjectId groupId, ObjectId alignmentId, StakeRenameSession session)
+    {
+        var ed = doc.Editor;
+        try
+        {
+            using (var tr = doc.TransactionManager.StartTransaction())
+            {
+                var alignment = (Alignment)tr.GetObject(alignmentId, OpenMode.ForRead);
+                var lines = SampleLineStakes.Read(tr, groupId);
+                var groupName = ((SampleLineGroup)tr.GetObject(groupId, OpenMode.ForRead)).Name;
+                var curves = AlignmentCurves.Read(doc, preset, alignment);
+                tr.Commit();
+                session.SetStakes($"{groupName} ({alignment.Name}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
+                return new StakeGroup { GroupId = groupId, AlignmentId = alignmentId, Lines = lines.Select(l => l.id).ToList() };
             }
         }
         catch (System.Exception ex)

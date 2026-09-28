@@ -226,8 +226,9 @@ internal abstract class ToolWindow : Window
     /// <summary>
     /// "Nâng cao": the rows a user rarely changes, folded away until asked for. Whether it is open is remembered per command.
     /// A dialog has at most one Nâng cao section; its open/closed state is stored under one key per command.
+    /// The inner ScrollViewer caps the expanded height at <paramref name="maxHeight"/> (default 240).
     /// </summary>
-    protected Expander Advanced(params UIElement[] rows)
+    protected Expander Advanced(double maxHeight, params UIElement[] rows)
     {
         var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
         foreach (var row in rows) panel.Children.Add(row);
@@ -236,13 +237,28 @@ internal abstract class ToolWindow : Window
             Content = panel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            MaxHeight = 240,
+            MaxHeight = maxHeight,
             Focusable = false,
         };
+        return MakeExpander(scroll);
+    }
+
+    /// <summary>
+    /// "Nâng cao" without an inner ScrollViewer, for dialogs that are already inside a ScrollViewer.
+    /// </summary>
+    protected Expander Advanced(params UIElement[] rows)
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var row in rows) panel.Children.Add(row);
+        return MakeExpander(panel);
+    }
+
+    private Expander MakeExpander(UIElement content)
+    {
         var expander = new Expander
         {
             Header = "Nâng cao",
-            Content = scroll,
+            Content = content,
             Margin = new Thickness(0, 6, 0, 2),
             IsExpanded = Options.Get(Command, AdvancedOption, false),
         };

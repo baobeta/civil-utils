@@ -53,13 +53,11 @@ public class RouteCreateCommand
         var memory = ToolWindow.Options;
         RouteCreationSession NewSession()
         {
-            var fresh = new RouteCreationSession(preset)
-            {
-                ScaleText = memory.Get(Command, "Scale", "1000"),
-                LayerName = memory.Get(Command, "Layer", "TUYEN"),
-                OpenCurveDesign = memory.Get(Command, "OpenCurveDesign", true),
-                LoadAllAssemblies = memory.Get(Command, "LoadAllAssemblies", true),
-            };
+            var fresh = new RouteCreationSession(preset);
+            fresh.ScaleText = memory.Get(Command, "Scale", fresh.ScaleText);
+            fresh.LayerName = memory.Get(Command, "Layer", fresh.LayerName);
+            fresh.OpenCurveDesign = memory.Get(Command, "OpenCurveDesign", fresh.OpenCurveDesign);
+            fresh.LoadAllAssemblies = memory.Get(Command, "LoadAllAssemblies", fresh.LoadAllAssemblies);
             ReadDrawing(doc, fresh);
             return fresh;
         }
@@ -217,12 +215,14 @@ public class RouteCreateCommand
                 RouteTag.Write(tr, db, alignment, session.Scale, session.DesignSpeed, session.Assembly);
                 if (session.Surface != null) CreateGroundProfile(tr, civil, alignment, session.Surface, layerId, ed);
 
+                var previousHandle = RoutePicker.ReadRememberedHandle(doc);
                 RoutePicker.Remember(doc, id);
                 RoutePicker.Save(tr, doc);
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
                 keep = !askToKeep || Prompts.AskKeep(ed);
+                if (!keep && previousHandle != null) doc.UserData[ActiveRouteStore.Key] = previousHandle;
             }
             catch (System.Exception ex)
             {
