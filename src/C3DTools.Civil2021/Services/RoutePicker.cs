@@ -72,11 +72,12 @@ internal static class RoutePicker
     /// <summary>
     /// The alignment to start with (ActiveRoute.Resolve): selected before the command, else the remembered or
     /// stored handle, else the drawing's only alignment; ObjectId.Null when the user must pick.
-    /// message: what to tell the user, or null.
+    /// message: what to tell the user, or null. name: the chosen alignment's name, or null when none found.
     /// </summary>
-    public static ObjectId Resolve(Document doc, out string message)
+    public static ObjectId Resolve(Document doc, out string message, out string name)
     {
         message = null;
+        name = null;
         var ed = doc.Editor;
         var preselected = Preselected(ed);
         try
@@ -88,7 +89,10 @@ internal static class RoutePicker
                     .Where(id => !id.IsErased)
                     .ToList();
                 var handles = ids.Select(id => id.Handle.ToString()).ToList();
-                var stored = ReadRemembered(doc) ?? ActiveRouteStore.Read(tr, doc.Database);
+                var remembered = ReadRemembered(doc);
+                var stored = (remembered != null && handles.Any(h => string.Equals(h, remembered, StringComparison.OrdinalIgnoreCase)))
+                    ? remembered
+                    : ActiveRouteStore.Read(tr, doc.Database);
                 var choice = ActiveRoute.Resolve(
                     preselected.IsNull ? null : preselected.Handle.ToString(),
                     stored,
@@ -100,7 +104,7 @@ internal static class RoutePicker
                 }
 
                 var chosenId = ids.First(id => string.Equals(id.Handle.ToString(), choice.Handle, StringComparison.OrdinalIgnoreCase));
-                var name = ((Alignment)tr.GetObject(chosenId, OpenMode.ForRead)).Name;
+                name = ((Alignment)tr.GetObject(chosenId, OpenMode.ForRead)).Name;
                 tr.Commit();
                 message = ActiveRoute.Describe(choice.Reason, name);
                 ToolWindow.Trace($"tuyến: {choice.Reason} {name}");
@@ -112,6 +116,15 @@ internal static class RoutePicker
             ToolWindow.LogError("RoutePicker.Resolve", ex);
             return preselected;
         }
+    }
+
+    /// <summary>
+    /// The alignment to start with; ObjectId.Null when the user must pick.
+    /// message: what to tell the user, or null.
+    /// </summary>
+    public static ObjectId Resolve(Document doc, out string message)
+    {
+        return Resolve(doc, out message, out _);
     }
 
     /// <summary>

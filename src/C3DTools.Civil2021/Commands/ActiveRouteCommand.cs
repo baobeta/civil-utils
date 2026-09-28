@@ -38,14 +38,16 @@ public class ActiveRouteCommand
                 return;
             }
 
-            var current = RoutePicker.Resolve(doc, out var message);
+            var current = RoutePicker.Resolve(doc, out var message, out var currentName);
             if (message != null)
                 Prompts.Say(ed, message);
+            else if (current.IsNull)
+                Prompts.Say(ed, "Chưa có tuyến hiện hành.");
             else
-                Prompts.Say(ed, current.IsNull ? "Chưa có tuyến hiện hành." : "Tuyến đã chọn.");
+                Prompts.Say(ed, "Tuyến đang chọn: " + currentName);
 
             var opts = new PromptEntityOptions("\nChọn alignment làm tuyến hiện hành <Enter: dùng tuyến trên>: ");
-            opts.SetRejectMessage("Vui lòng chọn một alignment.");
+            opts.SetRejectMessage("\nVui lòng chọn một alignment.");
             opts.AddAllowedClass(typeof(Alignment), exactMatch: false);
             opts.AllowNone = true;
 
