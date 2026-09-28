@@ -121,4 +121,25 @@ public class DialogOptionsMemoryTests
 
         Assert.Equal(0, DialogOptionsMemory.LoadFile(path).Count);
     }
+
+    [Fact]
+    public void Clear_removes_one_commands_options_and_keeps_the_named_ones()
+    {
+        var m = new DialogOptionsMemory();
+        m.Set("CTPHATCOC", "Width", 760.0);
+        m.Set("CTPHATCOC", "Straight", "100");
+        m.Set("CTPHATCOC", "Labels", false);
+        m.Set("CTPHATCOCX", "Straight", "5");   // another command that starts with the same letters
+        m.Set("CTDANHCOC", "Prefix", "D");
+
+        var removed = m.Clear("CTPHATCOC", "Width", "Height");
+
+        Assert.Equal(2, removed);
+        Assert.Equal(760.0, m.Get("CTPHATCOC", "Width", 0.0));
+        Assert.Equal("20", m.Get("CTPHATCOC", "Straight", "20"));
+        Assert.True(m.Get("CTPHATCOC", "Labels", true));
+        Assert.Equal("5", m.Get("CTPHATCOCX", "Straight", ""));
+        Assert.Equal("D", m.Get("CTDANHCOC", "Prefix", ""));
+        Assert.Equal(0, m.Clear("CTKHONGCO"));
+    }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 
 namespace C3DTools.Core.Ui;
@@ -71,6 +72,16 @@ public sealed class DialogOptionsMemory
     }
 
     public void Set<T>(string command, string option, T value) => _values[Key(command, option)] = Format(value);
+
+    /// <summary>Forgets every option of the command except the named ones (e.g. the window size). Returns how many were removed.</summary>
+    public int Clear(string command, params string[] keep)
+    {
+        var prefix = command + ".";
+        var kept = new HashSet<string>((keep ?? new string[0]).Select(k => Key(command, k)), StringComparer.OrdinalIgnoreCase);
+        var doomed = _values.Keys.Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && !kept.Contains(k)).ToList();
+        foreach (var key in doomed) _values.Remove(key);
+        return doomed.Count;
+    }
 
     private static string Format<T>(T value)
     {
