@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -130,8 +129,8 @@ internal abstract class ToolWindow : Window
     /// <summary>
     /// "Về mặc định": clears all remembered option values for <paramref name="command"/> except window size and the
     /// Nâng cao open/closed state, which reflect how the window looks, not what the command does.
-    /// The caller must invoke this BEFORE saving any of the dialog's values for that command; if the dialog is still
-    /// open and its bindings write back after this call, the cleared values will be re-written.
+    /// Call this INSTEAD of saving the dialog's values: the command loop must not save after ShowModal() returns
+    /// DialogAction.Reset, or the values will be written back and the clear will have no effect.
     /// </summary>
     public static void ResetOptions(string command)
     {
@@ -189,18 +188,27 @@ internal abstract class ToolWindow : Window
     }
 
     /// <summary>
-    /// top docks to the top edge, bottom docks to the bottom edge, content fills the rest.
-    /// bottom is added BEFORE top so that DockPanel reserves its space first; this prevents the footer from being
-    /// pushed out of the window when the content grows taller than the remaining space.
+    /// top at the top, content fills the star row, bottom is always visible at the foot.
+    /// A two-row Grid is used: row 1 (Auto) is measured before row 0 (star), so the footer always keeps its height
+    /// even when Nâng cao opens and the content grows. Tree order is top → content → bottom, preserving the natural
+    /// Tab order the dialogs had before this task.
     /// </summary>
     protected void SetLayout(UIElement top, UIElement bottom, UIElement content)
     {
-        var root = new DockPanel { Margin = new Thickness(10) };
-        DockPanel.SetDock(bottom, Dock.Bottom);
-        root.Children.Add(bottom);
+        var root = new Grid { Margin = new Thickness(10) };
+        root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var inner = new DockPanel();
         DockPanel.SetDock(top, Dock.Top);
-        root.Children.Add(top);
-        root.Children.Add(content);
+        inner.Children.Add(top);
+        inner.Children.Add(content);
+        Grid.SetRow(inner, 0);
+        root.Children.Add(inner);
+
+        Grid.SetRow(bottom, 1);
+        root.Children.Add(bottom);
+
         Content = root;
     }
 
@@ -229,6 +237,7 @@ internal abstract class ToolWindow : Window
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             MaxHeight = 240,
+            Focusable = false,
         };
         var expander = new Expander
         {
@@ -248,39 +257,28 @@ internal abstract class ToolWindow : Window
     }
 
     /// <summary>
-    /// Summary text on the left (fills); Hủy, Áp dụng, Xem trước docked right (Tab order: Xem trước, Áp dụng, Hủy).
-    /// withReset adds "Về mặc định" (DialogAction.Reset) docked LEFT, separated from the summary by a 16 px right margin,
-    /// and away from the primary buttons on purpose — it discards all of the user's values with one click.
+    /// Grid footer: "Về mặc định" (column 0, left, 16 px gap from the summary) when withReset; summary fills (column 1);
+    /// Xem trước, Áp dụng, Hủy in columns 2–4. Children are added left to right so the natural Tab order is
+    /// Về mặc định → Xem trước → Áp dụng → Hủy. The reset button is kept far from the primary buttons on purpose:
+    /// one click discards all of the user's values.
     /// Only use withReset for commands whose loop handles DialogAction.Reset (see ResetOptions).
     /// </summary>
-    protected DockPanel BuildFooter(string summaryPath, string canApplyPath, bool withReset = false)
+    protected FrameworkElement BuildFooter(string summaryPath, string canApplyPath, bool withReset = false)
     {
-        var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = true };
+        var grid = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });           // col 0: reset (or empty)
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // col 1: summary
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });           // col 2: Xem trước
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });           // col 3: Áp dụng
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });           // col 4: Hủy
 
         if (withReset)
         {
             var reset = ActionButton("Về mặc định", DialogAction.Reset);
             reset.ToolTip = "Đặt lại mọi ô của hộp thoại này về giá trị ban đầu (giữ nguyên tuyến đang chọn)";
             reset.Margin = new Thickness(0, 0, 16, 0);
-            reset.TabIndex = 0;
-            DockPanel.SetDock(reset, Dock.Left);
-            actions.Children.Add(reset);
-        }
-
-        var cancel = Button("Hủy", (s, e) => Finish(DialogAction.Cancel));
-        cancel.IsCancel = true;
-        cancel.TabIndex = 3;
-        var apply = ActionButton("Áp dụng", DialogAction.Apply);
-        apply.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
-        apply.TabIndex = 2;
-        var preview = ActionButton("Xem trước", DialogAction.Preview);
-        preview.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
-        preview.TabIndex = 1;
-
-        foreach (var b in new[] { cancel, apply, preview })
-        {
-            DockPanel.SetDock(b, Dock.Right);
-            actions.Children.Add(b);
+            Grid.SetColumn(reset, 0);
+            grid.Children.Add(reset);
         }
 
         var summary = new TextBlock
@@ -289,10 +287,26 @@ internal abstract class ToolWindow : Window
             TextTrimming = TextTrimming.CharacterEllipsis,
         };
         summary.SetBinding(TextBlock.TextProperty, new Binding(summaryPath));
-        summary.SetBinding(ToolTipProperty, new Binding(summaryPath));
-        actions.Children.Add(summary);
+        summary.SetBinding(ToolTipProperty, new Binding(summaryPath) { Converter = NullIfEmpty.Instance });
+        Grid.SetColumn(summary, 1);
+        grid.Children.Add(summary);
 
-        return actions;
+        var preview = ActionButton("Xem trước", DialogAction.Preview);
+        preview.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
+        Grid.SetColumn(preview, 2);
+        grid.Children.Add(preview);
+
+        var apply = ActionButton("Áp dụng", DialogAction.Apply);
+        apply.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
+        Grid.SetColumn(apply, 3);
+        grid.Children.Add(apply);
+
+        var cancel = Button("Hủy", (s, e) => Finish(DialogAction.Cancel));
+        cancel.IsCancel = true;
+        Grid.SetColumn(cancel, 4);
+        grid.Children.Add(cancel);
+
+        return grid;
     }
 
     /// <summary>One row of output checkboxes, each bound two-way to a bool view-model property.</summary>
@@ -386,5 +400,16 @@ internal abstract class ToolWindow : Window
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
+    }
+
+    /// <summary>Returns null for null or empty strings so a bound ToolTip shows no box when the text is empty.</summary>
+    protected sealed class NullIfEmpty : IValueConverter
+    {
+        public static readonly NullIfEmpty Instance = new NullIfEmpty();
+
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+            value is string s && s.Length > 0 ? s : null;
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => Binding.DoNothing;
     }
 }
