@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Windows;
@@ -14,7 +15,7 @@ using AcCoreApp = Autodesk.AutoCAD.ApplicationServices.Core.Application;
 namespace C3DTools.Civil2021.Ui;
 
 /// <summary>What the dialog asks the command to do after it closes.</summary>
-internal enum DialogAction { Cancel, Pick, ZoomToPi, ReadWidening, Preview, Apply, Count, PickPoints, PickFrom, PickTo }
+internal enum DialogAction { Cancel, Pick, ZoomToPi, ReadWidening, Preview, Apply, Count, PickPoints, PickFrom, PickTo, Reset }
 
 /// <summary>
 /// The skeleton every C3DTools dialog shares (UI rule 2), built in code (no XAML): header with the source and
@@ -26,6 +27,9 @@ internal abstract class ToolWindow : Window
     public static readonly Brush WarningBrush = Frozen(Color.FromRgb(0xFF, 0xF4, 0xC2));
     public static readonly Brush ErrorBrush = Frozen(Color.FromRgb(0xFF, 0xD6, 0xD6));
     public static readonly Brush ReadOnlyBrush = Frozen(Color.FromRgb(0xEE, 0xEE, 0xEE));
+
+    /// <summary>Option names that "Về mặc định" keeps: how the window looks, not what the command does.</summary>
+    private const string WidthOption = "Width", HeightOption = "Height", AdvancedOption = "Advanced";
 
     private static DialogOptionsMemory _options;
 
@@ -46,8 +50,8 @@ internal abstract class ToolWindow : Window
         FontSize = 12;
         MinWidth = minWidth;
         MinHeight = minHeight;
-        Width = RememberedSize("Width", width, minWidth, SystemParameters.WorkArea.Width);
-        Height = RememberedSize("Height", height, minHeight, SystemParameters.WorkArea.Height);
+        Width = RememberedSize(WidthOption, width, minWidth, SystemParameters.WorkArea.Width);
+        Height = RememberedSize(HeightOption, height, minHeight, SystemParameters.WorkArea.Height);
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         ShowInTaskbar = false;
         Closed += (s, e) =>
@@ -123,6 +127,14 @@ internal abstract class ToolWindow : Window
         }
     }
 
+    /// <summary>"Về mặc định": forgets the command's remembered values; window size and the Nâng cao state stay.</summary>
+    public static void ResetOptions(string command)
+    {
+        Options.Clear(command, WidthOption, HeightOption, AdvancedOption);
+        SaveOptions();
+        Trace(command + ": về mặc định");
+    }
+
     /// <summary>Shows the dialog modal to AutoCAD and returns what the user chose.</summary>
     public DialogAction ShowModal()
     {
@@ -194,8 +206,35 @@ internal abstract class ToolWindow : Window
         return row;
     }
 
-    /// <summary>Summary text on the left; Xem trước, Áp dụng (both enabled by canApplyPath) and Hủy on the right.</summary>
-    protected DockPanel BuildFooter(string summaryPath, string canApplyPath)
+    /// <summary>
+    /// "Nâng cao": the rows a user rarely changes, folded away until asked for. Whether it is open is remembered per command.
+    /// </summary>
+    protected Expander Advanced(params UIElement[] rows)
+    {
+        var panel = new StackPanel { Margin = new Thickness(0, 4, 0, 0) };
+        foreach (var row in rows) panel.Children.Add(row);
+        var expander = new Expander
+        {
+            Header = "Nâng cao",
+            Content = panel,
+            Margin = new Thickness(0, 6, 0, 2),
+            IsExpanded = Options.Get(Command, AdvancedOption, false),
+        };
+        RoutedEventHandler remember = (s, e) =>
+        {
+            Options.Set(Command, AdvancedOption, expander.IsExpanded);
+            SaveOptions();
+        };
+        expander.Expanded += remember;
+        expander.Collapsed += remember;
+        return expander;
+    }
+
+    /// <summary>
+    /// Summary text on the left; Xem trước, Áp dụng (both enabled by canApplyPath) and Hủy on the right.
+    /// withReset adds "Về mặc định" (DialogAction.Reset): only for commands whose loop handles it.
+    /// </summary>
+    protected DockPanel BuildFooter(string summaryPath, string canApplyPath, bool withReset = false)
     {
         var actions = new DockPanel { Margin = new Thickness(0, 6, 0, 0), LastChildFill = false };
         var summary = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
@@ -207,7 +246,15 @@ internal abstract class ToolWindow : Window
         apply.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
         var preview = ActionButton("Xem trước", DialogAction.Preview);
         preview.SetBinding(IsEnabledProperty, new Binding(canApplyPath));
-        foreach (var b in new[] { cancel, apply, preview })
+        var buttons = new List<Button> { cancel, apply, preview };
+        if (withReset)
+        {
+            var reset = ActionButton("Về mặc định", DialogAction.Reset);
+            reset.ToolTip = "Đặt lại mọi ô của hộp thoại này về giá trị ban đầu (giữ nguyên tuyến đang chọn)";
+            buttons.Add(reset);
+        }
+
+        foreach (var b in buttons)
         {
             DockPanel.SetDock(b, Dock.Right);
             actions.Children.Add(b);
