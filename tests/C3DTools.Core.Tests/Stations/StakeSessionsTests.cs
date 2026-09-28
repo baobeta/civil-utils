@@ -148,9 +148,33 @@ public class StakeGenerationSessionTests
 
         s.DensifyCurves = true;
         Assert.False(s.CanApply);
+        // Only curve spacing is bad (straight spacing is fine) → name the Nâng cao field
+        Assert.Equal("Khoảng cách chêm cọc trong đường cong phải là số lớn hơn 0", s.SummaryText);
         s.CurveSpacingText = "10";
         Assert.True(s.CanApply);
         Assert.Contains(110.0, s.Plan(null, zone, null).Select(p => p.Station));
+    }
+
+    [Fact]
+    public void Summary_names_C_stake_spacing_when_it_is_bad()
+    {
+        var s = Loaded("G");
+        s.StraightSpacingText = "abc";
+        // Straight spacing bad (visible field) → name the C stake field
+        Assert.False(s.CanApply);
+        Assert.Equal("Khoảng cách cọc C phải là số lớn hơn 0", s.SummaryText);
+    }
+
+    [Fact]
+    public void Summary_names_C_stake_spacing_when_both_spacings_are_bad()
+    {
+        var s = Loaded("G");
+        s.StraightSpacingText = "abc";
+        s.DensifyCurves = true;
+        s.CurveSpacingText = "abc";
+        // Both bad: report the visible one (cọc C) first
+        Assert.False(s.CanApply);
+        Assert.Equal("Khoảng cách cọc C phải là số lớn hơn 0", s.SummaryText);
     }
 
     [Fact]
@@ -349,7 +373,32 @@ public class StakeRenameSessionTests
         s.FirstPiNumberText = "0";
 
         Assert.False(s.CanApply);
-        Assert.Equal("Số thứ tự phải là số nguyên dương", s.SummaryText);
+        // FirstDetailNumber is valid; only the PI number (Nâng cao) is bad → name the PI field
+        Assert.Equal("Số thứ tự đỉnh đầu phải là số nguyên dương", s.SummaryText);
+    }
+
+    [Fact]
+    public void Summary_names_the_visible_field_when_both_numbers_are_bad()
+    {
+        var s = Loaded();
+        s.FirstDetailNumberText = "0";
+        s.FirstPiNumberText = "0";
+
+        Assert.False(s.CanApply);
+        // Both bad: report the visible one (cọc đầu) first
+        Assert.Equal("Số thứ tự cọc đầu phải là số nguyên dương", s.SummaryText);
+    }
+
+    [Fact]
+    public void Summary_names_stake_number_field_when_only_it_is_bad()
+    {
+        var s = Loaded();
+        s.FirstDetailNumberText = "0";
+        // FirstPiNumber stays valid ("1")
+        Assert.True(s.IsFirstPiValid);
+
+        Assert.False(s.CanApply);
+        Assert.Equal("Số thứ tự cọc đầu phải là số nguyên dương", s.SummaryText);
     }
 
     [Fact]

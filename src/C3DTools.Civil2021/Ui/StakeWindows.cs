@@ -87,6 +87,7 @@ internal sealed class StakeGenerateWindow : ToolWindow
         top.Children.Add(insertBox);
 
         var subStake = Check("Chèn: kiểu cọc phụ (đặt tên theo cọc trước: C5a, C5b)", nameof(StakeGenerationSession.SubStakeStyle));
+        subStake.SetBinding(IsEnabledProperty, new Binding(nameof(StakeGenerationSession.InsertMode)));
         subStake.Margin = new Thickness(0, 2, 0, 2);
         top.Children.Add(Advanced(
             width, start, curves, hundreds, subStake,

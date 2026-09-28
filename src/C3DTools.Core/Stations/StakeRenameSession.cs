@@ -188,7 +188,8 @@ public sealed class StakeRenameSession : INotifyPropertyChanged
         {
             if (_stakes.Count == 0) return "Chưa chọn nhóm cọc";
             if (!IsRangeValid) return "Cọc đầu phải đứng trước cọc cuối";
-            if (!IsFirstPiValid || !IsFirstDetailValid) return "Số thứ tự phải là số nguyên dương";
+            if (!IsFirstDetailValid) return "Số thứ tự cọc đầu phải là số nguyên dương";
+            if (!IsFirstPiValid) return "Số thứ tự đỉnh đầu phải là số nguyên dương";
             if (ChangedCount > 0) return $"{ChangedCount} / {_stakes.Count} cọc đổi tên";
             return _writeLabels ? "Không có tên nào thay đổi; Áp dụng sẽ ghi tên cọc lên bình đồ" : "Không có tên nào thay đổi";
         }
