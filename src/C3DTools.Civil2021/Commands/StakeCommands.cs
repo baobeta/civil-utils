@@ -102,9 +102,21 @@ public class StakeCommands
             {
                 // Not saved first: the values being reset must not be written back.
                 ToolWindow.ResetOptions(command);
-                session = NewSession();
-                if (route != null) route = LoadRoute(doc, preset, route.Id, session) ?? route;
-                if (route != null) RoutePicker.Remember(doc, route.Id);
+                var fresh = NewSession();
+                if (route != null)
+                {
+                    // The dialog and the command must describe the same route: swap only when the reload worked.
+                    var reloaded = LoadRoute(doc, preset, route.Id, fresh);
+                    if (reloaded == null)
+                    {
+                        Prompts.Say(ed, "Đã xóa các giá trị đã nhớ nhưng không tải lại được tuyến; hộp thoại giữ các giá trị đang có.");
+                        continue;
+                    }
+
+                    route = reloaded;
+                }
+
+                session = fresh;
                 continue;
             }
 
@@ -340,20 +352,14 @@ public class StakeCommands
         var session = NewSession();
         StakeGroup ids = null;
         // A sample line or alignment selected before the command; else the active route.
-        var presel = PickFirst<SampleLine>(ed);
-        if (presel.IsNull) presel = PickFirst<Alignment>(ed);
-        ObjectId source;
-        if (!presel.IsNull)
-        {
-            source = presel;
-        }
-        else
+        var source = PickFirst(ed, typeof(SampleLine), typeof(Alignment));
+        if (source.IsNull)
         {
             source = RoutePicker.Resolve(doc, out var why);
             if (why != null) Prompts.Say(ed, why);
         }
 
-        if (!source.IsNull) ids = LoadGroup(doc, preset, source, session) ?? ids;
+        if (!source.IsNull) ids = LoadGroup(doc, preset, source, session);
         if (ids != null) RoutePicker.Remember(doc, ids.AlignmentId);
 
         while (true)
@@ -363,13 +369,21 @@ public class StakeCommands
             {
                 // Not saved first: the values being reset must not be written back. The group stays.
                 ToolWindow.ResetOptions(command);
-                session = NewSession();
+                var fresh = NewSession();
                 if (ids != null)
                 {
-                    var reloaded = ReloadGroup(doc, preset, ids.GroupId, ids.AlignmentId, session);
-                    if (reloaded != null) { ids = reloaded; RoutePicker.Remember(doc, ids.AlignmentId); }
-                    else Prompts.Say(ed, "Không tải lại được nhóm cọc; giữ lại nhóm cũ.");
+                    // The dialog and the command must describe the same group: swap only when the reload worked.
+                    var reloaded = ReloadGroup(doc, preset, ids.GroupId, ids.AlignmentId, fresh);
+                    if (reloaded == null)
+                    {
+                        Prompts.Say(ed, "Đã xóa các giá trị đã nhớ nhưng không tải lại được nhóm cọc; hộp thoại giữ các giá trị đang có.");
+                        continue;
+                    }
+
+                    ids = reloaded;
                 }
+
+                session = fresh;
                 continue;
             }
 
@@ -396,7 +410,6 @@ public class StakeCommands
                     var loaded = LoadGroup(doc, preset, picked, session);
                     if (loaded == null) continue;
                     ids = loaded;
-                    source = picked;
                     RoutePicker.Remember(doc, ids.AlignmentId);
                     continue;
                 case DialogAction.Preview:
@@ -427,13 +440,14 @@ public class StakeCommands
     private static StakeGroup LoadGroup(Document doc, ProjectPreset preset, ObjectId picked, StakeRenameSession session)
     {
         var ed = doc.Editor;
+        ObjectId groupId;
+        ObjectId alignmentId;
         try
         {
             var civil = CivilDocument.GetCivilDocument(doc.Database);
             using (var tr = doc.TransactionManager.StartTransaction())
             {
                 var obj = tr.GetObject(picked, OpenMode.ForRead);
-                ObjectId groupId;
                 Alignment alignment;
                 if (obj is SampleLine line)
                 {
@@ -455,12 +469,8 @@ public class StakeCommands
                     return null;
                 }
 
-                var lines = SampleLineStakes.Read(tr, groupId);
-                var groupName = ((SampleLineGroup)tr.GetObject(groupId, OpenMode.ForRead)).Name;
-                var curves = AlignmentCurves.Read(doc, preset, alignment);
+                alignmentId = alignment.ObjectId;
                 tr.Commit();
-                session.SetStakes($"{groupName} ({alignment.Name}, {lines.Count} cọc)", StakeClassifier.Classify(lines.Select(l => l.stake), curves.Keys));
-                return new StakeGroup { GroupId = groupId, AlignmentId = alignment.ObjectId, Lines = lines.Select(l => l.id).ToList() };
             }
         }
         catch (System.Exception ex)
@@ -468,11 +478,13 @@ public class StakeCommands
             Prompts.Say(ed, $"Không đọc được nhóm cọc: {ex.Message}");
             return null;
         }
+
+        return ReloadGroup(doc, preset, groupId, alignmentId, session);
     }
 
     /// <summary>
-    /// Reloads a known group by id without prompting the user. Used by the Reset path so reset never re-asks
-    /// which group to use. Returns null (with a message) when the group or alignment can no longer be read.
+    /// Loads a known group into the session without asking anything; "Về mặc định" uses it directly so the
+    /// group in use stays. Returns null (with a message) when the group or alignment cannot be read.
     /// </summary>
     private static StakeGroup ReloadGroup(Document doc, ProjectPreset preset, ObjectId groupId, ObjectId alignmentId, StakeRenameSession session)
     {
@@ -547,13 +559,16 @@ public class StakeCommands
         return preset;
     }
 
-    /// <summary>The first object of type T selected before the command, or ObjectId.Null.</summary>
-    private static ObjectId PickFirst<T>(Editor ed)
+    /// <summary>
+    /// The first object of one of the types selected before the command, or ObjectId.Null.
+    /// Reads the selection once: reading it clears it.
+    /// </summary>
+    private static ObjectId PickFirst(Editor ed, params Type[] types)
     {
         var implied = ed.SelectImplied();
         if (implied.Status != PromptStatus.OK || implied.Value == null) return ObjectId.Null;
         ed.SetImpliedSelection(new ObjectId[0]);
-        var cls = RXObject.GetClass(typeof(T));
-        return implied.Value.GetObjectIds().FirstOrDefault(id => id.ObjectClass.IsDerivedFrom(cls));
+        var classes = types.Select(RXObject.GetClass).ToList();
+        return implied.Value.GetObjectIds().FirstOrDefault(id => classes.Any(c => id.ObjectClass.IsDerivedFrom(c)));
     }
 }

@@ -167,8 +167,25 @@ internal static class RoutePicker
         }
     }
 
-    /// <summary>The handle remembered in doc.UserData for this session, or null. Exposed so commands can save and restore it.</summary>
-    internal static string ReadRememberedHandle(Document doc) => ReadRemembered(doc);
+    /// <summary>What is remembered now (null when nothing is), to give back to <see cref="Restore"/>.</summary>
+    internal static string Remembered(Document doc) => ReadRemembered(doc);
+
+    /// <summary>
+    /// Puts back what <see cref="Remembered"/> returned, for a command whose result was not kept: the alignment
+    /// it remembered no longer exists. A null handle forgets. Never throws.
+    /// </summary>
+    internal static void Restore(Document doc, string handle)
+    {
+        try
+        {
+            if (handle == null) doc.UserData.Remove(ActiveRouteStore.Key);
+            else doc.UserData[ActiveRouteStore.Key] = handle;
+        }
+        catch (System.Exception ex)
+        {
+            ToolWindow.LogError("RoutePicker.Restore", ex);
+        }
+    }
 
     /// <summary>The handle remembered in doc.UserData for this session, or null.</summary>
     private static string ReadRemembered(Document doc)

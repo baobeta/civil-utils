@@ -188,6 +188,8 @@ public class RouteCreateCommand
         var db = doc.Database;
         ObjectId id;
         bool keep;
+        // The new alignment is remembered before the user decides; a result that is not kept puts this back.
+        var before = RoutePicker.Remembered(doc);
         // The section-file database outlives the transaction: ImportAssembly's clones must not point at a disposed source.
         using (var side = OpenSectionFile(session, ed))
         using (doc.LockDocument())
@@ -215,17 +217,16 @@ public class RouteCreateCommand
                 RouteTag.Write(tr, db, alignment, session.Scale, session.DesignSpeed, session.Assembly);
                 if (session.Surface != null) CreateGroundProfile(tr, civil, alignment, session.Surface, layerId, ed);
 
-                var previousHandle = RoutePicker.ReadRememberedHandle(doc);
                 RoutePicker.Remember(doc, id);
                 RoutePicker.Save(tr, doc);
 
                 tr.TransactionManager.QueueForGraphicsFlush();
                 ed.UpdateScreen();
                 keep = !askToKeep || Prompts.AskKeep(ed);
-                if (!keep && previousHandle != null) doc.UserData[ActiveRouteStore.Key] = previousHandle;
             }
             catch (System.Exception ex)
             {
+                RoutePicker.Restore(doc, before);
                 Prompts.Say(ed, $"Không tạo được tuyến: {ex.Message}. Đã hủy, bản vẽ không thay đổi.");
                 return ObjectId.Null;
             }
@@ -236,6 +237,7 @@ public class RouteCreateCommand
 
         if (!keep)
         {
+            RoutePicker.Restore(doc, before);
             ed.Regen();
             return ObjectId.Null;
         }
