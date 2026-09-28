@@ -41,7 +41,7 @@
 
   <!-- Ribbon icons (Ui/RibbonSetup.cs loads them by these names) -->
   <ItemGroup>
-    <!-- One 16/32 px pair per panel: ytc (Tuyến), tracdoc, tracngang, diahinh, thoatnuoc, banve -->
+    <!-- One 16/32 px pair per panel: ytc (Tuyến), coc, tracdoc, tracngang, diahinh, tienich -->
     <EmbeddedResource Include="Resources\*.png" LogicalName="C3DTools.Civil2021.Resources.%(Filename)%(Extension)" />
   </ItemGroup>
 

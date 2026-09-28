@@ -62,7 +62,7 @@ public sealed class RibbonSetup : IExtensionApplication
             ("Tạo tuyến", "CTTUYEN", "Tạo alignment mới từ polyline hoặc các điểm chỉ trên bản vẽ, kèm tỉ lệ bình đồ và vận tốc thiết kế."),
             ("Yếu tố cong", "CTYTC", "Thiết kế và cắm cong nằm theo TCVN 4054: đường cong, siêu cao, mở rộng, khung yếu tố, cọc và bảng."),
             ("Bảng cong", "CTYTCBANG", "Xuất bảng tổng hợp yếu tố cong của một tuyến ra AutoCAD Table, CSV hoặc Excel."),
-            ("Tuyến hiện hành", "CTTUYENHH", "Chọn tuyến mà các lệnh sau sẽ làm việc; không phải chọn lại ở từng lệnh.")));
+            ("Tuyến hiện hành", "CTTUYENHH", "Chọn tuyến mà các lệnh cọc, toạ độ cọc và bảng cống sẽ làm việc; không phải chọn lại ở từng lệnh.")));
         tab.Panels.Add(Panel("Cọc", "coc",
             ("Phát sinh cọc", "CTPHATCOC", "Phát sinh hoặc chèn cọc dọc tuyến: cọc Km, H, C và cọc đặc biệt tại đường cong, kèm tên cọc trên bình đồ."),
             ("Đánh tên cọc", "CTDANHCOC", "Đánh lại tên cọc của một nhóm cọc theo quy tắc chọn và ghi tên lên bình đồ."),

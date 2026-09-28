@@ -51,7 +51,10 @@ public class ActiveRouteCommand
             opts.AddAllowedClass(typeof(Alignment), exactMatch: false);
             opts.AllowNone = true;
 
+            // A click on empty space comes back as Error: ask again, a few times at most.
             var result = ed.GetEntity(opts);
+            for (var tries = 1; result.Status == PromptStatus.Error && tries < 5; tries++)
+                result = ed.GetEntity(opts);
             ObjectId chosen;
             if (result.Status == PromptStatus.OK)
             {

@@ -24,11 +24,11 @@ public class SupportCommand
     private const string Contents =
         "Tệp zip này gồm: thong-tin.txt (phiên bản, máy, tên bản vẽ, số đối tượng), trace.log (các bước đã chạy, có tên tuyến, "
         + "tên nhóm cọc, tên cọc), error.log (lỗi đã gặp, có thể có đường dẫn thư mục trên máy), options.json (giá trị đã nhớ "
-        + "của các hộp thoại). Nhật ký gồm mọi bản vẽ đã làm, không riêng bản vẽ này. Không có bản vẽ.";
+        + "của các hộp thoại, có tên mặt phủ và tên trắc dọc đã chọn). Nhật ký gồm mọi bản vẽ đã làm, không riêng bản vẽ này. Không có bản vẽ.";
 
     /// <summary>
     /// CTBAOLOI: packs the logs, the remembered options and facts about the machine and the drawing into a zip on the
-    /// Desktop. The drawing itself is not included and nothing is sent anywhere.
+    /// Desktop (the temp folder when the Desktop is missing or refuses the file). The drawing itself is not included and nothing is sent anywhere.
     /// </summary>
     [CommandMethod("C3DTOOLS", "CTBAOLOI", CommandFlags.Modal)]
     public void Report()
@@ -69,7 +69,7 @@ public class SupportCommand
             Prompts.Say(ed, $"Đã tạo {zip} ({written.Count} tệp).");
             var missing = files.Where(f => !File.Exists(f)).Select(Path.GetFileName).ToList();
             if (missing.Count > 0) Prompts.Say(ed, "Chưa có trên máy này nên không kèm: " + string.Join(", ", missing) + ".");
-            Prompts.Say(ed, "Tệp không chứa bản vẽ và C3DTools không tự gửi nó đi đâu. Tệp có tên bản vẽ, tên tuyến, tên cọc và nhật ký lỗi "
+            Prompts.Say(ed, "Tệp không chứa bản vẽ và C3DTools không tự gửi nó đi đâu. Tệp có tên bản vẽ, tên tuyến, tên nhóm cọc, tên cọc, tên mặt phủ, tên trắc dọc và nhật ký lỗi "
                             + "(có thể có đường dẫn thư mục trên máy); có thể mở ra xem trước khi gửi.");
             Prompts.Say(ed, "Hãy gửi tệp kèm mô tả bước đang làm khi gặp lỗi.\n");
             try

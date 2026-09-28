@@ -199,10 +199,11 @@ Bản này không đổi phép tính nào; nó đổi cách dùng. Chưa có ph�
 
 ### Tuyến hiện hành
 
-Bản vẽ nhớ một **tuyến hiện hành**. `CTPHATCOC`, `CTDANHCOC`, `CTTOADO`, `CTBANGCONG` mở ra là dùng ngay tuyến đó, không hỏi chọn alignment. Dòng lệnh báo `Tuyến hiện hành: <tên>`.
+Bản vẽ nhớ một **tuyến hiện hành**. `CTPHATCOC`, `CTDANHCOC`, `CTTOADO`, `CTBANGCONG` mở ra là dùng ngay tuyến đó, không hỏi chọn alignment. Dòng lệnh báo `Tuyến hiện hành: <tên>`; nếu bản vẽ chỉ có một alignment thì báo `Bản vẽ có một tuyến: <tên>`; nếu đã chọn sẵn alignment trước khi gõ lệnh thì không báo gì. Các lệnh khác (`CTYTC`, `CTTRACDOC`…) chưa dùng tuyến hiện hành.
 
 - Tuyến vừa tạo bằng `CTTUYEN` tự thành tuyến hiện hành.
-- Bấm **Chọn trên bản vẽ…** trong một lệnh và chọn tuyến khác: các lệnh sau trong phiên làm việc này dùng tuyến đó. Tuyến chỉ được **ghi vào bản vẽ** khi bấm **Áp dụng**; bấm **Hủy** thì bản vẽ không đổi.
+- Bấm **Chọn trên bản vẽ…** trong một lệnh và chọn tuyến khác: các lệnh sau trong phiên làm việc này dùng tuyến đó. Tuyến được **ghi vào bản vẽ** khi lệnh thực sự ghi kết quả vào bản vẽ (**Áp dụng**, hoặc **Xem trước** rồi giữ kết quả) và khi dùng `CTTUYENHH`. Bấm **Hủy** thì bản vẽ không đổi. Chỉ xuất CSV/Excel thì tuyến chỉ được nhớ trong phiên làm việc, đóng bản vẽ là mất.
+- `CTDANHCOC` khi không chọn sẵn gì: nạp nhóm cọc của tuyến hiện hành trước khi mở hộp thoại. Tuyến có nhiều nhóm cọc thì dòng lệnh hỏi nhóm nào; tuyến chưa có nhóm cọc thì dòng lệnh báo và hộp thoại mở với "chưa chọn". (Bản 0.5.12 mở hộp thoại trống.)
 - Chọn alignment trước rồi mới gõ lệnh: lệnh dùng alignment đó.
 - Bản vẽ chỉ có một alignment: lệnh dùng luôn alignment đó.
 - `CTTUYENHH` (nút **Tuyến hiện hành**): xem hoặc đổi tuyến hiện hành.
@@ -223,19 +224,20 @@ Sáu panel theo thứ tự làm việc: **Tuyến → Cọc → Trắc dọc →
 
 Tạo tệp `C3DTools-baoloi-<ngày-giờ>.zip` trên Desktop, gồm `trace.log`, `error.log`, `options.json` và `thong-tin.txt` (phiên bản C3DTools, Civil 3D, Windows, tên bản vẽ, số alignment, số nhóm cọc). **Tệp không chứa bản vẽ và C3DTools không tự gửi nó đi đâu.** Gửi tệp này kèm mô tả bước đang làm khi gặp lỗi.
 
-Tệp có tên bản vẽ, tên tuyến, tên nhóm cọc, tên cọc, và nhật ký lỗi có thể chứa đường dẫn thư mục trên máy (kể cả tên người dùng Windows). Nhật ký gồm mọi bản vẽ đã làm, không riêng bản vẽ đang mở. Có thể mở tệp zip ra xem trước khi gửi. Nếu Desktop nằm trong OneDrive thì tệp sẽ được OneDrive đồng bộ như mọi tệp khác trên Desktop.
+Tệp có tên bản vẽ, tên tuyến, tên nhóm cọc, tên cọc, tên mặt phủ, tên trắc dọc, và nhật ký lỗi có thể chứa đường dẫn thư mục trên máy (kể cả tên người dùng Windows). Nhật ký gồm mọi bản vẽ đã làm, không riêng bản vẽ đang mở. Có thể mở tệp zip ra xem trước khi gửi. Nếu Desktop nằm trong OneDrive thì tệp sẽ được OneDrive đồng bộ như mọi tệp khác trên Desktop.
 
 ### Chưa kiểm tra trên Windows (0.6)
 
 Tuyến hiện hành:
 
 - [ ] Tuyến hiện hành còn sau khi lưu, đóng và mở lại bản vẽ
-- [ ] Xoá alignment đang là tuyến hiện hành: lệnh hỏi chọn tuyến, không báo lỗi
+- [ ] Xoá alignment đang là tuyến hiện hành, bản vẽ còn từ 2 alignment: `CTPHATCOC` mở hộp thoại với "chưa chọn", không báo lỗi
+- [ ] Xoá alignment đang là tuyến hiện hành, bản vẽ còn đúng 1 alignment: `CTPHATCOC` dùng alignment đó, dòng lệnh báo `Bản vẽ có một tuyến: <tên>`
 - [ ] Bản vẽ có 2 alignment, chưa có tuyến hiện hành: lệnh mở hộp thoại với "chưa chọn"
 - [ ] Mở lệnh, **Chọn trên bản vẽ…**, rồi **Hủy**: bản vẽ không bị đánh dấu đã sửa (`DBMOD` không đổi), không có bước undo mới
 - [ ] `CTTOADO` chỉ xuất CSV (không vẽ bảng): chạy được, bản vẽ không đổi
 - [ ] **Áp dụng** → `U` → chạy lại lệnh: lệnh vẫn mở đúng tuyến, một lệnh `U` hoàn tác cả cọc lẫn bản ghi tuyến hiện hành
-- [ ] `CTTUYENHH`: Enter giữ tuyến đang có; Esc thoát không đổi gì; bấm trượt ra ngoài thì hỏi lại; chọn alignment trước rồi gõ lệnh thì đề nghị đúng alignment đó
+- [ ] `CTTUYENHH`: Enter giữ tuyến đang có; Esc thoát không đổi gì; bấm trượt ra ngoài thì hỏi lại (tối đa 5 lần, sau đó báo "Đã hủy."); chọn alignment trước rồi gõ lệnh thì đề nghị đúng alignment đó
 - [ ] `CTTUYEN` khi đang có tuyến A: **Xem trước** rồi trả lời không giữ, **Hủy**, chạy `CTPHATCOC`: lệnh mở với tuyến A
 - [ ] `CTDANHCOC` khi chọn sẵn một line hoặc text: lệnh dùng tuyến hiện hành; chọn sẵn một Sample Line: lệnh dùng nhóm cọc của nó
 
@@ -260,6 +262,7 @@ Ribbon và báo lỗi:
 - [ ] `CTBAOLOI` khi Desktop nằm trong OneDrive, và khi tên người dùng Windows có dấu tiếng Việt hoặc dấu cách
 - [ ] `CTBAOLOI`: mở `thong-tin.txt` bằng Notepad, chữ tiếng Việt đọc được
 - [ ] `CTBAOLOI` trên máy chưa từng chạy lệnh C3DTools nào: dòng lệnh nêu tệp nào chưa có
-- [ ] `CTBAOLOI` trên bản vẽ tạo từ `acad.dwt` và khi mở Civil 3D bằng lối tắt "Civil 3D as AutoCAD": vẫn ra tệp zip, `thong-tin.txt` ghi phần Civil 3D không đọc được
+- [ ] `CTBAOLOI` trên bản vẽ tạo từ `acad.dwt`: vẫn ra tệp zip; phần Civil 3D trong `thong-tin.txt` ghi số 0 hoặc "không đọc được", lệnh không báo lỗi
+- [ ] Mở Civil 3D bằng lối tắt "Civil 3D as AutoCAD" rồi gõ `CTBAOLOI`: nếu lệnh chạy thì vẫn ra tệp zip và phần Civil 3D ghi "không đọc được"; nếu lệnh không tồn tại thì ghi lại điều đó
 - [ ] `CTBAOLOI` khi Desktop bị chặn ghi (Controlled Folder Access): tệp zip nằm trong thư mục tạm, dòng lệnh ghi đường dẫn
 - [ ] Sau `CTBAOLOI`: bản vẽ không bị đánh dấu đã sửa
